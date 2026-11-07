@@ -931,7 +931,7 @@
  "The list has changes that are not saved": "Lista ma niezapisane zmiany",
  "The list has unsaved changes; the game would start with the saved one": "Lista ma niezapisane zmiany; gra uruchomiłaby się z zapisaną",
  "The list of the DDS files RimStack made could not be saved: {}": "Nie udało się zapisać listy plików DDS utworzonych przez RimStack: {}",
- "The list the search began with, less this mod. Nothing is written before Save.": "Lista, z którą zaczęto wyszukiwanie, bez tego moda. Przed Zapisz nic nie jest zapisywane.",
+ "The list the search began with, minus this mod. Nothing is written before Save.": "Lista, z którą zaczęto wyszukiwanie, bez tego moda. Przed Zapisz nic nie jest zapisywane.",
  "The list the search began with. Nothing is written before Save.": "Lista, z którą zaczęto wyszukiwanie. Przed Zapisz nic nie jest zapisywane.",
  "The list was not saved. {}": "Lista nie została zapisana. {}",
  "The list {} is kept under the same file name. Give this one another name.": "Lista {} jest przechowywana pod tą samą nazwą pliku. Nadaj tej inną nazwę.",
