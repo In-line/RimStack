@@ -30,6 +30,8 @@ pub struct Paths {
     pub workshop: Option<PathBuf>,
     /// Short form, `1.6`, from `<game>/Version.txt`.
     pub game_version: Option<String>,
+    /// As `<game>/Version.txt` gives it: `1.6.4871 rev598`.
+    pub full_game_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -388,10 +390,14 @@ pub fn detect_on(os: Os, home: &Path, env: Env, overrides: &Overrides) -> Paths 
             .and_then(|(l, _)| workshop_in(l))
             .or_else(|| libraries.iter().find_map(workshop_in))
     });
-    let game_version = game
+    let full_game_version = game
         .as_ref()
         .and_then(|g| std::fs::read_to_string(g.join("Version.txt")).ok())
-        .and_then(|v| crate::rimworld::modsconfig::short_version(&v));
+        .and_then(|v| v.lines().next().map(|line| line.trim().to_string()))
+        .filter(|v| !v.is_empty());
+    let game_version = full_game_version
+        .as_deref()
+        .and_then(crate::rimworld::modsconfig::short_version);
     let config = given(&overrides.config).map(settings_holder).or_else(|| {
         let native = native_settings(os, home, game_version.as_deref());
         // Under Proton the settings live inside the game's Windows prefix.
@@ -423,6 +429,7 @@ pub fn detect_on(os: Os, home: &Path, env: Env, overrides: &Overrides) -> Paths 
         config,
         workshop,
         game_version,
+        full_game_version,
     }
 }
 
@@ -473,6 +480,7 @@ mod tests {
         );
         assert_eq!(paths.config, Some(home.path().join(NATIVE_CONFIG)));
         assert_eq!(paths.game_version.as_deref(), Some("1.6"));
+        assert_eq!(paths.full_game_version.as_deref(), Some("1.6.4871 rev598"));
         let sources: Vec<Source> = paths.roots().iter().map(|r| r.source).collect();
         assert_eq!(sources, [Source::Official, Source::Local, Source::Workshop]);
     }

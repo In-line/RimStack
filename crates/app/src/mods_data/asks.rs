@@ -94,10 +94,12 @@ impl qobject::ModsData {
             .filter_map(|m| library.get(m.installed?))
             .map(rimstack_core::mods::share::Entry::of)
             .collect();
-        QString::from(&rimstack_core::mods::share::listing(
-            &library.game_version,
-            &entries,
-        ))
+        let paths = app.paths();
+        let version = paths
+            .full_game_version
+            .as_deref()
+            .unwrap_or(&library.game_version);
+        QString::from(&rimstack_core::mods::share::listing(version, &entries))
     }
 
     pub(super) fn sort_moves(&self) -> QVariant {

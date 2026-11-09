@@ -121,14 +121,16 @@ mod tests {
             ),
             entry("RimWorld", "ludeon.rimworld", None),
         ];
+        let text = listing("1.6.4871 rev598", &mods);
         assert_eq!(
-            listing("1.6", &mods),
+            text,
             "Created with RimStack\n\
-             RimWorld game version this list was created for: 1.6\n\
+             RimWorld game version this list was created for: 1.6.4871 rev598\n\
              Total # of mods: 2\n\n\
              Harmony [brrainz.harmony][https://github.com/pardeike/HarmonyRimWorld]\n\
              RimWorld [ludeon.rimworld][No url specified]\n"
         );
+        assert_eq!(ids_in(&text), ["brrainz.harmony", "ludeon.rimworld"]);
     }
 
     #[test]
