@@ -931,7 +931,7 @@
   "The list has changes that are not saved": "목록에 저장하지 않은 변경 사항이 있습니다",
   "The list has unsaved changes; the game would start with the saved one": "목록에 저장하지 않은 변경 사항이 있습니다. 게임은 저장된 목록으로 시작합니다",
   "The list of the DDS files RimStack made could not be saved: {}": "RimStack이 만든 DDS 파일 목록을 저장하지 못했습니다: {}",
-  "The list the search began with, less this mod. Nothing is written before Save.": "문제 모드 찾기 시작 시의 목록에서 이 모드만 제외합니다. 저장 전에는 파일에 반영하지 않습니다.",
+  "The list the search began with, minus this mod. Nothing is written before Save.": "문제 모드 찾기 시작 시의 목록에서 이 모드만 제외합니다. 저장 전에는 파일에 반영하지 않습니다.",
   "The list the search began with. Nothing is written before Save.": "문제 모드 찾기 시작 시의 목록입니다. 저장 전에는 파일에 반영하지 않습니다.",
   "The list was not saved. {}": "목록을 저장하지 못했습니다. {}",
   "The list {} is kept under the same file name. Give this one another name.": "{} 목록이 같은 파일 이름으로 저장되어 있습니다. 다른 이름을 지정하세요.",
