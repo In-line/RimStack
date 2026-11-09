@@ -102,7 +102,9 @@ pub struct Process {
 
 pub fn processes() -> Vec<Process> {
     use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
-    let mut system = System::new();
+    let Ok(mut system) = System::new() else {
+        return Vec::new();
+    };
     let wanted = ProcessRefreshKind::nothing()
         .with_exe(UpdateKind::Always)
         .with_cmd(UpdateKind::Always);
