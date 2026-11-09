@@ -102,7 +102,7 @@ enum Holds {
 
 const SWITCH: Holds = Holds::Choice(&["on", "off"]);
 
-const KNOWN: [(&str, Holds); 21] = [
+const KNOWN: [(&str, Holds); 23] = [
     ("game", Holds::Text),
     ("config", Holds::Text),
     ("workshop", Holds::Text),
@@ -124,6 +124,8 @@ const KNOWN: [(&str, Holds); 21] = [
     ("gitForWorkshop", SWITCH),
     ("selfCheck", SWITCH),
     ("updates", Holds::Choice(&["stable", "nightly"])),
+    ("window", Holds::Text),
+    ("windowMaximized", Holds::Choice(&["yes"])),
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -711,6 +711,12 @@ settings.startLanguage: object
   problem: absent or text
 settings.startOwnTheme: object
   file: text
+settings.windowStart: object
+  height: number
+  visibility: number
+  width: number
+  x: number
+  y: number
 settings.words: map
   {}: text
 textures.comparison: object

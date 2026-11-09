@@ -6,14 +6,16 @@ import RimStack.Ui
 
 ApplicationWindow {
     id: window
-    width: Theme.sized(1440)
-    height: Theme.sized(860)
-    onWidthChanged: if (shotPath === "" && visible) Theme.stored.windowWidth = width
-    onHeightChanged: if (shotPath === "" && visible) Theme.stored.windowHeight = height
+    readonly property var start: Hub.settings.windowStart()
+    x: start.x
+    y: start.y
+    width: start.width
+    height: start.height
+    visibility: start.visibility
+    onClosing: Hub.settings.keepWindow(x, y, width, height, visibility)
     readonly property size smallest: Qt.size(Theme.sized(1000), Theme.sized(560))
     minimumWidth: Math.min(Screen.desktopAvailableWidth, smallest.width)
     minimumHeight: Math.min(Screen.desktopAvailableHeight, smallest.height)
-    visible: true
     title: Theme.say("RimStack")
     color: Theme.win
 
@@ -61,16 +63,6 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        if (shotPath === "") {
-            width = Math.max(minimumWidth, Theme.stored.windowWidth)
-            height = Math.max(minimumHeight, Theme.stored.windowHeight)
-        } else {
-            const given = Hub.argument("--size").split("x")
-            if (given.length === 2) {
-                width = Number(given[0])
-                height = Number(given[1])
-            }
-        }
         const size = Number(Hub.settings.report.interfaceScale || 1)
         if (size !== 1 && size > 0) {
             Theme.stored.textScale = Math.round(Theme.stored.textScale * size * 20) / 20

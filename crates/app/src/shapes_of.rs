@@ -195,6 +195,11 @@ fn settings(app: &App, shapes: &mut Shapes) {
     shapes.add("settings.folderChecks", &checked);
     shapes.add("settings.languages", &app.languages());
     shapes.add("settings.words", &app.speak());
+    let (area, maximized) = app.window_start(&[]);
+    shapes.add(
+        "settings.windowStart",
+        &crate::reports::WindowStart::of(area, maximized),
+    );
     let colours = serde_json::json!({ "accent": "#336699" });
     let written = app.start_own_theme("light", &colours);
     shapes.add("settings.ownColours", &app.own_colours("light"));
