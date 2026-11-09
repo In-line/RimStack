@@ -186,7 +186,9 @@ Item {
     }
     property Binding filterHeld: Binding { target: Hub.mods; property: "filter"; value: mods.filtered }
     property Binding headingsHeld: Binding { target: Hub.mods; property: "headings"; value: mods.prefs.headings !== 0 }
-    property Binding byNameHeld: Binding { target: Hub.mods; property: "byName"; value: mods.prefs.inactiveByName }
+    property Binding inactiveOrderHeld: Binding { target: Hub.mods; property: "inactiveOrder"; value: mods.prefs.inactiveOrder }
+    readonly property var orders: Hub.mods.orders || ({ active: [], activeBy: {}, activeKey: "", inactive: [], inactiveSaid: "", widest: {} })
+    property Binding activeOrderHeld: Binding { target: Hub.mods; property: "activeOrder"; value: mods.columns.order }
     property Binding selectedHeld: Binding { target: Hub.mods; property: "selected"; value: mods.selectedId }
 
     signal binRequested(string name, string folder, int modId)
@@ -199,7 +201,7 @@ Item {
         prefs: mods.prefs
         loadTimes: mods.overview.loadTimes === true
         loadTimesHow: mods.overview.loadTimesHow || ""
-        onShownByAsked: Hub.mods.showBy(shownBy, descending)
+        orders: mods.orders
     }
     function categoryMenu(item, x, y, category) {
         const chosen = Theme.chosenSwatches[category] || Theme.swatches[category][0]
@@ -249,7 +251,7 @@ Item {
     function nudge(model, by) {
         const at = model.indexOf(selectedId)
         const to = Hub.mods.nudgeTo(model.active, selectedId, by)
-        if (to < 0 || Hub.mods.previewing || (model.active && columns.shownBy !== ""))
+        if (to < 0 || Hub.mods.previewing || (model.active && columns.order !== ""))
             return
         slide(selectedId, -by)
         Hub.mods.moveMod(model.active, at, to)

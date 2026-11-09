@@ -15,6 +15,10 @@ fn m(name: &str, author: &str, category: Category) -> Mod {
         patched: Default::default(),
         sub: String::new(),
         load_micros: None,
+        updated: None,
+        size: None,
+        downloaded: None,
+        activated: None,
         filed: category,
         chosen: false,
         held_by: String::new(),
@@ -322,7 +326,7 @@ fn is_terms_ask_about_the_flags_given_and_forget_them_when_the_order_changes() {
 #[test]
 fn a_list_can_be_arranged_by_name_or_by_category() {
     let mut list = sample();
-    list.arrange(true);
+    list.arrange(Some((SortKey::Name, false)));
     let names: Vec<&str> = list.mods().iter().map(|m| m.name.as_str()).collect();
     assert_eq!(
         names,
@@ -336,9 +340,51 @@ fn a_list_can_be_arranged_by_name_or_by_category() {
         ]
     );
     assert!(!list.is_grouped() && list.rows().len() == 6);
-    list.arrange(false);
+    list.arrange(None);
     assert_eq!(list.mods()[0].name, "Harmony");
     assert!(list.is_grouped());
+}
+
+fn names(list: &GroupedList) -> Vec<&str> {
+    list.mods().iter().map(|m| m.name.as_str()).collect()
+}
+
+#[test]
+fn a_mod_without_the_value_comes_last_either_way_and_a_tie_goes_by_name() {
+    let mut mods = vec![
+        m("Local", "", Category::Content),
+        m("Old", "b", Category::Content),
+        m("new", "a", Category::Content),
+        m("Also new", "c", Category::Content),
+    ];
+    mods[1].updated = Some(100);
+    mods[2].updated = Some(900);
+    mods[3].updated = Some(900);
+    let mut list = GroupedList::new(mods);
+    list.arrange(Some((SortKey::Updated, true)));
+    assert_eq!(names(&list), ["Also new", "new", "Old", "Local"]);
+    assert!(!list.is_grouped());
+    list.arrange(Some((SortKey::Updated, false)));
+    assert_eq!(names(&list), ["Old", "Also new", "new", "Local"]);
+    list.arrange(Some((SortKey::Author, true)));
+    assert_eq!(names(&list), ["Also new", "Old", "new", "Local"]);
+}
+
+#[test]
+fn mods_go_by_package_id_and_by_size() {
+    let mut mods = vec![
+        m("Zeta", "", Category::Content),
+        m("Alpha", "", Category::Content),
+    ];
+    mods[0].id = "a.zeta".into();
+    mods[1].id = "B.alpha".into();
+    mods[0].size = Some(10);
+    mods[1].size = Some(2_000);
+    let mut list = GroupedList::new(mods);
+    list.arrange(Some((SortKey::PackageId, false)));
+    assert_eq!(names(&list), ["Zeta", "Alpha"]);
+    list.arrange(Some((SortKey::Size, true)));
+    assert_eq!(names(&list), ["Alpha", "Zeta"]);
 }
 
 #[test]

@@ -1,3 +1,4 @@
+pub mod activated;
 pub mod desktop;
 pub mod journal;
 pub mod launches;

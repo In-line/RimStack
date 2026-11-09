@@ -242,19 +242,6 @@ impl qobject::ModsData {
         ))
     }
 
-    pub(super) fn column_pressed(
-        &self,
-        by: &QString,
-        descending: bool,
-        asked: &QString,
-    ) -> QVariant {
-        to_qml(&columns::pressed(
-            &by.to_string(),
-            descending,
-            &asked.to_string(),
-        ))
-    }
-
     pub(super) fn mark_ready(&self) {
         if let Some(started) = crate::STARTED.get() {
             rimstack_core::note!("startup_ms={}", started.elapsed().as_millis());

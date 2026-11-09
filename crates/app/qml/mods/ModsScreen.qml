@@ -310,6 +310,7 @@ Timer {
     // `visible` is true from the click; `opened` only once the menu has faded in.
     readonly property alias menuOpen: rowMenu.visible
     readonly property alias viewMenu: activePane.viewMenu
+    readonly property alias orderMenu: inactivePane.orderMenu
     readonly property alias popMenu: rowMenu
 
     Loader {

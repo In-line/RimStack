@@ -297,7 +297,7 @@ ApplicationWindow {
                 { name: Theme.say("Theme: Rim"), group: Theme.say("View"), run: () => Theme.stored.theme = "rim", when: Theme.name !== "rim" },
                 { name: Theme.stored.comfortable ? Theme.say("Compact rows") : Theme.say("Comfortable rows"), group: Theme.say("View"), run: () => Theme.stored.comfortable = !Theme.stored.comfortable },
                 { name: Mods.prefs.inactiveHidden ? Theme.say("Show the inactive list") : Theme.say("Hide the inactive list"), group: Theme.say("View"), run: () => Mods.prefs.inactiveHidden = !Mods.prefs.inactiveHidden },
-                { name: (Mods.prefs.inactiveByName ? Theme.say("Inactive mods by category") : Theme.say("Inactive mods by name")), group: Theme.say("View"), run: () => Mods.prefs.inactiveByName = !Mods.prefs.inactiveByName },
+                { name: (Mods.prefs.inactiveOrder === "" ? Theme.say("Inactive mods by name") : Theme.say("Inactive mods by category")), group: Theme.say("View"), run: () => Mods.prefs.inactiveOrder = Mods.prefs.inactiveOrder === "" ? "name" : "" },
 
                 { name: Theme.say("RimWorld folder"), group: Theme.say("Open"), run: () => open(folders.game), when: !!folders.game },
                 { name: Theme.say("Workshop mods folder"), group: Theme.say("Open"), run: () => open(folders.workshop), when: !!folders.workshop },
@@ -414,7 +414,7 @@ ApplicationWindow {
         }
     }
 
-    readonly property var openable: ({ play: topBar.beforePlay, history: statusBar.historyMenu, keys: keysSheet, search: commands, lists: topBar.listsMenu, view: modsScreen.viewMenu, columns: modsScreen.popMenu, tray: statusBar.trayMenu, ask: question })
+    readonly property var openable: ({ play: topBar.beforePlay, history: statusBar.historyMenu, keys: keysSheet, search: commands, lists: topBar.listsMenu, view: modsScreen.viewMenu, order: modsScreen.orderMenu, columns: modsScreen.popMenu, tray: statusBar.trayMenu, ask: question })
     property var opened: null
     property bool readyMarked: false
     onFrameSwapped: {

@@ -280,7 +280,8 @@ Item {
                 component Heading: Text {
                     id: heading
                     property string column
-                    color: Mods.columns.shownBy === column && column !== "" ? Theme.ink : Theme.ink3
+                    readonly property var order: Mods.orders.activeBy[column] || ({ label: "", on: false, then: "" })
+                    color: order.on ? Theme.ink : Theme.ink3
                     font.pixelSize: Theme.caption
                     font.weight: Font.Medium
                     activeFocusOnTab: true
@@ -289,8 +290,8 @@ Item {
                     verticalAlignment: Text.AlignVCenter
                     Accessible.role: Accessible.ColumnHeader
                     Accessible.name: text
-                    Keys.onReturnPressed: Mods.columns.showBy(heading.column)
-                    Keys.onSpacePressed: Mods.columns.showBy(heading.column)
+                    Keys.onReturnPressed: Mods.columns.order = heading.order.then
+                    Keys.onSpacePressed: Mods.columns.order = heading.order.then
                     Keys.onMenuPressed: Mods.menuRequested(heading, 0, heading.height + 2, Mods.columns.entries)
                     Keys.onPressed: event => {
                         const by = event.key === Qt.Key_Left ? -1 : event.key === Qt.Key_Right ? 1 : 0
@@ -303,11 +304,11 @@ Item {
                     }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                     Tip { text: heading.column === "" ? Theme.say("The load order itself") : Theme.say("Click to show the list by this column; again to turn it round. Right-click to choose the columns. Drag it, or Ctrl + Alt + Left or Right, to move it.") }
-                    TapHandler { onTapped: Mods.columns.showBy(heading.column) }
+                    TapHandler { onTapped: Mods.columns.order = heading.order.then }
                     TapHandler { acceptedButtons: Qt.RightButton; onTapped: point => Mods.menuRequested(heading, point.position.x, heading.height + 2, Mods.columns.entries) }
                 }
                 Heading { Layout.preferredWidth: view.numberWidth; horizontalAlignment: Text.AlignRight; column: ""; text: "#" }
-                Heading { Layout.fillWidth: true; column: "name"; text: Theme.say("Name") + (Mods.columns.shownBy === "name" ? (Mods.columns.descending ? " ▾" : " ▴") : "") }
+                Heading { Layout.fillWidth: true; column: "name"; text: order.label }
                 Repeater {
                     model: view.fitting
                     Heading {
@@ -316,8 +317,8 @@ Item {
                         required property int index
                         column: modelData
                         Layout.preferredWidth: view.columnWidth(modelData)
-                        horizontalAlignment: modelData === "load" ? Text.AlignRight : Text.AlignLeft
-                        text: Theme.say(Mods.columns.labels[modelData]) + (Mods.columns.shownBy === modelData ? (Mods.columns.descending ? " ▾" : " ▴") : "")
+                        horizontalAlignment: Mods.columns.alignedRight[modelData] ? Text.AlignRight : Text.AlignLeft
+                        text: order.label
                         Item {
                             id: edge
                             x: -Theme.gapLarge / 2 - 4
@@ -373,6 +374,17 @@ Item {
                             Text { topPadding: Theme.gapTiny; color: Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say("Load order") }
                             Btn { width: parent.width; icon: Mods.prefs.headings !== 0 ? "check" : ""; text: Theme.say("Under category headings"); onClicked: Mods.prefs.headings = 1 }
                             Btn { width: parent.width; icon: Mods.prefs.headings === 0 ? "check" : ""; text: Theme.say("One numbered list"); onClicked: Mods.prefs.headings = 0 }
+                            Text { topPadding: Theme.gapTiny; color: Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say("Order") }
+                            Repeater {
+                                model: Mods.orders.active
+                                Btn {
+                                    required property var modelData
+                                    width: parent.width
+                                    icon: modelData.icon
+                                    text: modelData.label
+                                    onClicked: Mods.columns.order = modelData.then
+                                }
+                            }
                             Text { topPadding: Theme.gapTiny; color: Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say("Columns") }
                             Repeater {
                                 model: Mods.columns.entries

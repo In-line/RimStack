@@ -185,9 +185,24 @@ Item {
         const counts = [Mods.active.count, Mods.inactive.count]
         const shownNames = () => { const names = []; for (let r = 0; r < Mods.inactive.rows() && names.length < 40; r++) if (Mods.inactive.modIdAt(r) >= 0) names.push(Mods.inactive.at(r).name.toLowerCase()); return names }
         const byName = () => { const names = shownNames(); return names.every((n, i) => i === 0 || names[i - 1].localeCompare(n) <= 0 || names[i - 1] <= n) }
-        const wasByName = Mods.prefs.inactiveByName, hadHeadings = Mods.prefs.headings
-        Mods.prefs.inactiveByName = true
+        const wasOrder = Mods.prefs.inactiveOrder, hadHeadings = Mods.prefs.headings
+        Mods.prefs.inactiveOrder = "name"
         check("the inactive mods are in name order", byName() && Mods.inactive.rows() === Mods.inactive.count)
+        const inactiveEntry = key => Mods.orders.inactive.find(entry => entry.key === key)
+        Mods.prefs.inactiveOrder = inactiveEntry("author").then
+        const authorOn = r => Mods.inactive.at(r).author.toLowerCase()
+        const authorsFirst = [...Array(Math.min(Mods.inactive.count, 12)).keys()].filter(r => authorOn(r) !== "")
+        check("picked in the order menu, the inactive mods go by author, ticked there", Mods.prefs.inactiveOrder === "author" && inactiveEntry("author").icon === "check"
+            && authorsFirst.every((r, i) => i === 0 || authorOn(authorsFirst[i - 1]) <= authorOn(r)) && Mods.orders.inactiveSaid.indexOf("▴") > 0)
+        Mods.prefs.inactiveOrder = inactiveEntry("author").then
+        check("picked again, it turns round", Mods.prefs.inactiveOrder === "author down" && Mods.orders.inactiveSaid.indexOf("▾") > 0)
+        Mods.prefs.inactiveOrder = inactiveEntry("updated").then
+        check("by update the newest come first", Mods.prefs.inactiveOrder === "updated down" && Mods.inactive.rows() === Mods.inactive.count)
+        Mods.prefs.inactiveOrder = "package"
+        check("by package id each inactive mod shows its own", Mods.inactive.at(0).orderedBy !== "" && Mods.inactive.at(0).orderedBy <= Mods.inactive.at(1).orderedBy)
+        Mods.prefs.inactiveOrder = inactiveEntry("").then
+        check("and Category puts them under headings again", Mods.prefs.inactiveOrder === "" && Mods.inactive.rows() > Mods.inactive.count)
+        Mods.prefs.inactiveOrder = "name"
         check("lists are filled and clean", Mods.active.count > 4 && Mods.inactive.count > 0 && !Hub.mods.dirty && !Hub.mods.canUndo)
 
         // Sort waits for the mods' files to be read; they are not again for a moment
@@ -230,9 +245,9 @@ Item {
         Mods.prefs.headings = 1
         check("always under headings has headings", Mods.active.rows() > Mods.active.count)
         Mods.prefs.headings = hadHeadings
-        Mods.prefs.inactiveByName = false
+        Mods.prefs.inactiveOrder = ""
         check("by category, the inactive mods sit under headings", Mods.inactive.rows() > Mods.inactive.count)
-        Mods.prefs.inactiveByName = true
+        Mods.prefs.inactiveOrder = "name"
         Hub.mods.redo()
         check("redo moves it again", Hub.mods.dirty && order() !== start)
         Hub.mods.undo()
@@ -306,14 +321,19 @@ Item {
         check("and one undo puts it back", order() === start)
         Mods.select(Mods.nthMod(Mods.active, 0), true)
 
+        const showBy = key => Mods.columns.order = Mods.orders.activeBy[key].then
         const nameOn = r => Mods.active.at(r).name.toLowerCase()
         const orderBefore = order()
-        Mods.columns.showBy("name")
+        showBy("name")
         check("a click on Name shows the load order by name", Mods.active.rows() === Mods.active.count && nameOn(0) <= nameOn(1) && nameOn(1) <= nameOn(2) && order() === orderBefore)
-        Mods.columns.showBy("name")
+        showBy("name")
         check("a second click turns it round", nameOn(0) >= nameOn(1))
-        Mods.columns.showBy("name")
-        check("and a third shows the load order again", Mods.columns.shownBy === "" && Mods.active.rows() >= Mods.active.count)
+        showBy("name")
+        check("and a third shows the load order again", Mods.columns.order === "" && Mods.active.rows() >= Mods.active.count)
+        showBy("package")
+        check("the View menu shows the load order by package id, ticked there", Mods.columns.order === "package" && Mods.orders.active.some(entry => entry.key === "package" && entry.icon === "check") && order() === orderBefore)
+        showBy("")
+        check("and its Load order entry goes back to it", Mods.columns.order === "" && Mods.orders.active[0].icon === "check")
         Mods.columns.toggle("author")
         check("a column can be hidden", Mods.columns.shown.indexOf("author") === -1)
         Mods.columns.toggle("author")
@@ -326,7 +346,21 @@ Item {
         check("within what a column may take", Mods.columns.chosenWidths.author === 420)
         Mods.prefs.columnSizes = sizesBefore
         const listed = Mods.columns.entries
-        check("the column menu lists every column, the chosen ones marked", listed.length === 3 && listed[0].text.startsWith("✓"))
+        check("the column menu lists every column, the chosen ones marked", listed.length === 7 && listed[0].text.startsWith("✓") && listed.slice(3).every(entry => !entry.on))
+        const columnsKept = Mods.prefs.columns
+        Mods.columns.toggle("updated")
+        check("Updated can be ticked as a column, as wide as its heading at least", Mods.columns.shown.indexOf("updated") >= 0 && Mods.columns.widths.updated > Mods.columns.updatedHeading.advanceWidth - 1
+            && Mods.active.at(0).updatedAgo !== undefined)
+        Mods.columns.toggle("activated")
+        check("Activated can be ticked too, and a saved mod says since when", Mods.columns.shown.indexOf("activated") >= 0 && Mods.active.at(Mods.active.indexOf(Mods.nthMod(Mods.active, 0))).activatedAgo !== undefined)
+        Mods.prefs.columns = "version"
+        showBy("author")
+        const authored = [...Array(Mods.active.rows()).keys()].find(r => Mods.active.at(r).author !== "")
+        check("ordered by a column not on screen, each row shows it", Mods.active.at(authored).orderedBy === Mods.active.at(authored).author)
+        Mods.prefs.columns = "author,version"
+        check("and the list is told which key, to leave it out beside its column", Mods.orders.activeKey === "author" && view.fitting.indexOf("author") >= 0)
+        showBy("")
+        Mods.prefs.columns = columnsKept
         check("and Load says what its times need while none are known", Mods.columns.loadTimes || listed[2].note.length > 0)
 
         const subRows = () => { let n = 0; for (let r = 0; r < Mods.active.rows(); r++) if (Mods.active.at(r).isSub === true) n += 1; return n }
@@ -366,7 +400,7 @@ Item {
         check("and forgotten", !Mods.info.tags && !Mods.info.note && shown() === counts[0])
         Mods.select(-1, false)
 
-        Mods.prefs.inactiveByName = wasByName
+        Mods.prefs.inactiveOrder = wasOrder
         Hub.mods.moveMod(true, 0, 3)
         const asItWas = order(), every = Mods.active.rows()
         Hub.mods.moveMod(true, 2, 6)
@@ -428,7 +462,7 @@ Item {
             Hub.mods.undo()
         check("which one Undo takes back", order() === unmoved)
         Mods.select(-1, false)
-        Mods.prefs.inactiveByName = true
+        Mods.prefs.inactiveOrder = "name"
         Mods.prefs.headings = 0
         check("a save is written off the window's thread", Mods.save(() => { check("the changed list is saved", !Hub.mods.dirty && Mods.saveProblem === ""); Qt.exit(failed > 0 ? 1 : 0) }) && Hub.mods.saving)
     }

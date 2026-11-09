@@ -38,6 +38,11 @@ Item {
     required property string madeFor
     required property string whyMoved
     required property bool twin
+    required property string orderedBy
+    required property string updatedAgo
+    required property string sizeText
+    required property string downloadedAgo
+    required property string activatedAgo
     readonly property bool comfortable: columns && Theme.stored.comfortable
 
     readonly property var listView: ListView.view
@@ -268,7 +273,7 @@ Item {
                 visible: !tagRow.visible && row.tags !== "" && nameCell.width > nameText.implicitWidth + 5 * Theme.gap + Theme.gapTiny
                 onAccent: row.current
                 readonly property var all: row.tags.split(", ")
-                readonly property bool headed: row.columns && Mods.columns.shownBy === "" && Mods.prefs.headings !== 0
+                readonly property bool headed: row.columns && Mods.columns.order === "" && Mods.prefs.headings !== 0
                 icon: "tag"
                 maxWidth: Theme.sized(120)
                 text: headed ? all.length : all[0] + (all.length > 1 ? "  +" + (all.length - 1) : "")
@@ -281,6 +286,15 @@ Item {
                 text: [row.version, row.source === 2 ? Theme.say("Git") : row.source === 1 ? Theme.say("local") : Theme.say("Workshop")].filter(part => part !== "").join(", ")
             }
             Item { Layout.fillWidth: true }
+            Text {
+                visible: row.orderedBy !== "" && !(row.columns && row.listView.fitting.indexOf(Mods.orders.activeKey) >= 0)
+                Layout.maximumWidth: nameCell.width / 2
+                elide: Text.ElideRight
+                color: row.quiet
+                font.pixelSize: Theme.small
+                font.features: { "tnum": 1 }
+                text: row.orderedBy
+            }
             Icon {
                 visible: !row.columns && row.source === 2
                 name: "git-branch"
@@ -300,11 +314,11 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width
                     elide: Text.ElideRight
-                    horizontalAlignment: cell.modelData === "load" ? Text.AlignRight : Text.AlignLeft
+                    horizontalAlignment: Mods.columns.alignedRight[cell.modelData] ? Text.AlignRight : Text.AlignLeft
                     color: cell.modelData !== "load" ? row.quiet : row.current ? Theme.onSelected : row.loadSeconds >= 0.1 ? Theme.ink2 : Theme.ink3
-                    font.pixelSize: cell.modelData === "load" ? Theme.small : Theme.body
+                    font.pixelSize: Mods.columns.alignedRight[cell.modelData] ? Theme.small : Theme.body
                     font.features: { "tnum": 1 }
-                    text: cell.modelData === "author" ? row.author : cell.modelData === "version" ? row.version : row.loadTime
+                    text: ({ author: row.author, version: row.version, load: row.loadTime, updated: row.updatedAgo, downloaded: row.downloadedAgo, activated: row.activatedAgo, size: row.sizeText })[cell.modelData]
                 }
                 Rectangle {
                     visible: cell.modelData === "load" && row.loadPart > 0 && row.loadTime !== ""
@@ -437,7 +451,7 @@ Item {
 
     DragHandler {
         id: dragger
-        enabled: !row.isHeader && !Hub.mods.previewing && (!row.columns || Mods.columns.shownBy === "")
+        enabled: !row.isHeader && !Hub.mods.previewing && (!row.columns || Mods.columns.order === "")
         target: null
         onActiveChanged: {
             if (dragger.active)

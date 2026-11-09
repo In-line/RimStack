@@ -1,22 +1,26 @@
 use crate::App;
 use rimstack_core::base::locks::Shared;
 use rimstack_core::base::sentence::Sentence;
+use rimstack_core::kept::{activated, launches};
 use rimstack_core::mods::describe::Trouble;
 use rimstack_core::mods::library::{Library, ModId};
 pub use rimstack_core::mods::list::Side;
 use rimstack_core::mods::list::{Category, GroupedList, Mod, SortKey, flag};
 use rimstack_core::mods::{demo, sort_reasons};
+use rimstack_core::rimworld::paths::Source;
 use rimstack_core::say;
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 mod details;
 mod edits;
+mod orders;
 mod rows;
 mod rules;
 mod sorting;
 
 pub use details::{Details, Files, Overview};
+pub use orders::Orders;
 pub use rows::RowView;
 
 pub struct Preview {
@@ -40,7 +44,9 @@ pub struct LoadOrder {
     preview: Option<Preview>,
     batching: bool,
     headings: bool,
-    by_name: bool,
+    /// `None` by category.
+    inactive_by: Option<(SortKey, bool)>,
+    activated: activated::Since,
     /// The reading its `ModId`s come from: after a rescan, `App::library` is a newer one.
     /// `None` for a made-up list or one that could not be read.
     reading: Option<std::sync::Arc<crate::workspace::Loaded>>,
@@ -59,6 +65,14 @@ fn side_index(side: Side) -> usize {
     }
 }
 
+fn date(mods: &mut [Mod], since: &activated::Since) {
+    for m in mods {
+        m.activated = since
+            .get(&rimstack_core::rimworld::id::fold(&m.id))
+            .copied();
+    }
+}
+
 fn arranged(app: &App, library: &Library) -> rimstack_core::mods::library::Arranged {
     let mut now = library.arrange(app.session().current());
     let measured = app.startup();
@@ -67,8 +81,15 @@ fn arranged(app: &App, library: &Library) -> rimstack_core::mods::library::Arran
         m.load_micros = took.map(|ms| (ms * 1000.0) as u32);
     }
     let notes = app.notes().reading();
+    let steam_record = app.steam_record();
+    let (times, sizes) = &*steam_record;
     for m in now.active.iter_mut().chain(now.inactive.iter_mut()) {
-        let key = m.installed.and_then(|i| library.get(i)?.key());
+        let installed = m.installed.and_then(|i| library.get(i));
+        if let Some(i) = installed.filter(|i| i.source == Source::Workshop) {
+            m.updated = times.get(&i.folder).copied();
+            m.size = sizes.get(&i.folder).copied();
+        }
+        let key = installed.and_then(|i| i.key());
         if let Some(note) = key.and_then(|k| notes.get(&k)) {
             m.tags = note.tags.clone();
             m.sub = note.group().to_string();
@@ -97,7 +118,8 @@ impl LoadOrder {
             preview: None,
             batching: false,
             headings: true,
-            by_name: false,
+            inactive_by: None,
+            activated: activated::Since::new(),
             reading: None,
             detected: rules::Detected::default(),
             status: [Sentence::default(), Sentence::default()],
@@ -117,7 +139,7 @@ impl LoadOrder {
         order
     }
 
-    pub fn read(app: &App, headings: bool, by_name: bool) -> Self {
+    pub fn read(app: &App, headings: bool, inactive_by: Option<(SortKey, bool)>) -> Self {
         let loaded = app.library();
         let (library, took) = match &*loaded {
             Ok(read) => read,
@@ -130,13 +152,16 @@ impl LoadOrder {
         let mut order = Self::empty();
         order.reading = Some(loaded.clone());
         order.headings = headings;
-        order.by_name = by_name;
-        let now = arranged(app, library);
+        order.inactive_by = inactive_by;
+        let saved = app.session().saved().to_vec();
+        order.activated = app.activated_since(library, &saved, app.list_written_at());
+        let mut now = arranged(app, library);
+        date(&mut now.active, &order.activated);
         let (mods, _) = rules::sorted_by_category(app, &mut order.detected, library, now.active);
         order.active = GroupedList::flat(mods);
         order.active.set_grouped(headings);
         order.inactive = GroupedList::new(now.inactive);
-        order.inactive.arrange(by_name);
+        order.inactive.arrange(inactive_by);
         order.status = [
             match library.missing {
                 0 => say!("{} active", library.active.len()),
@@ -191,8 +216,15 @@ impl LoadOrder {
         self.headings
     }
 
-    pub fn by_name(&self) -> bool {
-        self.by_name
+    pub fn inactive_by(&self) -> Option<(SortKey, bool)> {
+        self.inactive_by
+    }
+
+    pub fn order_of(&self, side: Side) -> Option<(SortKey, bool)> {
+        match side {
+            Side::Active => self.active.shown_by(),
+            Side::Inactive => self.inactive_by,
+        }
     }
 
     pub fn errors_and_warnings(&self) -> (usize, usize) {
@@ -281,12 +313,13 @@ impl LoadOrder {
         }
         self.preview = None;
         self.sort_note.clear();
-        let now = arranged(app, library);
+        let mut now = arranged(app, library);
+        date(&mut now.active, &self.activated);
         let (mods, _) = rules::sorted_by_category(app, &mut self.detected, library, now.active);
         self.active.set_grouped(self.headings);
         self.active.set_mods(mods);
         self.inactive.set_mods(now.inactive);
-        self.inactive.arrange(self.by_name);
+        self.inactive.arrange(self.inactive_by);
         self.reading = Some(loaded.clone());
         self.settle(app);
     }
@@ -313,9 +346,9 @@ impl LoadOrder {
         }
     }
 
-    pub fn set_by_name(&mut self, app: &App, by_name: bool) {
-        self.by_name = by_name;
-        self.inactive.arrange(by_name);
+    pub fn set_inactive_by(&mut self, app: &App, order: Option<(SortKey, bool)>) {
+        self.inactive_by = order;
+        self.inactive.arrange(order);
         self.settle(app);
     }
 
@@ -324,16 +357,9 @@ impl LoadOrder {
         self.inactive.set_filter_on(Side::Inactive, text);
     }
 
-    /// "name", "author", "version" or "load"; anything else is load order.
-    pub fn show_by(&mut self, column: &str, descending: bool) {
-        let key = match column {
-            "name" => Some(SortKey::Name),
-            "author" => Some(SortKey::Author),
-            "version" => Some(SortKey::Version),
-            "load" => Some(SortKey::Load),
-            _ => None,
-        };
-        self.active.show_by(key.map(|key| (key, descending)));
+    /// `None` shows the load order itself.
+    pub fn set_active_by(&mut self, order: Option<(SortKey, bool)>) {
+        self.active.show_by(order);
     }
 
     fn flags(&self, app: &App, library: &Library, side: Side) -> Vec<u16> {
@@ -435,6 +461,48 @@ impl LoadOrder {
 }
 
 impl App {
+    /// Since when each mod of `saved` has been in the saved list; one that joined since it was
+    /// last asked is dated `at`. A list the game emptied to its own mods dates nothing.
+    pub fn activated_since(
+        &self,
+        library: &Library,
+        saved: &[String],
+        at: u64,
+    ) -> activated::Since {
+        static KEEPING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _held = KEEPING
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let file = self.activated_file();
+        let saved: Vec<String> = saved.iter().filter(|id| !id.is_empty()).cloned().collect();
+        let launched = launches::read(&self.launches_file());
+        let emptied = launched
+            .last()
+            .is_some_and(|last| super::game::emptied_by_game(library, &saved, last));
+        let kept = activated::read(&file);
+        if emptied {
+            return kept.unwrap_or_default();
+        }
+        let (mut since, mut changed) = kept.map_or_else(
+            || (activated::first(&saved, &launched, at), true),
+            |kept| (kept, false),
+        );
+        changed |= activated::follow(&mut since, &saved, at);
+        if changed && let Err(problem) = activated::write(&file, &since) {
+            rimstack_core::problem!("when mods were activated was not kept: {problem}");
+        }
+        since
+    }
+
+    /// When ModsConfig.xml was last written; now without one.
+    pub fn list_written_at(&self) -> u64 {
+        let file = self.paths().mods_config();
+        match file.map_or(0, |f| rimstack_core::base::watch::changed_at(&f)) {
+            0 => super::now_secs(),
+            millis => millis / 1000,
+        }
+    }
+
     /// Off the window's thread.
     pub fn read_active_files(&self, members: Vec<ModId>) {
         use rayon::prelude::*;

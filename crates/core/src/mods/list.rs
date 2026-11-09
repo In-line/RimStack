@@ -95,6 +95,14 @@ pub struct Mod {
     pub sub: String,
     /// Microseconds it took at the game's last start, where measured.
     pub load_micros: Option<u32>,
+    /// Seconds since 1970 when Steam last updated it; Workshop mods only.
+    pub updated: Option<u64>,
+    /// Bytes, as Steam records them; Workshop mods only.
+    pub size: Option<u64>,
+    /// When its folder was made: for a Workshop mod, its first download.
+    pub downloaded: Option<u64>,
+    /// Since when it has been in the saved load order.
+    pub activated: Option<u64>,
     /// Its own category, chosen or worked out; `category` is where it sits, which a rule can
     /// make an earlier one. A sort starts from this.
     pub filed: Category,
@@ -109,7 +117,97 @@ pub enum SortKey {
     Name,
     Author,
     Version,
+    PackageId,
+    Updated,
+    Downloaded,
+    Activated,
+    Size,
     Load,
+}
+
+impl SortKey {
+    pub const ALL: [SortKey; 9] = [
+        SortKey::Name,
+        SortKey::Author,
+        SortKey::Version,
+        SortKey::PackageId,
+        SortKey::Updated,
+        SortKey::Downloaded,
+        SortKey::Activated,
+        SortKey::Size,
+        SortKey::Load,
+    ];
+
+    /// Kept in the settings and handed to the window: never reworded.
+    pub fn key(self) -> &'static str {
+        match self {
+            SortKey::Name => "name",
+            SortKey::Author => "author",
+            SortKey::Version => "version",
+            SortKey::PackageId => "package",
+            SortKey::Updated => "updated",
+            SortKey::Downloaded => "downloaded",
+            SortKey::Activated => "activated",
+            SortKey::Size => "size",
+            SortKey::Load => "load",
+        }
+    }
+
+    pub fn from_key(key: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|k| k.key() == key)
+    }
+
+    pub fn starts_descending(self) -> bool {
+        matches!(
+            self,
+            SortKey::Updated | SortKey::Downloaded | SortKey::Activated | SortKey::Size
+        )
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+enum SortValue {
+    Text(String),
+    Number(u64),
+}
+
+type SortedBy = (Option<SortValue>, String);
+
+fn sorted_by(m: &Mod, key: SortKey) -> SortedBy {
+    let tie = match key {
+        SortKey::Name => String::new(),
+        _ => m.name.to_lowercase(),
+    };
+    (sort_value(m, key), tie)
+}
+
+fn sort_value(m: &Mod, key: SortKey) -> Option<SortValue> {
+    let text = |t: &str| (!t.is_empty()).then(|| SortValue::Text(t.to_lowercase()));
+    match key {
+        SortKey::Name => text(&m.name),
+        SortKey::Author => text(&m.author),
+        SortKey::Version => text(&m.version),
+        SortKey::PackageId => text(&m.id),
+        SortKey::Updated => m.updated.map(SortValue::Number),
+        SortKey::Downloaded => m.downloaded.map(SortValue::Number),
+        SortKey::Activated => m.activated.map(SortValue::Number),
+        SortKey::Size => m.size.map(SortValue::Number),
+        SortKey::Load => m.load_micros.map(|micros| SortValue::Number(micros.into())),
+    }
+}
+
+/// A mod without the value comes last either way; mods with the same value go by name.
+fn sorted<T>(items: Vec<T>, by: impl Fn(&T) -> SortedBy, descending: bool) -> Vec<T> {
+    let mut keyed: Vec<(SortedBy, T)> = items.into_iter().map(|item| (by(&item), item)).collect();
+    keyed.sort_by(|((a, a_name), _), ((b, b_name), _)| {
+        let by_value = match descending {
+            true => b.cmp(a),
+            false => a.cmp(b),
+        };
+        let missing = a.is_none().cmp(&b.is_none());
+        missing.then(by_value).then_with(|| a_name.cmp(b_name))
+    });
+    keyed.into_iter().map(|(_, item)| item).collect()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -315,13 +413,14 @@ impl GroupedList {
         }
     }
 
-    pub fn arrange(&mut self, by_name: bool) {
+    /// `None` puts it in category order, under headings.
+    pub fn arrange(&mut self, order: Option<(SortKey, bool)>) {
         let mut mods = std::mem::take(&mut self.mods);
-        match by_name {
-            true => mods.sort_by_cached_key(|m| m.name.to_lowercase()),
-            false => mods.sort_by_cached_key(|m| (m.category, m.name.to_lowercase())),
+        match order {
+            Some((key, descending)) => mods = sorted(mods, |m| sorted_by(m, key), descending),
+            None => mods.sort_by_cached_key(|m| (m.category, m.name.to_lowercase())),
         }
-        self.grouped = !by_name;
+        self.grouped = order.is_none();
         self.set_mods(mods);
     }
 
@@ -373,6 +472,10 @@ impl GroupedList {
     pub fn show_by(&mut self, order: Option<(SortKey, bool)>) {
         self.shown_by = order;
         self.rebuild();
+    }
+
+    pub fn shown_by(&self) -> Option<(SortKey, bool)> {
+        self.shown_by
     }
 
     pub fn is_grouped(&self) -> bool {
@@ -491,21 +594,8 @@ impl GroupedList {
 
     fn rebuild(&mut self) {
         if let Some((key, descending)) = self.shown_by {
-            let mut shown: Vec<usize> = (0..self.mods.len()).filter(|&i| self.matches(i)).collect();
-            let text = |i: usize| match key {
-                SortKey::Author => self.mods[i].author.to_lowercase(),
-                SortKey::Version => self.mods[i].version.to_lowercase(),
-                _ => self.mods[i].name.to_lowercase(),
-            };
-            match key {
-                SortKey::Load => {
-                    shown.sort_by_key(|&i| self.mods[i].load_micros);
-                }
-                _ => shown.sort_by_cached_key(|&i| text(i)),
-            }
-            if descending {
-                shown.reverse();
-            }
+            let shown: Vec<usize> = (0..self.mods.len()).filter(|&i| self.matches(i)).collect();
+            let shown = sorted(shown, |&i| sorted_by(&self.mods[i], key), descending);
             self.rows = shown.into_iter().map(|index| Row::Mod { index }).collect();
             return;
         }

@@ -9,7 +9,7 @@ Item {
 
     readonly property var sizes: [[1440, 860], []]
     readonly property var scales: [1.6, 1.3, 1, 0.85]
-    readonly property var popups: ["keys", "search", "lists", "history", "tray", "play", "view", "columns", "ask"]
+    readonly property var popups: ["keys", "search", "lists", "history", "tray", "play", "view", "order", "columns", "ask"]
 
     readonly property var scenes: {
         const all = []

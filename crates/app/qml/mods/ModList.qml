@@ -11,6 +11,7 @@ ListView {
     readonly property bool wide: columns && width >= Theme.sized(620)
     readonly property bool roomy: columns && width >= Theme.sized(440)
     readonly property real numberWidth: Theme.sized(28)
+    readonly property TextMetrics numbers: TextMetrics { font.pixelSize: Theme.small; text: "" + list.count }
     property real headingTail: 0
     readonly property real quickWidth: Math.max(headingTail, Theme.sized(wide ? 124 : 44))
     function roomBeside(shown, author) {
@@ -18,10 +19,10 @@ ListView {
         return width - barRoom - quickWidth - numberWidth - 2 * Theme.gapWide - 2 * Theme.gapLarge - taken
     }
     readonly property int nameRoom: Theme.sized(180)
-    readonly property int authorWidth: roomBeside(roomy ? Mods.columns.shown : [], Mods.columns.widths.author) >= nameRoom ? Mods.columns.widths.author : Theme.sized(86)
+    readonly property int authorWidth: roomBeside(roomy ? Mods.columns.shown : [], Mods.columns.widths.author) >= nameRoom ? Mods.columns.widths.author : Mods.columns.authorHeading.advanceWidth
     readonly property var fitting: {
         let shown = roomy ? Mods.columns.shown.slice() : []
-        for (const column of ["load", "author", "version"]) {
+        for (const column of ["size", "downloaded", "activated", "updated", "load", "author", "version"]) {
             if (roomBeside(shown, authorWidth) >= nameRoom)
                 break
             shown = shown.filter(other => other !== column)

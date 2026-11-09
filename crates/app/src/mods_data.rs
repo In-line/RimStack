@@ -48,7 +48,11 @@ pub mod qobject {
         #[qproperty(QVariant, textures)]
         #[qproperty(QVariant, fresh)]
         #[qproperty(bool, headings)]
-        #[qproperty(bool, by_name, cxx_name = "byName")]
+        /// "" by category, or as `columns::kept` writes it.
+        #[qproperty(QString, inactive_order, cxx_name = "inactiveOrder")]
+        #[qproperty(QVariant, orders)]
+        /// "" for the load order itself, or as `columns::kept` writes it.
+        #[qproperty(QString, active_order, cxx_name = "activeOrder")]
         #[qproperty(QString, filter)]
         /// Empty for none.
         #[qproperty(QString, save_problem, cxx_name = "saveProblem")]
@@ -99,9 +103,6 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "removeSub"]
         fn remove_sub(self: Pin<&mut ModsData>, active: bool, row: i32);
-        #[qinvokable]
-        #[cxx_name = "showBy"]
-        fn show_by(self: Pin<&mut ModsData>, column: &QString, descending: bool);
         #[qinvokable]
         fn undo(self: Pin<&mut ModsData>);
         #[qinvokable]
@@ -258,15 +259,6 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "columnSized"]
         fn column_sized(self: &ModsData, kept: &QString, column: &QString, width: f64) -> QString;
-        /// `[column, descending]`; the empty column is the load order.
-        #[qinvokable]
-        #[cxx_name = "columnPressed"]
-        fn column_pressed(
-            self: &ModsData,
-            by: &QString,
-            descending: bool,
-            asked: &QString,
-        ) -> QVariant;
         #[qinvokable]
         #[cxx_name = "markReady"]
         fn mark_ready(self: &ModsData);
@@ -287,7 +279,9 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QVariant};
 use qobject::ModRows;
 use rimstack_core::base::sentence::Sentence;
+use rimstack_core::mods::columns;
 use rimstack_core::mods::library::ModId;
+use rimstack_core::mods::list::SortKey;
 use std::sync::Arc;
 
 pub struct ModsDataRust {
@@ -327,7 +321,9 @@ pub struct ModsDataRust {
     textures: QVariant,
     fresh: QVariant,
     headings: bool,
-    by_name: bool,
+    inactive_order: QString,
+    orders: QVariant,
+    active_order: QString,
     filter: QString,
     save_problem: QString,
     saving: bool,
@@ -379,7 +375,9 @@ impl Default for ModsDataRust {
             textures: QVariant::default(),
             fresh: QVariant::default(),
             headings: true,
-            by_name: false,
+            inactive_order: QString::default(),
+            orders: QVariant::default(),
+            active_order: QString::default(),
             filter: QString::default(),
             save_problem: QString::default(),
             saving: false,
@@ -451,13 +449,20 @@ impl qobject::ModsData {
             })
             .release();
         self.as_mut()
-            .on_by_name_changed(|mut me| {
-                let (app, by_name) = (me.app(), me.by_name);
+            .on_active_order_changed(|mut me| {
+                let order = columns::from_kept(&me.active_order.to_string());
+                me.as_mut().rust_mut().get_mut().order.set_active_by(order);
+                me.show();
+            })
+            .release();
+        self.as_mut()
+            .on_inactive_order_changed(|mut me| {
+                let (app, order) = (me.app(), me.inactive_by());
                 me.as_mut()
                     .rust_mut()
                     .get_mut()
                     .order
-                    .set_by_name(&app, by_name);
+                    .set_inactive_by(&app, order);
                 me.show();
             })
             .release();
@@ -486,22 +491,27 @@ impl qobject::ModsData {
         }
     }
 
+    fn inactive_by(&self) -> Option<(SortKey, bool)> {
+        columns::from_kept(&self.inactive_order.to_string())
+    }
+
     /// `anew`: ids held before mean nothing.
     fn load(mut self: Pin<&mut Self>, anew: bool) {
         let app = self.app();
-        let (headings, by_name) = (self.headings, self.by_name);
+        let (headings, inactive_by) = (self.headings, self.inactive_by());
         self.as_mut().set_rescanning(true);
         self.loading.run(
             "load order",
             self.qt_thread(),
-            move |_| LoadOrder::read(&app, headings, by_name),
+            move |_| LoadOrder::read(&app, headings, inactive_by),
             move |mut me, mut order| {
                 let app = me.app();
                 order.set_headings(&app, me.headings);
-                if order.by_name() != me.by_name {
-                    order.set_by_name(&app, me.by_name);
+                if order.inactive_by() != me.inactive_by() {
+                    order.set_inactive_by(&app, me.inactive_by());
                 }
                 order.set_filter(&me.filter.to_string());
+                order.set_active_by(columns::from_kept(&me.active_order.to_string()));
                 let same = me.order.same_mods_in(&order);
                 me.as_mut().rust_mut().get_mut().order = order;
                 me.as_mut().set_rescanning(false);
@@ -630,6 +640,7 @@ impl qobject::ModsData {
         let status = order.status.clone();
         let overview = to_qml(&order.overview(&app));
         let fresh = to_qml(&order.fresh(&app, Side::Inactive));
+        let orders = to_qml(&order.orders());
         self.as_mut().set_errors(errors as i32);
         self.as_mut().set_warnings(warnings as i32);
         self.as_mut().set_troubled(troubled as i32);
@@ -645,6 +656,7 @@ impl qobject::ModsData {
             .set_status_inactive(crate::words::said(&status[1]));
         self.as_mut().set_overview(overview);
         self.as_mut().set_fresh(fresh);
+        self.as_mut().set_orders(orders);
         self.describe();
     }
 

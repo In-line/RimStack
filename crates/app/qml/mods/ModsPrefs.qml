@@ -12,7 +12,8 @@ Settings {
     property string lastFilter: ""
     property real lastScroll: 0
     property string columns: "author,version,load"
-    property bool inactiveByName: false
+    // "" by category; else "name", "name down" and the like.
+    property string inactiveOrder: ""
     // The load order under category headings: 1 always, 0 never (one
     // numbered list), -1 when the order is close to category order.
     property int headings: -1

@@ -125,13 +125,6 @@ impl qobject::ModsData {
         self.show();
     }
 
-    pub(super) fn show_by(mut self: Pin<&mut Self>, column: &QString, descending: bool) {
-        self.as_mut()
-            .order_mut()
-            .show_by(&column.to_string(), descending);
-        self.show();
-    }
-
     pub(super) fn undo(mut self: Pin<&mut Self>) {
         let app = self.app();
         if self.as_mut().order_mut().undo(&app) {

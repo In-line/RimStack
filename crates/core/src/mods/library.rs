@@ -30,6 +30,8 @@ pub struct Installed {
     pub code: Code,
     pub preview: Option<PathBuf>,
     pub git: bool,
+    /// When its folder was made, in seconds since 1970: where the system records it.
+    pub created: Option<u64>,
 }
 
 impl Installed {
@@ -120,6 +122,12 @@ fn kinds(mod_root: &Path) -> Kinds {
     found
 }
 
+fn created(path: &Path) -> Option<u64> {
+    let made = std::fs::metadata(path).and_then(|m| m.created()).ok()?;
+    let since = made.duration_since(std::time::UNIX_EPOCH).ok()?;
+    Some(since.as_secs())
+}
+
 fn read_mod(path: PathBuf, source: Source) -> Installed {
     let about = match about::locate(&path) {
         None => Err(Error::format(said!("no About.xml"))),
@@ -137,6 +145,7 @@ fn read_mod(path: PathBuf, source: Source) -> Installed {
         code: Code::default(),
         preview: about::preview(&path),
         git: path.join(".git").exists(),
+        created: created(&path),
         about,
         source,
         path,
@@ -325,6 +334,10 @@ fn row(m: &Installed, id: String, category: Category, installed: ModId) -> Mod {
         patched: m.code.aims.iter().map(patched).collect(),
         sub: String::new(),
         load_micros: None,
+        updated: None,
+        size: None,
+        downloaded: m.created.filter(|_| m.source != Source::Official),
+        activated: None,
         filed: category,
         chosen: false,
         held_by: String::new(),
@@ -414,6 +427,10 @@ impl Library {
                         patched: Default::default(),
                         sub: String::new(),
                         load_micros: None,
+                        updated: None,
+                        size: None,
+                        downloaded: None,
+                        activated: None,
                         filed: Category::Content,
                         chosen: false,
                         held_by: String::new(),

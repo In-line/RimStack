@@ -40,8 +40,8 @@ impl LoadOrder {
             }
             (Side::Active, None) => self.settle_one(app, at),
             (Side::Inactive, None) => {
-                let by_name = self.by_name;
-                self.inactive.arrange(by_name);
+                let order = self.inactive_by;
+                self.inactive.arrange(order);
             }
         }
     }
@@ -183,6 +183,7 @@ impl LoadOrder {
             return;
         };
         app.session().mark_saved_as(on_disk.clone());
+        self.follow_saved(app, &on_disk, app.list_written_at());
         if take {
             app.session().record(on_disk);
         }
@@ -191,8 +192,19 @@ impl LoadOrder {
     }
 
     pub fn saved(&mut self, app: &App, list: Vec<String>) {
+        self.follow_saved(app, &list, crate::workspace::now_secs());
         app.session().mark_saved_as(list);
+        let mut mods = self.active.mods().to_vec();
+        super::date(&mut mods, &self.activated);
+        self.active.set_mods(mods);
         self.settle(app);
+    }
+
+    fn follow_saved(&mut self, app: &App, saved: &[String], at: u64) {
+        let loaded = self.reading(app);
+        if let Ok((library, _)) = &*loaded {
+            self.activated = app.activated_since(library, saved, at);
+        }
     }
 }
 

@@ -9,6 +9,7 @@ use crate::workspace::{logs, saves, textures};
 use rimstack_core::kept::launches;
 use rimstack_core::mods::columns;
 use rimstack_core::mods::library::ModId;
+use rimstack_core::mods::list::SortKey;
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -249,7 +250,7 @@ fn mods(app: &App, shapes: &mut Shapes) {
         &rimstack_core::rimworld::workshopdb::file_in(app.data_dir()),
         "pulled.mod\t900009\tPulled",
     );
-    let mut order = LoadOrder::read(app, true, false);
+    let mut order = LoadOrder::read(app, true, None);
     order.settle(app);
     if let Some(members) = order.files_to_read(app) {
         app.read_active_files(members);
@@ -294,10 +295,8 @@ fn mods(app: &App, shapes: &mut Shapes) {
         .category;
     shapes.add("mods.subsBeside", &list.subs(category));
     shapes.add("mods.columnWidths", &columns::widths("name=200,author=90"));
-    shapes.add(
-        "mods.columnPressed",
-        &columns::pressed("name", false, "name"),
-    );
+    order.set_inactive_by(app, Some((SortKey::Updated, true)));
+    shapes.add("mods.orders", &order.orders());
     for row in order.rows(app, Side::Active) {
         shapes.add("mod_rows.at", &crate::mod_rows::fields_of(&row));
     }

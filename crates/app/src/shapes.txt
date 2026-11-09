@@ -206,11 +206,13 @@ logs.lines: list
     warning: bool
 logs.since: nothing
 mod_rows.at: object
+  activatedAgo: text
   again: bool
   author: text
   category: number
   collapsed: bool
   count: number
+  downloadedAgo: text
   fresh: bool
   groupSize: number
   isHeader: bool
@@ -224,13 +226,16 @@ mod_rows.at: object
   movedFrom: number
   name: text
   number: number
+  orderedBy: text
   outdated: bool
   picture: text
+  sizeText: text
   source: number
   tags: text
   trouble: number
   troubleText: text
   twin: bool
+  updatedAgo: text
   version: text
   versionIgnored: bool
   whyMoved: text
@@ -239,8 +244,6 @@ mods.carried: object
   also: map
     {}: bool
   first: number
-mods.columnPressed: list
-  []: bool or text
 mods.columnWidths: map
   {}: number
 mods.details: object
@@ -482,6 +485,88 @@ mods.notInstalled: object
   resubscribe: list
     []: text
   takeOff: text
+mods.orders: object
+  active: list
+    []: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+  activeBy: object
+    : object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+    activated: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+    author: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+    downloaded: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+    load: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+    name: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+    package: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+    size: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+    updated: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+    version: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+  activeKey: text
+  inactive: list
+    []: object
+      icon: text
+      key: text
+      label: text
+      on: bool
+      then: text
+  inactiveSaid: text
+  widest: object
+    author: text
+    load: text
+    version: text
 mods.othersThrough: list
   []: number
 mods.overview: object

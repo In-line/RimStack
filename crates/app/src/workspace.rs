@@ -169,6 +169,10 @@ impl App {
         self.data_dir.join("textures.json")
     }
 
+    pub fn activated_file(&self) -> PathBuf {
+        self.data_dir.join("activated.json")
+    }
+
     pub fn launches_file(&self) -> PathBuf {
         self.data_dir.join("launches.json")
     }
