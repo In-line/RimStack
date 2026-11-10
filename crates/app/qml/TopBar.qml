@@ -96,7 +96,7 @@ Rectangle {
         height: nav.height + 4
         radius: Theme.cornerLarge
         color: Theme.seg
-        border.width: 1
+        border.width: Theme.outline
         border.color: Theme.fieldLine
         activeFocusOnTab: true
         Accessible.role: Accessible.PageTabList
@@ -116,7 +116,7 @@ Rectangle {
             width: thumb.at ? thumb.at.width : 0
             height: Theme.strip
             radius: Theme.corner
-            color: Theme.accent
+            color: Theme.ctlHi
             Behavior on x { enabled: thumb.settled; NumberAnimation { duration: Theme.calm; easing.type: Easing.OutCubic } }
             Behavior on width { enabled: thumb.settled; NumberAnimation { duration: Theme.calm; easing.type: Easing.OutCubic } }
         }
@@ -157,14 +157,14 @@ Rectangle {
                         width: Math.max(Theme.tag, tabBadgeText.implicitWidth + 2 * Theme.gapSmall)
                         height: Theme.sized(16)
                         radius: height / 2
-                        color: tab.on ? Theme.accentInk : Theme.accent
-                        Text { id: tabBadgeText; anchors.centerIn: parent; color: tab.on ? Theme.accent : Theme.onSelected; font.pixelSize: Theme.caption; font.weight: Font.DemiBold; text: tab.badge }
+                        color: Theme.accent
+                        Text { id: tabBadgeText; anchors.centerIn: parent; color: Theme.accentInk; font.pixelSize: Theme.caption; font.weight: Font.DemiBold; text: tab.badge }
                     }
                     Text {
                         id: tabLabel
                         x: tab.inset
                         anchors.verticalCenter: parent.verticalCenter
-                        color: tab.on ? Theme.accentInk : Theme.ink2
+                        color: tab.on ? Theme.ink : Theme.ink2
                         font.pixelSize: Theme.body
                         font.weight: tab.on ? Font.DemiBold : Font.Medium
                         text: Theme.say(tab.modelData)

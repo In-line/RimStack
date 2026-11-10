@@ -78,7 +78,7 @@ Item {
             anchors.leftMargin: Theme.gapSmall
             anchors.rightMargin: Theme.gapSmall
             radius: Theme.corner
-            color: entry.current ? Theme.accent : Theme.hover
+            color: entry.current ? Theme.chosen : Theme.hover
             opacity: entry.current ? 1 : entryHover.hovered && entry.choosable ? 0.04 : 0
         }
         HoverHandler { id: entryHover }
@@ -93,7 +93,7 @@ Item {
             radius: Math.min(width, height) / 2
             color: entry.current ? Theme.onSelected : entry.bad ? Theme.err : entry.clean ? Theme.ok : Theme.ink3
             border.width: 2
-            border.color: entry.current ? Theme.accent : Theme.panel
+            border.color: entry.current ? Theme.chosen : Theme.panel
         }
         GridLayout {
             id: entryGrid
@@ -354,7 +354,7 @@ Item {
                     width: culpritList.width
                     height: Theme.sized(34)
                     readonly property bool current: culpritList.at === index
-                    Rectangle { anchors.fill: parent; anchors.leftMargin: Theme.gapSmall; anchors.rightMargin: Theme.gapSmall; radius: Theme.corner; color: culpritRow.current ? Theme.accent : Theme.hover; opacity: culpritRow.current ? 1 : culpritHover.hovered ? 0.04 : 0 }
+                    Rectangle { anchors.fill: parent; anchors.leftMargin: Theme.gapSmall; anchors.rightMargin: Theme.gapSmall; radius: Theme.corner; color: culpritRow.current ? Theme.chosen : Theme.hover; opacity: culpritRow.current ? 1 : culpritHover.hovered ? 0.04 : 0 }
                     HoverHandler { id: culpritHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler { onTapped: culpritList.at = culpritRow.index; onDoubleTapped: culpritList.open(culpritRow.modelData) }
                     RowLayout {
@@ -476,7 +476,7 @@ Item {
                         anchors.leftMargin: Theme.gapLarge
                         anchors.rightMargin: Theme.gapCard
                         radius: Theme.corner
-                        color: row.current ? Theme.accent : Theme.hover
+                        color: row.current ? Theme.chosen : Theme.hover
                         opacity: row.current ? 1 : rowHover.hovered ? 0.05 : 0
                     }
                     Rectangle { visible: !row.current; anchors.bottom: parent.bottom; anchors.bottomMargin: -1; x: Theme.gapPage; width: parent.width - 2 * Theme.gapPage; height: 1; color: Theme.line; opacity: 0.6 }

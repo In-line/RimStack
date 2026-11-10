@@ -26,7 +26,7 @@ Rectangle {
     Keys.onSpacePressed: btn.clicked()
     Keys.onReturnPressed: btn.clicked()
     Keys.onEnterPressed: btn.clicked()
-    border.width: primary ? 0 : 1
+    border.width: Theme.outline
     border.color: toned ? Qt.rgba(tone.r, tone.g, tone.b, frame) : Qt.rgba(Theme.fieldLine.r, Theme.fieldLine.g, Theme.fieldLine.b, frame)
     FocusRing {}
     Accessible.role: Accessible.Button
@@ -50,7 +50,7 @@ Rectangle {
         Text {
             id: btnLabel
             visible: text !== "" && !btn.bare
-            color: btn.primary ? Theme.onSelected : btn.danger && btn.enabled ? Theme.err : btn.toned ? btn.tone : Theme.ink
+            color: btn.primary ? Theme.accentInk : btn.danger && btn.enabled ? Theme.err : btn.toned ? btn.tone : Theme.ink
             font.pixelSize: btn.large ? Theme.body : Theme.small
             font.weight: btn.large ? Font.DemiBold : btn.primary || btn.toned ? Font.Medium : Font.Normal
         }

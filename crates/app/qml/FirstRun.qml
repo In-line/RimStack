@@ -88,7 +88,7 @@ Rectangle {
                 Accessible.onToggleAction: choice.toggled()
                 Keys.onSpacePressed: choice.toggled()
                 FocusRing { corner: 3 }
-                Text { visible: choice.on; anchors.centerIn: parent; color: Theme.onSelected; font.pixelSize: Theme.caption; font.weight: Font.DemiBold; text: "✓" }
+                Text { visible: choice.on; anchors.centerIn: parent; color: Theme.accentInk; font.pixelSize: Theme.caption; font.weight: Font.DemiBold; text: "✓" }
             }
             Text {
                 id: said
@@ -148,7 +148,7 @@ Rectangle {
                         height: Theme.sized(22)
                         radius: Math.min(width, height) / 2
                         color: mark.index === page.step ? Theme.accent : mark.index < page.step ? Theme.ok : Theme.ctl
-                        Text { anchors.centerIn: parent; color: mark.index <= page.step ? Theme.onSelected : Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: mark.index < page.step ? "✓" : mark.index + 1 }
+                        Text { anchors.centerIn: parent; color: mark.index <= page.step ? Theme.accentInk : Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: mark.index < page.step ? "✓" : mark.index + 1 }
                     }
                     Text { anchors.verticalCenter: parent.verticalCenter; color: mark.index === page.step ? Theme.ink : Theme.ink2; font.pixelSize: Theme.body; font.weight: mark.index === page.step ? Font.DemiBold : Font.Normal; text: Theme.say(mark.modelData) }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
@@ -290,7 +290,7 @@ Rectangle {
                                 width: glance.width
                                 height: Theme.stored.comfortable ? Theme.sized(46) : Theme.row
                                 radius: Theme.corner
-                                color: chosen ? Theme.accent : "transparent"
+                                color: chosen ? Theme.chosen : "transparent"
                                 RowLayout {
                                     anchors.fill: parent
                                     anchors.leftMargin: Theme.gapMedium

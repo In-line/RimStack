@@ -30,7 +30,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.header
             spacing: Theme.gap
-            Text { color: Theme.ink; font.pixelSize: Theme.title; font.weight: Font.DemiBold; text: Theme.say("Inactive") }
+            Text { color: Theme.ink; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; text: Theme.say("Inactive") }
             Text { color: Theme.ink3; font.pixelSize: Theme.body; text: Theme.count(Mods.inactive.count) }
             Chip {
                 visible: Mods.fresh.length > 0

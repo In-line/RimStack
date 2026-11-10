@@ -71,7 +71,7 @@ Item {
             Layout.rightMargin: Theme.gapLarge
             Layout.preferredHeight: Theme.header
             spacing: Theme.gap
-            Text { id: activeTitle; color: Theme.ink; font.pixelSize: Theme.title; font.weight: Font.DemiBold; text: Theme.say("Active") }
+            Text { id: activeTitle; color: Theme.ink; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; text: Theme.say("Active") }
             Text {
                 id: activeCount
                 color: Theme.ink3

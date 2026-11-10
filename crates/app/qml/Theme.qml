@@ -50,9 +50,10 @@ QtObject {
     readonly property int quick: stored.reduceMotion ? 0 : 140
     readonly property int calm: stored.reduceMotion ? 0 : 220
     readonly property bool contrast: stored.highContrast
-    readonly property color onSelected: "#ffffff"
-    readonly property color onSelectedDim: "#ebffffff"
-    // Darker than the accent, so white on it keeps 7:1 in every theme.
+    readonly property color chosen: colour("chosen")
+    readonly property color onSelected: raised.onSelected || colour("ink")
+    readonly property color onSelectedDim: raised.onSelectedDim || colour("ink2")
+    readonly property int outline: Number(contrast)
     readonly property color selectedChip: "#38000000"
 
     readonly property string issues: "https://github.com/TheForgotten69/RimStack/issues"
@@ -75,33 +76,33 @@ QtObject {
 
     readonly property var palettes: ({
         dark: {
-            win: "#191b23", panel: "#1f212b", bar: "#272a36", ctl: "#353949", ctlHi: "#454a5e", line: "#323646", edge: "#101117",
-            well: "#13151b", seg: "#16181f", chip: "#14ffffff", hover: "#ffffff", ink: "#f3f1ec", ink2: "#b3b2ba", ink3: "#9b9ba6",
-            brand: "#d9b88a", fieldLine: "#6c728b", accent: "#2468c8", accentHi: "#2f75d6", focus: "#4c96f5", accentInk: "#ffffff",
-            err: "#ff6961", warn: "#f5a93b", ok: "#5fcf80", moved: "#6cb0ff", banner: "#1b2a44", dangerBg: "#3a2222", scrim: "#66000000",
-            high: { ink2: "#e4e3ea", ink3: "#c9c8d2", line: "#7c8199", fieldLine: "#b9bdd0" },
+            win: "#161822", panel: "#1c1f2c", bar: "#252939", ctl: "#33384e", ctlHi: "#434964", line: "#2f3449", edge: "#0c0d14",
+            well: "#10121a", seg: "#13151e", chip: "#18c9d3ff", hover: "#dfe6ff", ink: "#eef0f7", ink2: "#b1b6c8", ink3: "#989db2",
+            brand: "#dcbc8e", fieldLine: "#6b7294", accent: "#4161d6", accentHi: "#4a6adc", focus: "#7f9bff", accentInk: "#ffffff",
+            err: "#ff7075", warn: "#f2b04e", ok: "#62d08f", moved: "#82b4ff", banner: "#1d2650", dangerBg: "#3b2029", chosen: "#253261", scrim: "#73060710",
+            high: { chosen: "#4161d6", onSelected: "#ffffff", onSelectedDim: "#ebffffff", ink2: "#e2e5f0", ink3: "#c6cadb", line: "#7a81a0", fieldLine: "#b8bdd6" },
         },
         oled: {
-            win: "#000000", panel: "#0b0b0c", bar: "#111113", ctl: "#202023", ctlHi: "#303034", line: "#242427", edge: "#000000",
-            well: "#060607", seg: "#0d0d0e", chip: "#1cffffff", hover: "#ffffff", ink: "#f3f1ec", ink2: "#a8a8ae", ink3: "#8f8f96",
-            brand: "#d9b88a", fieldLine: "#62677c", accent: "#1f63c2", accentHi: "#2a70d4", focus: "#4c96f5", accentInk: "#ffffff",
-            err: "#ff6961", warn: "#f5a93b", ok: "#5fcf80", moved: "#6cb0ff", banner: "#0d1d33", dangerBg: "#2a1414", scrim: "#80000000",
-            high: { ink2: "#e4e3ea", ink3: "#c9c8d2", line: "#74788c", fieldLine: "#b9bdd0" },
+            win: "#000000", panel: "#0b0b0a", bar: "#121211", ctl: "#22211f", ctlHi: "#32312e", line: "#262523", edge: "#000000",
+            well: "#060606", seg: "#0e0d0c", chip: "#1cfff6ea", hover: "#fff6ea", ink: "#f3efe8", ink2: "#aba7a0", ink3: "#928e87",
+            brand: "#dfb98a", fieldLine: "#69655e", accent: "#0f7572", accentHi: "#12807c", focus: "#3fc4bc", accentInk: "#ffffff",
+            err: "#ff6b62", warn: "#f5b13f", ok: "#7fd070", moved: "#6cb0ff", banner: "#082624", dangerBg: "#2c1313", chosen: "#062f2e", scrim: "#8c000000",
+            high: { chosen: "#0f7572", onSelected: "#ffffff", onSelectedDim: "#ebffffff", ink2: "#e5e1da", ink3: "#cac6be", line: "#77736b", fieldLine: "#bbb6ad" },
         },
         light: {
             bright: true,
             win: "#f5f5f7", panel: "#ececef", bar: "#e3e3e7", ctl: "#d5d5da", ctlHi: "#ffffff", line: "#cdcdd3", edge: "#c3c3c9",
             well: "#ffffff", seg: "#dadade", chip: "#12000000", hover: "#000000", ink: "#1d1d1f", ink2: "#55555c", ink3: "#5c5c64",
             brand: "#7a4d22", fieldLine: "#85858f", accent: "#1f63c2", accentHi: "#2a70d4", focus: "#1f63c2", accentInk: "#ffffff",
-            err: "#ab241e", warn: "#824b00", ok: "#14682a", moved: "#1558b0", banner: "#d7e5fb", dangerBg: "#f7dcda", scrim: "#40000000",
-            high: { ink2: "#26262a", ink3: "#3a3a40", line: "#6d6d77", fieldLine: "#4a4a52" },
+            err: "#ab241e", warn: "#824b00", ok: "#14682a", moved: "#1558b0", banner: "#d7e5fb", dangerBg: "#f7dcda", chosen: "#c6d5ec", scrim: "#40000000",
+            high: { chosen: "#1f63c2", onSelected: "#ffffff", onSelectedDim: "#ebffffff", ink2: "#26262a", ink3: "#3a3a40", line: "#6d6d77", fieldLine: "#4a4a52" },
         },
         rim: {
             win: "#1c1916", panel: "#23201c", bar: "#2b2722", ctl: "#3b352d", ctlHi: "#4b4439", line: "#3a342c", edge: "#110f0d",
             well: "#151311", seg: "#181512", chip: "#14ffffff", hover: "#ffffff", ink: "#f2ebdd", ink2: "#bcb3a3", ink3: "#a0988a",
             brand: "#e2bb7c", fieldLine: "#7d7465", accent: "#2870ab", accentHi: "#2b76b3", focus: "#7db4dc", accentInk: "#ffffff",
-            err: "#ff7b6b", warn: "#f2b04a", ok: "#8fce7a", moved: "#8fc3ea", banner: "#22303a", dangerBg: "#3d2320", scrim: "#66000000",
-            high: { ink2: "#e6dfd0", ink3: "#cfc7b8", line: "#8a8172", fieldLine: "#c2b9a8" },
+            err: "#ff7b6b", warn: "#f2b04a", ok: "#8fce7a", moved: "#8fc3ea", banner: "#22303a", dangerBg: "#3d2320", chosen: "#203749", scrim: "#66000000",
+            high: { chosen: "#2870ab", onSelected: "#ffffff", onSelectedDim: "#ebffffff", ink2: "#e6dfd0", ink3: "#cfc7b8", line: "#8a8172", fieldLine: "#c2b9a8" },
         },
     })
     readonly property var themeNames: ["rim", "dark", "oled", "light"]

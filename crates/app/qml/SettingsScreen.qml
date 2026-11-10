@@ -148,7 +148,7 @@ Item {
                     width: parent.width
                     height: Theme.sized(28)
                     radius: Theme.corner
-                    color: on ? Theme.accent : choiceHover.hovered ? Theme.chip : "transparent"
+                    color: on ? Theme.chosen : choiceHover.hovered ? Theme.chip : "transparent"
                     Accessible.role: Accessible.PageTab
                     Accessible.name: modelData
                     Accessible.onPressAction: choice.pick(index)
@@ -165,7 +165,7 @@ Item {
                     Keys.onSpacePressed: pick(index)
                     Keys.onReturnPressed: pick(index)
                     FocusRing { anchors.margins: -2 }
-                    Text { x: Theme.gapMedium; anchors.verticalCenter: parent.verticalCenter; color: choice.on ? Theme.accentInk : Theme.ink; font.pixelSize: Theme.body; text: Theme.say(choice.modelData) }
+                    Text { x: Theme.gapMedium; anchors.verticalCenter: parent.verticalCenter; color: choice.on ? Theme.onSelected : Theme.ink; font.pixelSize: Theme.body; text: Theme.say(choice.modelData) }
                     HoverHandler { id: choiceHover }
                     TapHandler { onTapped: choice.pick(choice.index) }
                 }
@@ -425,13 +425,13 @@ Item {
                                     width: ListView.view.width
                                     height: Theme.sized(30)
                                     radius: Theme.corner
-                                    color: familyHover.hovered ? Theme.accent : "transparent"
+                                    color: familyHover.hovered ? Theme.chosen : "transparent"
                                     Text {
                                         x: Theme.gap
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width - 2 * Theme.gap
                                         elide: Text.ElideRight
-                                        color: familyHover.hovered ? Theme.accentInk : Theme.ink
+                                        color: familyHover.hovered ? Theme.onSelected : Theme.ink
                                         font.pixelSize: Theme.title
                                         font.family: family.system ? Qt.application.font.family : family.modelData
                                         text: family.system ? Theme.say("System font") : family.modelData

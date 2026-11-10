@@ -63,7 +63,7 @@ Popup {
                     visible: !entry.line && !entry.caption
                     anchors.fill: parent
                     radius: Theme.corner
-                    color: (over.hovered || menu.at === entry.index) && !entry.off ? Theme.accent : "transparent"
+                    color: (over.hovered || menu.at === entry.index) && !entry.off ? Theme.chosen : "transparent"
                     opacity: entry.off ? 0.4 : 1
                     Accessible.role: Accessible.MenuItem
                     Accessible.name: entry.modelData.text || ""
@@ -75,7 +75,7 @@ Popup {
                         id: words
                         x: 2 * Theme.gap + Theme.icon
                         anchors.verticalCenter: strip.verticalCenter
-                        color: (over.hovered || menu.at === entry.index) && !entry.off ? Theme.accentInk : entry.modelData.danger ? Theme.err : Theme.ink
+                        color: (over.hovered || menu.at === entry.index) && !entry.off ? Theme.onSelected : entry.modelData.danger ? Theme.err : Theme.ink
                         font.pixelSize: Theme.body
                         text: Theme.say(entry.modelData.text || "")
                     }

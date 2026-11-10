@@ -183,7 +183,7 @@ Rectangle {
                         readonly property bool current: index === view.chosen
                         width: list.width
                         height: Math.max(Theme.sized(40), names.implicitHeight + 2 * Theme.gapTiny)
-                        Rectangle { anchors.fill: parent; anchors.leftMargin: Theme.gapSmall; anchors.rightMargin: Theme.gapSmall; radius: Theme.corner; color: row.current ? Theme.accent : Theme.hover; opacity: row.current ? 1 : rowHover.hovered ? 0.04 : 0 }
+                        Rectangle { anchors.fill: parent; anchors.leftMargin: Theme.gapSmall; anchors.rightMargin: Theme.gapSmall; radius: Theme.corner; color: row.current ? Theme.chosen : Theme.hover; opacity: row.current ? 1 : rowHover.hovered ? 0.04 : 0 }
                         HoverHandler { id: rowHover }
                         TapHandler { onTapped: { view.chosen = row.index; view.forceActiveFocus() } }
                         Column {

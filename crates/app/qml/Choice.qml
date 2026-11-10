@@ -21,7 +21,7 @@ Rectangle {
     implicitHeight: (stacked ? options.length : 1) * Theme.segment + 4
     radius: Theme.corner
     color: Theme.seg
-    border.width: 1
+    border.width: Theme.outline
     border.color: Theme.fieldLine
     activeFocusOnTab: true
     Accessible.role: Accessible.Grouping
@@ -41,7 +41,7 @@ Rectangle {
         width: thumb.at ? thumb.at.width : 0
         height: Theme.segment
         radius: Theme.corner - 1
-        color: Theme.accent
+        color: Theme.ctlHi
         Behavior on x { enabled: thumb.settled; NumberAnimation { duration: Theme.quick; easing.type: Easing.OutCubic } }
         Behavior on width { enabled: thumb.settled; NumberAnimation { duration: Theme.quick; easing.type: Easing.OutCubic } }
     }
@@ -68,7 +68,7 @@ Rectangle {
                 Accessible.name: modelData
                 Accessible.checked: on
                 Accessible.onPressAction: choice.picked(option.index)
-                Text { id: label; anchors.centerIn: parent; Behavior on color { ColorAnimation { duration: Theme.quick } } width: option.width - (choice.stacked ? 2 * Theme.gapMedium : Theme.gapSmall); horizontalAlignment: choice.stacked ? Text.AlignLeft : Text.AlignHCenter; elide: Text.ElideRight; color: option.on ? Theme.accentInk : Theme.ink2; font.pixelSize: Theme.small; font.weight: option.on ? Font.DemiBold : Font.Normal; text: Theme.say(option.modelData) }
+                Text { id: label; anchors.centerIn: parent; Behavior on color { ColorAnimation { duration: Theme.quick } } width: option.width - (choice.stacked ? 2 * Theme.gapMedium : Theme.gapSmall); horizontalAlignment: choice.stacked ? Text.AlignLeft : Text.AlignHCenter; elide: Text.ElideRight; color: option.on ? Theme.ink : Theme.ink2; font.pixelSize: Theme.small; font.weight: option.on ? Font.DemiBold : Font.Normal; text: Theme.say(option.modelData) }
                 TapHandler { onTapped: choice.picked(option.index) }
             }
         }

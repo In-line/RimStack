@@ -239,7 +239,7 @@ Item {
                         anchors.leftMargin: Theme.gapSmall
                         anchors.rightMargin: Theme.gapSmall
                         radius: Theme.corner
-                        color: row.current ? Theme.accent : Theme.hover
+                        color: row.current ? Theme.chosen : Theme.hover
                         opacity: row.current ? 1 : rowHover.hovered ? 0.04 : 0
                     }
                     HoverHandler { id: rowHover }

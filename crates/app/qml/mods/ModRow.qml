@@ -112,7 +112,7 @@ Item {
         anchors.rightMargin: Theme.gapSmall
         radius: Theme.corner
         readonly property bool conflicts: row.columns && !row.isHeader && !!Mods.conflictMarks[row.modId]
-        color: row.current ? Theme.accent : conflicts ? Theme.warn : row.movedFrom > 0 ? Theme.moved : Theme.hover
+        color: row.current ? Theme.chosen : conflicts ? Theme.warn : row.movedFrom > 0 ? Theme.moved : Theme.hover
         opacity: row.current ? 1 : conflicts ? 0.12 : row.movedFrom > 0 ? 0.1 : hover.hovered && !row.isHeader ? 0.04 : 0
     }
     HoverHandler { id: hover }
@@ -224,6 +224,7 @@ Item {
                 implicitHeight: Theme.sized(40)
                 radius: Theme.corner
                 color: Theme.ctl
+                Text { visible: !row.picture; anchors.centerIn: parent; color: Theme.ink3; font.pixelSize: Theme.title; font.weight: Font.DemiBold; text: row.name.charAt(0).toUpperCase() }
                 // Read at the size shown and off the window's thread, so
                 // scrolling does not wait for it.
                 Image {
