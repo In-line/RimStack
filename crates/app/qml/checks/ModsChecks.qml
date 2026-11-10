@@ -83,7 +83,7 @@ Item {
                 checks.textureCheck("a Workshop folder changed in Settings is read at once", total === checks.liveTotal + 1 && Hub.settings.report.workshop.endsWith("workshop-b"))
                 checks.liveStep = 1
                 const third = Hub.mods.packageMod(false, "check.third")
-                Mods.copyToLocal(third)
+                Mods.copyToLocal([third])
             } else if (checks.liveStep === 1 && (late || (!Hub.mods.rescanning && total === checks.liveTotal + 2))) {
                 checks.textureCheck("a Workshop mod copied to the game's own Mods folder shows once copied", total === checks.liveTotal + 2 && Mods.upkeepProblem === "")
                 checks.liveStep = 2

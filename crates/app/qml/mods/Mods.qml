@@ -194,7 +194,7 @@ Item {
     signal binRequested(string name, string folder, int modId)
 
     readonly property string upkeepProblem: Hub.mods.upkeepProblem
-    function copyToLocal(modId) { Hub.mods.copyToLocal(modId) }
+    function copyToLocal(modIds) { Hub.mods.copyToLocal(modIds) }
     function binMod(modId) { Hub.mods.bin(modId) }
 
     readonly property Columns columns: Columns {

@@ -479,19 +479,22 @@ impl qobject::ModsData {
         }
     }
 
-    pub(super) fn copy_to_local(mut self: Pin<&mut Self>, mod_id: i32) {
-        let Some(id) = id(mod_id) else {
-            return;
+    pub(super) fn copy_to_local(mut self: Pin<&mut Self>, given: &QVariant) {
+        let Some(ids) = ids(given) else {
+            return self.refuse_list();
         };
         self.as_mut().set_upkeep_problem(QString::default());
         let app = self.app();
         crate::jobs::run(
             "copy to the game folder",
             self.qt_thread(),
-            move || app.copy_to_local(id).err(),
-            |mut me, problem| match problem {
-                Some(problem) => me.set_upkeep_problem(crate::words::said_of(&problem)),
-                None => me.as_mut().rescan(),
+            move || app.copy_to_local(&ids).err(),
+            |mut me, problem| {
+                if let Some(problem) = problem {
+                    me.as_mut()
+                        .set_upkeep_problem(crate::words::said_of(&problem));
+                }
+                me.rescan();
             },
         );
     }

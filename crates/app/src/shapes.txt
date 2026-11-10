@@ -246,6 +246,13 @@ mods.carried: object
   first: number
 mods.columnWidths: map
   {}: number
+mods.copyOffer: object
+  ids: list
+    []: number
+  lines: list
+    []: object or text
+      path: text
+  title: text
 mods.details: object
   author: text
   binLocalCopy: nothing or object

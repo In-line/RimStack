@@ -118,11 +118,11 @@ fn only_inside(listing: &str, program: &str) -> Result<()> {
     }
 }
 
-fn not_an_id(id: &str) -> Error {
+pub(super) fn not_an_id(id: &str) -> Error {
     Error::refused(said!("{} is not a Workshop id", id))
 }
 
-fn is_workshop_id(id: &str) -> bool {
+pub(super) fn is_workshop_id(id: &str) -> bool {
     !id.is_empty() && id.chars().all(|c| c.is_ascii_digit())
 }
 
@@ -260,19 +260,28 @@ pub fn fetch_all(steamcmd: &Path, ids: &[String], scratch: &Path) -> Fetched {
     }
 }
 
-/// Replaces an earlier download of the id. Writes `PublishedFileId.txt`, where the game and
-/// other tools look for it.
+/// Replaces an earlier download of the id.
 pub fn put_in_local(fresh: &Path, workshop_id: &str, local_mods: &Path) -> Result<PathBuf> {
     if !is_workshop_id(workshop_id) {
         return Err(not_an_id(workshop_id));
     }
-    let noted = fresh.join("About").join("PublishedFileId.txt");
-    if !noted.exists() {
-        std::fs::write(&noted, workshop_id).map_err(|e| Error::file(&noted, e))?;
-    }
+    note_workshop_id(fresh, workshop_id)?;
     let to = local_mods.join(workshop_id);
     replace(&to, fresh)?;
     Ok(to)
+}
+
+/// `About/PublishedFileId.txt`, where the game and other tools look for a local mod's Workshop
+/// id; one the author shipped is kept.
+pub(super) fn note_workshop_id(mod_root: &Path, workshop_id: &str) -> Result<()> {
+    let about = mod_root.join("About");
+    let noted = about.join("PublishedFileId.txt");
+    if noted.exists() {
+        return Ok(());
+    }
+    std::fs::create_dir_all(&about)
+        .and_then(|()| std::fs::write(&noted, workshop_id))
+        .map_err(|e| Error::file(&noted, e))
 }
 
 /// `installed` need not be there. The new copy is made beside it and swapped in by renames, so

@@ -31,15 +31,14 @@ QtObject {
             fetch.push({ text: Theme.say("Subscribe again"), icon: "download", run: () => Hub.downloads.subscribe(id) })
         groups.push(fetch)
         if (workshop) {
+            const copy = Hub.mods.copyOffer(Mods.selectedIds)
             const steam = [
                 { title: Theme.say("Steam Workshop") },
                 { text: Theme.say("Page in Steam"), icon: "external-link", run: () => Qt.openUrlExternally(about.steamPage) },
                 { text: Theme.say("Page in the browser"), icon: "external-link", run: () => Qt.openUrlExternally(page) },
                 { text: Theme.say("Copy link"), icon: "copy", run: () => Theme.copy(page) },
-                { text: Theme.say("Copy to the game's Mods folder…"), icon: "copy", run: () => Notices.ask({
-                    title: Theme.fill("Copy {} to the game's Mods folder", (about.name || "")),
-                    lines: [Theme.say("From"), { path: about.path }, Theme.say("Into"), { path: Hub.settings.report.localMods || "" }, Theme.say("The Workshop copy stays where it is; Steam keeps updating that one, not this.")],
-                    label: Theme.say("Copy"), run: () => Mods.copyToLocal(row.modId) }) },
+                { text: Theme.say("Copy to the game's Mods folder…"), icon: "copy", off: copy.ids.length === 0, run: () => Notices.ask({
+                    title: copy.title, lines: copy.lines, label: Theme.say("Copy"), run: () => Mods.copyToLocal(copy.ids) }) },
             ]
             if (Hub.settings.report.steamcmd)
                 steam.push({ text: Theme.say("Download again with SteamCMD…"), icon: "download", run: () => Notices.ask({

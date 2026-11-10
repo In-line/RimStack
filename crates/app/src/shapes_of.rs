@@ -272,6 +272,8 @@ fn mods(app: &App, shapes: &mut Shapes) {
     }
     let ids = |found: Vec<ModId>| found.into_iter().map(ModId::to_qml).collect::<Vec<_>>();
     shapes.add("mods.versionWarned", &ids(vec![roads]));
+    shapes.add("mods.copyOffer", &app.copy_offer(&[shop]));
+    shapes.add("mods.copyOffer", &app.copy_offer(&[shop, roads]));
     shapes.add("mods.packageMods", &ids(vec![a, b]));
     shapes.add("mods.findMods", &order.found(app, "Ann", 5));
     order.preview_sort(app);

@@ -177,7 +177,10 @@ pub mod qobject {
         fn bin(self: Pin<&mut ModsData>, mod_id: i32);
         #[qinvokable]
         #[cxx_name = "copyToLocal"]
-        fn copy_to_local(self: Pin<&mut ModsData>, mod_id: i32);
+        fn copy_to_local(self: Pin<&mut ModsData>, ids: &QVariant);
+        #[qinvokable]
+        #[cxx_name = "copyOffer"]
+        fn copy_offer(self: &ModsData, ids: &QVariant) -> QVariant;
 
         #[qinvokable]
         #[cxx_name = "versionWarned"]
