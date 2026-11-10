@@ -120,7 +120,7 @@ Item {
         if (Hub.mods.fix(modId, fix.action, fix.target))
             return
         if (fix.page)
-            Qt.openUrlExternally(fix.page)
+            Qt.openUrlExternally(Theme.workshopVia + fix.page)
         else
             Theme.openWorkshop(fix.target)
     }

@@ -289,8 +289,9 @@ QtObject {
             : "https://steamcommunity.com/sharedfiles/filedetails/?id=" + id)
     }
 
+    readonly property string workshopVia: stored.workshopInSteam ? "steam://openurl/" : ""
+
     function openChangeNotes(id) {
-        const page = "https://steamcommunity.com/sharedfiles/filedetails/changelog/" + id
-        Qt.openUrlExternally(stored.workshopInSteam ? "steam://openurl/" + page : page)
+        Qt.openUrlExternally(workshopVia + "https://steamcommunity.com/sharedfiles/filedetails/changelog/" + id)
     }
 }
