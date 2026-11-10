@@ -124,7 +124,7 @@ Item {
                 id: sortButton
                 compact: activePane.cramped
                 tone: Theme.moved
-                visible: !Theme.demo; enabled: !Hub.mods.previewing && Hub.mods.filesRead; icon: "arrow-up-down"; primary: Mods.sortPending > 0 && enabled; text: !Hub.mods.filesRead ? Theme.say("Reading files…") : Mods.sortPending > 0 ? Theme.plural(Mods.sortPending, "Sort · {} move", "Sort · {} moves") : Theme.say("Sort"); tip: Theme.say("Shows the order the rules ask for, to keep or discard. Nothing is written before Save."); onClicked: Mods.previewSort()
+                visible: !Theme.demo; enabled: !Hub.mods.previewing && Hub.mods.filesRead; icon: "arrow-up-down"; text: !Hub.mods.filesRead ? Theme.say("Reading files…") : Mods.sortPending > 0 ? Theme.plural(Mods.sortPending, "Sort · {} move", "Sort · {} moves") : Theme.say("Sort"); tip: Theme.say("Shows the order the rules ask for, to keep or discard. Nothing is written before Save."); onClicked: Mods.previewSort()
                 Hint { step: 2; atRight: true; text: Theme.say("Sort shows the order the mods' rules ask for and what would move. Apply moves the mods; Discard leaves the list as it was.") }
             }
             // Beside the button, not inside it: a disabled button would hide the hint too.
