@@ -689,6 +689,7 @@ settings.report: object
   replacementsIgnored: list
     []: text
   rimsortRules: bool
+  sandboxed: bool
   selfCheck: bool
   setConfig: nothing or text
   setGame: nothing or text

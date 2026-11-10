@@ -141,7 +141,8 @@ fn main() -> std::process::ExitCode {
     }
     // A Flatpak is known to the desktop by its application id, and everything
     // else by the rimstack.desktop entry the program writes for itself.
-    let listed_as = std::env::var("FLATPAK_ID").unwrap_or_else(|_| String::from("rimstack"));
+    let listed_as =
+        rimstack_core::base::sandbox::flatpak_id().unwrap_or_else(|| String::from("rimstack"));
     QGuiApplication::set_desktop_file_name(&QString::from(&listed_as));
     hub::hand_over(app);
     let mut engine = QQmlApplicationEngine::new();
