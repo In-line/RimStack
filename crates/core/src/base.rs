@@ -11,6 +11,7 @@ pub mod markup;
 pub mod path_text;
 pub mod program;
 pub mod reread;
+pub mod sandbox;
 pub mod sentence;
 pub mod sizes;
 pub mod translate;
