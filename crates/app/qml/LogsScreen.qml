@@ -167,7 +167,7 @@ Item {
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 0
-                Text { Layout.leftMargin: Theme.gapCard; Layout.preferredHeight: Theme.header; verticalAlignment: Text.AlignVCenter; color: Theme.ink; font.pixelSize: Theme.title; font.weight: Font.DemiBold; text: Theme.say("Launches") }
+                Text { Layout.leftMargin: Theme.gapCard; Layout.preferredHeight: Theme.header; verticalAlignment: Text.AlignVCenter; color: Theme.ink; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; text: Theme.say("Launches") }
                 Entry {
                     Layout.fillWidth: true
                     title: screen.outside ? Theme.say("Started outside RimStack") : Theme.say("Last launch")

@@ -40,7 +40,7 @@ Item {
                 Layout.rightMargin: Theme.gapCard
                 Layout.preferredHeight: Theme.header
                 spacing: Theme.gap
-                Text { color: Theme.ink; font.pixelSize: Theme.title; font.weight: Font.DemiBold; text: Theme.say("Saves") }
+                Text { color: Theme.ink; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; text: Theme.say("Saves") }
                 Text { color: Theme.ink3; font.pixelSize: Theme.body; text: screen.reader.heading }
                 Rectangle {
                     visible: (screen.reader.folders || []).length > 1
