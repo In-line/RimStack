@@ -163,6 +163,7 @@ find.typeSuggestions: list
     note: text
 game.lastStart: object
   errors: number
+  line: text
   time: number
 game.resetByGame: list
   []: text
@@ -261,6 +262,7 @@ logs.lines: list
     warning: bool
 logs.since: nothing
 mod_rows.at: object
+  accessibleName: text
   activatedAgo: text
   again: bool
   author: text
@@ -273,6 +275,7 @@ mod_rows.at: object
   isHeader: bool
   isSub: bool
   loadPart: number
+  loadSeconds: number
   loadTime: text
   local: bool
   madeFor: text
@@ -293,12 +296,8 @@ mod_rows.at: object
   updatedAgo: text
   version: text
   versionIgnored: bool
+  versionLine: text
   whyMoved: text
-mods.carried: object
-  active: bool
-  also: map
-    {}: bool
-  first: number
 mods.columnWidths: map
   {}: number
 mods.copyOffer: object
@@ -539,11 +538,6 @@ mods.holding: object
   name: text
 mods.inLoadOrder: list or nothing
   []: number
-mods.inverted: object
-  active: bool
-  also: map
-    {}: bool
-  first: number
 mods.notInstalled: object
   fixes: list
     []: object
@@ -638,18 +632,33 @@ mods.orders: object
     author: text
     load: text
     version: text
-mods.othersThrough: list
-  []: number
 mods.overview: object
   categories: list
     []: text
   communityMods: nothing
   communityTime: nothing
+  errorCount: number
+  firstErrors: list
+    []: object
+      error: bool
+      fix: object
+        action: text
+        label: text
+        page: nothing or text
+        target: text
+      group: text
+      ignore: text
+      modId: number
+      name: text
+      packageId: text
+      short: text
+      words: text
   gameVersion: text
   installed: number
   loadTimes: bool
   loadTimesHow: text
   missing: number
+  moreErrors: number
   needed: list
     []: text
   otherWarnings: number
@@ -722,6 +731,50 @@ mods.overview: object
   worksOn: number
 mods.packageMods: list
   []: number
+mods.rowMenu: list
+  []: object
+    action: absent or text
+    active: absent or bool
+    ask: absent or object
+      label: text
+      lines: list
+        []: object or text
+          path: text
+      title: text
+    danger: absent or bool
+    fix: absent or object
+      action: text
+      label: text
+      page: nothing or text
+      target: text
+    icon: absent or text
+    ids: absent or list
+      []: number
+    index: absent or number
+    line: absent or bool
+    modId: absent or number
+    name: absent or text
+    off: absent or bool
+    path: absent or text
+    tag: absent or text
+    text: absent or text
+    title: absent or text
+    url: absent or text
+    value: absent or text
+    workshopId: absent or text
+    yes: absent or bool
+mods.selectedIds: list
+  []: number
+mods.selectionSummary: object
+  notInView: number
+  place: text
+  rows: list
+    []: object
+      category: number
+      load: text
+      name: text
+      trouble: number
+  troubled: text
 mods.sortMoves: list
   []: object
     moves: list
@@ -732,10 +785,22 @@ mods.sortMoves: list
         to: number
         why: text
     name: text
+mods.subMenu: list
+  []: object
+    action: text
+    active: bool
+    icon: absent or text
+    row: number
+    text: text
 mods.subsBeside: list
   []: text
 mods.summary: object
   folders: number
+  kept: list
+    []: object
+      label: text
+      value: text
+  keptNote: text
   lastLaunch: object
     errors: number
     mods: number

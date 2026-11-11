@@ -44,6 +44,12 @@ pub mod qobject {
         #[qproperty(QString, filter_found, cxx_name = "filterFound")]
         /// -1 for none.
         #[qproperty(i32, selected)]
+        #[qproperty(bool, selected_active, cxx_name = "selectedActive")]
+        #[qproperty(i32, selected_count, cxx_name = "selectedCount")]
+        /// The first, then the others.
+        #[qproperty(QVariant, selected_ids, cxx_name = "selectedIds")]
+        /// `SelectionSummary` while several mods are chosen; null otherwise.
+        #[qproperty(QVariant, selection_summary, cxx_name = "selectionSummary")]
         #[qproperty(QVariant, details)]
         /// `{ count, ddsMade }`, once its folder is walked.
         #[qproperty(QVariant, textures)]
@@ -100,8 +106,7 @@ pub mod qobject {
             held: &QVariant,
             to_active: bool,
             to: i32,
-            selected: i32,
-        ) -> bool;
+        );
         #[qinvokable]
         #[cxx_name = "slideOf"]
         fn slide_of(
@@ -243,23 +248,20 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "besideMod"]
         fn beside_mod(self: &ModsData, active: bool, mod_id: i32) -> i32;
-        /// Null unless both are shown.
         #[qinvokable]
-        #[cxx_name = "othersThrough"]
-        fn others_through(self: &ModsData, active: bool, from: i32, to: i32) -> QVariant;
+        fn select(self: Pin<&mut ModsData>, mod_id: i32, in_active: bool);
         #[qinvokable]
-        fn carried(self: &ModsData, ids: &QVariant) -> QVariant;
+        #[cxx_name = "selectAlso"]
+        fn select_also(self: Pin<&mut ModsData>, mod_id: i32, in_active: bool);
+        #[qinvokable]
+        #[cxx_name = "selectThrough"]
+        fn select_through(self: Pin<&mut ModsData>, mod_id: i32, in_active: bool);
+        #[qinvokable]
+        #[cxx_name = "invertSelection"]
+        fn invert_selection(self: Pin<&mut ModsData>, in_active: bool);
         /// `{ ids, name }`: what a drag of it takes along.
         #[qinvokable]
         fn holding(self: &ModsData, mod_id: i32, name: &QString, selected: &QVariant) -> QVariant;
-        /// As `carried` gives it.
-        #[qinvokable]
-        fn inverted(
-            self: &ModsData,
-            active: bool,
-            selected_active: bool,
-            selected: &QVariant,
-        ) -> QVariant;
         /// `[earlier, later]`; null unless both are in it.
         #[qinvokable]
         #[cxx_name = "inLoadOrder"]
@@ -278,6 +280,12 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "notInstalled"]
         fn not_installed(self: &ModsData, active: bool, index: i32) -> QVariant;
+        #[qinvokable]
+        #[cxx_name = "rowMenu"]
+        fn row_menu(self: Pin<&mut ModsData>, active: bool, index: i32, mod_id: i32) -> QVariant;
+        #[qinvokable]
+        #[cxx_name = "subMenu"]
+        fn sub_menu(self: &ModsData, active: bool, row: i32) -> QVariant;
         /// `{ tree, assemblies }`.
         #[qinvokable]
         #[cxx_name = "filesOf"]
@@ -303,6 +311,8 @@ pub mod qobject {
 mod asks;
 mod commands;
 mod drafts;
+mod menu;
+mod selection;
 
 use crate::App;
 use crate::changes::Changes;
@@ -353,6 +363,11 @@ pub struct ModsDataRust {
     summary: QVariant,
     filter_found: QString,
     selected: i32,
+    selected_active: bool,
+    selected_count: i32,
+    selected_ids: QVariant,
+    selection_summary: QVariant,
+    chosen: selection::Selection,
     details: QVariant,
     textures: QVariant,
     fresh: QVariant,
@@ -408,6 +423,11 @@ impl Default for ModsDataRust {
             summary: QVariant::default(),
             filter_found: QString::default(),
             selected: -1,
+            selected_active: false,
+            selected_count: 0,
+            selected_ids: QVariant::default(),
+            selection_summary: QVariant::default(),
+            chosen: selection::Selection::default(),
             details: QVariant::default(),
             textures: QVariant::default(),
             fresh: QVariant::default(),
@@ -474,6 +494,7 @@ impl qobject::ModsData {
         self.as_mut()
             .on_selected_changed(|me| me.describe())
             .release();
+        self.as_mut().set_selected_ids(to_qml(&Vec::<i32>::new()));
         self.as_mut()
             .on_headings_changed(|mut me| {
                 let (app, headings) = (me.app(), me.headings);
@@ -553,9 +574,10 @@ impl qobject::ModsData {
                 me.as_mut().rust_mut().get_mut().order = order;
                 me.as_mut().set_rescanning(false);
                 if anew {
-                    let kept = id(me.selected).and_then(|was| same.get(&was).copied());
+                    let kept = me.order.carried(&same, me.chosen.ids());
                     me.as_mut().rust_mut().get_mut().same = same;
-                    me.as_mut().set_selected(kept.map_or(-1, ModId::to_qml));
+                    me.as_mut()
+                        .keep(selection::Selection::of(kept.ids, kept.active));
                     let version = me.library_version + 1;
                     me.as_mut().set_library_version(version);
                 }
@@ -594,7 +616,9 @@ impl qobject::ModsData {
             | Changes::LAUNCHES
             | Changes::SAVES
             | Changes::RULES
-            | Changes::UPDATES;
+            | Changes::UPDATES
+            | Changes::COMMUNITY
+            | Changes::LANGUAGE;
         if changes.contains(counted) {
             self.as_mut().set_summary(to_qml(&app.summary()));
         }
@@ -644,6 +668,7 @@ impl qobject::ModsData {
 
     fn show(mut self: Pin<&mut Self>) {
         let app = self.app();
+        self.as_mut().follow_selection();
         for side in [Side::Active, Side::Inactive] {
             let list = self.order.list(side);
             let (count, matching) = (list.mods().len(), list.matching());
@@ -705,6 +730,7 @@ impl qobject::ModsData {
         self.as_mut().set_overview(overview);
         self.as_mut().set_fresh(fresh);
         self.as_mut().set_orders(orders);
+        self.as_mut().summarize_selection();
         self.describe();
     }
 

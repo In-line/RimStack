@@ -3,13 +3,13 @@ use crate::reports::{Answer, ReleaseSaid, Written};
 use crate::shapes::Shapes;
 use crate::workspace::changed::{NotesState, Only, since_shown};
 use crate::workspace::downloads::{Checkout, Queue, Updates, updates_shown};
-use crate::workspace::load_order::{Holding, LoadOrder, Side};
+use crate::workspace::load_order::{Clicked, Holding, LoadOrder, Side};
 use crate::workspace::tests::installed;
 use crate::workspace::{logs, saves, textures};
 use rimstack_core::kept::launches;
 use rimstack_core::mods::columns;
 use rimstack_core::mods::library::ModId;
-use rimstack_core::mods::list::SortKey;
+use rimstack_core::mods::list::{Row, SortKey};
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -265,6 +265,13 @@ fn mods(app: &App, shapes: &mut Shapes) {
     for at in 0..order.list(Side::Active).mods().len() {
         if let Some(gone) = order.not_installed(app, Side::Active, at) {
             shapes.add("mods.notInstalled", &gone);
+            let missing = Clicked {
+                active: true,
+                index: at,
+                id: None,
+                selected: &[],
+            };
+            shapes.add("mods.rowMenu", &order.row_menu(app, &missing));
         }
     }
     for id in [roads, a, b, shop, broken, hats, subscribed_hats] {
@@ -274,6 +281,50 @@ fn mods(app: &App, shapes: &mut Shapes) {
         shapes.add("mods.textures", &LoadOrder::textures(app, id));
     }
     let ids = |found: Vec<ModId>| found.into_iter().map(ModId::to_qml).collect::<Vec<_>>();
+    let menu_of = |order: &mut LoadOrder, key: ModId, selected: &[ModId]| {
+        let list = |side| {
+            order
+                .list(side)
+                .mods()
+                .iter()
+                .position(|m| m.installed == Some(key))
+        };
+        let (active, index) = match (list(Side::Active), list(Side::Inactive)) {
+            (Some(index), _) => (true, index),
+            (_, index) => (false, index.unwrap_or(0)),
+        };
+        let at = Clicked {
+            active,
+            index,
+            id: Some(key),
+            selected,
+        };
+        order.row_menu(app, &at)
+    };
+    for (key, selected) in [
+        (shop, vec![shop]),
+        (a, vec![a, b]),
+        (subscribed_hats, vec![subscribed_hats]),
+        (roads, vec![roads]),
+    ] {
+        shapes.add("mods.rowMenu", &menu_of(&mut order, key, &selected));
+    }
+    if let Some(first) = order
+        .list(Side::Active)
+        .rows()
+        .iter()
+        .position(|r| matches!(r, Row::Sub { .. }))
+    {
+        shapes.add("mods.subMenu", &order.sub_menu(true, first));
+    }
+    shapes.add(
+        "mods.selectionSummary",
+        &order.selection_summary(true, &[a, b, broken, roads]),
+    );
+    shapes.add(
+        "mods.selectionSummary",
+        &order.selection_summary(false, &[roads, hats]),
+    );
     shapes.add("mods.versionWarned", &ids(vec![roads]));
     shapes.add("mods.copyOffer", &app.copy_offer(&[shop]));
     shapes.add("mods.copyOffer", &app.copy_offer(&[shop, roads]));
@@ -282,14 +333,7 @@ fn mods(app: &App, shapes: &mut Shapes) {
     order.preview_sort(app);
     shapes.add("mods.sortMoves", &order.sort_moves());
     let list = order.list(Side::Active);
-    shapes.add("mods.othersThrough", &list.others_through(a, b).map(ids));
-    let same = order.same_mods_in(&order);
-    shapes.add("mods.carried", &order.carried(&same, &[a, b]));
-    shapes.add("mods.carried", &order.carried(&same, &[]));
-    shapes.add(
-        "mods.inverted",
-        &order.inverted(Side::Active, Side::Active, &[a]),
-    );
+    shapes.add("mods.selectedIds", &ids(vec![a, b]));
     shapes.add("mods.holding", &Holding::of(Some(a), "", &[a, b]));
     shapes.add("mods.holding", &Holding::of(None, "Missing", &[]));
     let ordered = list.in_load_order(a, b);
@@ -329,7 +373,7 @@ fn lists(app: &App, shapes: &mut Shapes) {
 }
 
 fn game(app: &App, shapes: &mut Shapes) {
-    shapes.add("game.lastStart", &app.last_start());
+    shapes.add("game.lastStart", &app.last_start_said());
     shapes.add("game.resetByGame", &app.mods_config_list());
 }
 

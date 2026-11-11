@@ -70,9 +70,21 @@ pub struct RowView {
     pub activated_ago: Sentence,
     /// Empty in the inactive list and without a size from Steam.
     pub size_text: Sentence,
+    pub accessible_name: Sentence,
+    /// In seconds; 0 when not measured.
+    pub load_seconds: f64,
+    /// The version, then where the mod comes from.
+    pub version_line: Sentence,
 }
 
 impl RowView {
+    fn heading_name(&self) -> Sentence {
+        Sentence::listed(vec![
+            self.name.clone(),
+            Sentence::Number(i64::from(self.count)),
+        ])
+    }
+
     fn heading(key: RowKey, name: &str, category: Category) -> Self {
         Self {
             key,
@@ -109,6 +121,9 @@ impl RowView {
             downloaded_ago: Sentence::default(),
             activated_ago: Sentence::default(),
             size_text: Sentence::default(),
+            accessible_name: Sentence::Plain(name.to_string()),
+            load_seconds: 0.0,
+            version_line: Sentence::default(),
         }
     }
 }
@@ -119,9 +134,32 @@ struct Around<'a> {
     now: u64,
 }
 
+/// 2 for an error, 1 for a warning, 0 for none; the game version trusted aside is none.
+pub(super) fn trouble_level(own: &[Trouble]) -> i32 {
+    let shown = own.iter().filter(|t| t.fix != Fix::Trust);
+    shown
+        .map(|t| if t.error { 2 } else { 1 })
+        .max()
+        .unwrap_or(0)
+}
+
+pub(super) fn load_time_text(m: &Mod) -> String {
+    let took = m.load_micros.filter(|micros| *micros >= 1000);
+    took.map(|micros| rimstack_core::rimworld::startup::seconds(f64::from(micros) / 1000.0))
+        .unwrap_or_default()
+}
+
 fn ago(at: Option<u64>, now: u64) -> Sentence {
     let ago = |at| elapsed::ago(now.saturating_sub(at));
     at.map(ago).unwrap_or_default()
+}
+
+fn source_word(source: i32) -> Sentence {
+    match source {
+        2 => say!("Git"),
+        1 => say!("local"),
+        _ => say!("Workshop"),
+    }
 }
 
 fn size_text(m: &Mod) -> Sentence {
@@ -197,6 +235,7 @@ impl LoadOrder {
                     categories_shown.push(category);
                     view.count = count as i32;
                     view.collapsed = collapsed;
+                    view.accessible_name = view.heading_name();
                     view
                 }
                 Row::Sub {
@@ -217,6 +256,7 @@ impl LoadOrder {
                     view.count = count as i32;
                     view.collapsed = collapsed;
                     view.group_size = list.in_sub_of(first).len() as i32;
+                    view.accessible_name = view.heading_name();
                     view
                 }
                 Row::Mod { index } => self.mod_row(side, index, &mods[index], &around, &mut nth),
@@ -249,8 +289,6 @@ impl LoadOrder {
         let installed = around.library.zip(m.installed).and_then(|(l, i)| l.get(i));
         let (source, picture) = source_of(installed);
         let took = m.load_micros.filter(|micros| *micros >= 1000);
-        let load_time = took
-            .map(|micros| rimstack_core::rimworld::startup::seconds(f64::from(micros) / 1000.0));
         let load_part = match (m.load_micros, self.slowest) {
             (Some(own), Some(most)) if most > 0 && side == Side::Active => {
                 f64::from(own) / f64::from(most)
@@ -264,15 +302,31 @@ impl LoadOrder {
             .get(index)
             .and_then(Option::as_ref);
         let preview = side == Side::Active;
+        let name = match m.installed {
+            Some(_) => Sentence::Plain(m.name.clone()),
+            None => say!("{} (not installed)", m.name),
+        };
+        let fresh = m.installed.is_some_and(|i| around.fresh.contains(&i));
+        let accessible_name = Sentence::listed(
+            std::iter::once(name.clone())
+                .chain(first.map(|t| t.short.clone()))
+                .chain(fresh.then(|| say!("new")))
+                .collect(),
+        );
+        let version_line = Sentence::listed(
+            Some(m.version.as_str())
+                .filter(|v| !v.is_empty())
+                .map(|v| Sentence::Plain(v.to_string()))
+                .into_iter()
+                .chain([source_word(source)])
+                .collect(),
+        );
         RowView {
             key: key_of(installed, m, nth),
             is_header: false,
             is_sub: false,
             again: false,
-            name: match m.installed {
-                Some(_) => Sentence::Plain(m.name.clone()),
-                None => say!("{} (not installed)", m.name),
-            },
+            name,
             author: m.author.clone(),
             version: m.version.clone(),
             number: index as i32 + 1,
@@ -286,20 +340,17 @@ impl LoadOrder {
             } else {
                 0
             },
-            trouble: shown()
-                .map(|t| if t.error { 2 } else { 1 })
-                .max()
-                .unwrap_or(0),
+            trouble: trouble_level(own),
             trouble_text: first.map_or_else(Sentence::default, |t| t.short.clone()),
             tags: m.tags.join(", "),
             local: m.local,
             picture,
-            load_time: load_time.unwrap_or_default(),
+            load_time: load_time_text(m),
             load_part,
             version_ignored: preview && self.version_ignored.get(index).copied().unwrap_or(false),
             outdated: made_for.is_some(),
             made_for: made_for.cloned().unwrap_or_default(),
-            fresh: m.installed.is_some_and(|i| around.fresh.contains(&i)),
+            fresh,
             source,
             why_moved: if preview {
                 self.why_moved(index).cloned().unwrap_or_default()
@@ -316,6 +367,9 @@ impl LoadOrder {
             downloaded_ago: column(|m, now| ago(m.downloaded, now)),
             activated_ago: column(|m, now| ago(m.activated, now)),
             size_text: column(|m, _| size_text(m)),
+            accessible_name,
+            load_seconds: took.map_or(0.0, |micros| f64::from(micros) / 1_000_000.0),
+            version_line,
         }
     }
 }

@@ -1,7 +1,8 @@
 use super::App;
 use crate::changes::Changes;
 use crate::reports::{
-    Database, FolderVerdict, LastLaunch, ReleaseSaid, SettingsReport, ShortContrast, Summary,
+    Database, FolderVerdict, KeptCount, LastLaunch, ReleaseSaid, SettingsReport, ShortContrast,
+    Summary,
 };
 use rimstack_core::base::error::Error;
 use rimstack_core::base::locks::Shared;
@@ -214,12 +215,43 @@ impl App {
             }
             Err(_) => 0,
         };
+        let folders = kept.map_or(1, |s| s.folders.len());
+        let snapshots = rimstack_core::kept::lists::count(&self.snapshots_dir());
+        let rules = self.user_rules().reading().len();
+        let community = (*self.community()).as_ref().map_or(0, |c| c.len());
+        let saved = match folders {
+            0 | 1 => Sentence::Number(saves as i64),
+            _ => say!("{} in {} RimSaves folders", saves, folders),
+        };
+        let counts = [
+            (say!("Saves"), saved),
+            (say!("Snapshots"), Sentence::Number(snapshots as i64)),
+            (say!("Own rules"), Sentence::Number(rules as i64)),
+            (
+                say!("Community rules"),
+                match community {
+                    0 => say!("Not downloaded"),
+                    n => say_n!(n, "{} mod", "{} mods"),
+                },
+            ),
+        ];
+        let noted = [
+            Some(say_n!(saves, "{} save", "{} saves")),
+            Some(say_n!(snapshots, "{} snapshot", "{} snapshots")),
+            (community > 0).then(|| say_n!(community, "rules for {} mod", "rules for {} mods")),
+        ];
         Summary {
             saves,
-            folders: kept.map_or(1, |s| s.folders.len()),
-            snapshots: rimstack_core::kept::lists::count(&self.snapshots_dir()),
+            folders,
+            snapshots,
             replacements,
-            rules: self.user_rules().reading().len(),
+            rules,
+            kept_note: Sentence::listed(noted.into_iter().flatten().collect()),
+            kept: counts
+                .into_iter()
+                .filter(|(_, value)| !value.is_empty())
+                .map(|(label, value)| KeptCount { label, value })
+                .collect(),
             last_launch: last.map(|l| LastLaunch {
                 time: l.time,
                 errors: l.errors,
@@ -575,6 +607,28 @@ mod tests {
         let into = heard.clone();
         app.listen(move |changes| *into.lock().unwrap() |= changes);
         heard
+    }
+
+    #[test]
+    fn the_kept_card_counts_saves_snapshots_and_rules() {
+        let (_tmp, app) = installed();
+        let summary = app.summary();
+        let shown: Vec<(String, String)> = summary
+            .kept
+            .iter()
+            .map(|k| (k.label.to_string(), k.value.to_string()))
+            .collect();
+        assert_eq!(
+            shown,
+            [
+                ("Saves", "0"),
+                ("Snapshots", "0"),
+                ("Own rules", "0"),
+                ("Community rules", "Not downloaded"),
+            ]
+            .map(|(label, value)| (label.to_string(), value.to_string()))
+        );
+        assert_eq!(summary.kept_note.to_string(), "0 saves, 0 snapshots");
     }
 
     #[test]

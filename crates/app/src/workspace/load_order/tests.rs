@@ -524,18 +524,14 @@ fn a_selection_is_carried_over_a_rescan_by_folder_and_a_mod_gone_leaves_it() {
     let carried = new.carried(&same, &[was, core]);
     let (core_now, roads_now) = (same[&core], same[&was]);
     assert!(core_now != core && roads_now == roads(&new, Side::Inactive));
-    assert_eq!(carried.first, roads_now.to_qml());
+    assert_eq!(carried.ids.first(), Some(&roads_now));
     assert!(!carried.active);
-    assert_eq!(
-        carried.also.keys().collect::<Vec<_>>(),
-        [&core_now.to_qml().to_string()]
-    );
+    assert_eq!(carried.ids[1..], [core_now]);
     std::fs::remove_dir_all(tmp.path().join("game/Mods/roads")).unwrap();
     app.rescan();
     let newest = LoadOrder::read(&app, true, None);
     let gone = newest.carried(&new.same_mods_in(&newest), &[roads_now]);
-    assert_eq!(gone.first, -1);
-    assert!(gone.also.is_empty());
+    assert!(gone.ids.is_empty());
 }
 
 fn with_more_mods(tmp: &tempfile::TempDir) {
@@ -618,8 +614,7 @@ fn the_inverse_of_a_selection_is_the_rest_of_its_list() {
         .collect();
     let roads = roads(&order, Side::Inactive);
     let rest = order.inverted(Side::Inactive, Side::Inactive, &[roads]);
-    let mut chosen: Vec<i32> = rest.also.keys().map(|id| id.parse().unwrap()).collect();
-    chosen.push(rest.first);
+    let mut chosen: Vec<i32> = rest.ids.iter().map(|id| id.to_qml()).collect();
     chosen.sort_unstable();
     let mut others: Vec<i32> = inactive
         .iter()
@@ -630,8 +625,13 @@ fn the_inverse_of_a_selection_is_the_rest_of_its_list() {
     assert_eq!((chosen, rest.active), (others, false));
     let core = ids_of(&order, Side::Active, &["ludeon.rimworld"]);
     let whole = order.inverted(Side::Inactive, Side::Active, &core);
-    assert_eq!(whole.also.len() + 1, inactive.len());
-    assert_eq!(order.inverted(Side::Active, Side::Active, &core).first, -1);
+    assert_eq!(whole.ids.len(), inactive.len());
+    assert!(
+        order
+            .inverted(Side::Active, Side::Active, &core)
+            .ids
+            .is_empty()
+    );
 }
 
 #[test]

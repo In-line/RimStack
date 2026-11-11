@@ -196,7 +196,12 @@ impl qobject::WorkshopRows {
                 crate::qml::apply::apply(self.as_mut(), &steps, &items);
                 self.changed_rows(items);
             }
-            None => crate::qml::apply::renew(self.as_mut(), items),
+            // Results found anew start at the top, as a reset puts the grid.
+            None => {
+                unsafe { self.as_mut().begin_reset_model() };
+                self.as_mut().rust_mut().shown = items;
+                unsafe { self.as_mut().end_reset_model() };
+            }
         }
     }
 

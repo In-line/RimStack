@@ -63,7 +63,7 @@ Item {
         if (position < 0 || Hub.mods.previewing)
             return
         const next = Hub.mods.besideMod(model.active, selectedId)
-        moveAcross(model, position, selectedId)
+        moveAcross(model, position)
         if (next >= 0)
             select(next, model.active)
     }
@@ -152,7 +152,7 @@ Item {
     function removeSub(model, row) { Hub.mods.removeSub(model.active, row) }
     signal subNameRequested(int modId)
     signal bulkRequested(string what)
-    readonly property var selectedIds: selectedId < 0 ? [] : [selectedId].concat(Object.keys(also).map(Number))
+    readonly property var selectedIds: Hub.mods.selectedIds
 
     function tagSelected(tag) { Hub.mods.addTag(selectedIds, tag) }
     function subSelected(name) { Hub.mods.group(selectedIds, name) }
@@ -164,10 +164,6 @@ Item {
     property Connections sortWatch: Connections {
         target: Hub.mods
         function onLibraryVersionChanged() {
-            const kept = Hub.mods.carried(mods.selectedIds)
-            mods.also = kept.also
-            mods.selectedActive = kept.active
-            mods.selectedId = kept.first
             mods.rescanned()
         }
         function onDone(said) {
@@ -192,7 +188,6 @@ Item {
     property Binding inactiveOrderHeld: Binding { target: Hub.mods; property: "inactiveOrder"; value: mods.prefs.inactiveOrder }
     readonly property var orders: Hub.mods.orders || ({ active: [], activeBy: {}, activeKey: "", inactive: [], inactiveSaid: "", widest: {} })
     property Binding activeOrderHeld: Binding { target: Hub.mods; property: "activeOrder"; value: mods.columns.order }
-    property Binding selectedHeld: Binding { target: Hub.mods; property: "selected"; value: mods.selectedId }
 
     signal binRequested(string name, string folder, int modId)
 
@@ -283,16 +278,14 @@ Item {
     function useList(ids, quiet) { Hub.mods.useList(ids, !!quiet) }
 
     // By library id; -1 for none.
-    property int selectedId: -1
-    property bool selectedActive: false
+    readonly property int selectedId: Hub.mods.selected
+    readonly property bool selectedActive: Hub.mods.selectedActive
     readonly property var info: Hub.mods.details || ({})
     readonly property var textures: Hub.mods.textures || ({})
     readonly property var files: tab === 2 && selectedId >= 0 ? (Hub.mods.filesOf(selectedId) || ({})) : ({})
 
     function select(modId, inActive) {
-        selectedId = modId
-        selectedActive = inActive
-        also = ({})
+        Hub.mods.select(modId, inActive)
         if (leftOffRestored)
             prefs.lastMod = modId >= 0 ? String(info.packageId || "").toLowerCase() : ""
     }
@@ -300,40 +293,11 @@ Item {
     // Which tab of the details panel shows: 0 About, 1 Load order, 2 Files.
     property int tab: 0
 
-    // Library id -> true.
-    property var also: ({})
-    readonly property int selectedCount: selectedId < 0 ? 0 : 1 + Object.keys(also).length
+    readonly property int selectedCount: Hub.mods.selectedCount
 
-    function selectAlso(modId, inActive) {
-        if (selectedId < 0 || inActive !== selectedActive)
-            return select(modId, inActive)
-        if (modId === selectedId)
-            return
-        const next = Object.assign({}, also)
-        if (next[modId])
-            delete next[modId]
-        else
-            next[modId] = true
-        also = next
-    }
-
-    function selectThrough(modId, inActive) {
-        if (selectedId < 0 || inActive !== selectedActive)
-            return select(modId, inActive)
-        const others = Hub.mods.othersThrough(inActive, selectedId, modId)
-        if (!others)
-            return
-        const next = {}
-        for (const id of others)
-            next[id] = true
-        also = next
-    }
-
-    function invertSelection(inActive) {
-        const kept = Hub.mods.inverted(inActive, selectedActive, selectedIds)
-        select(kept.first, inActive)
-        also = kept.also
-    }
+    function selectAlso(modId, inActive) { Hub.mods.selectAlso(modId, inActive) }
+    function selectThrough(modId, inActive) { Hub.mods.selectThrough(modId, inActive) }
+    function invertSelection(inActive) { Hub.mods.invertSelection(inActive) }
 
     function moveSelected() {
         Hub.mods.takeAll(selectedActive, selectedIds)
@@ -376,17 +340,15 @@ Item {
 
     function endSort(keep) { Hub.mods.endSort(keep) }
 
-    function moveAcross(fromModel, modIndex, modId) {
+    function moveAcross(fromModel, modIndex) {
         Hub.mods.take(fromModel.active, modIndex, -1)
-        if (modId >= 0 && modId === selectedId)
-            selectedActive = !fromModel.active
     }
 
     function toggleSelected() {
         const from = selectedActive ? active : inactive
         const index = from.indexOf(selectedId)
         if (index >= 0)
-            moveAcross(from, index, selectedId)
+            moveAcross(from, index)
     }
 
     readonly property Dragging drag: Dragging {
@@ -394,7 +356,7 @@ Item {
     }
     function drop(from, to) {
         slide(from.modId, Hub.mods.slideOf(from.model.active, from.modIndex, from.ids, to.model.active, to.modIndex))
-        selectedActive = Hub.mods.drop(from.model.active, from.modIndex, from.ids, to.model.active, to.modIndex, selectedId)
+        Hub.mods.drop(from.model.active, from.modIndex, from.ids, to.model.active, to.modIndex)
     }
 
     // `{ earlier, later }` by library id; null when the lists are showing.

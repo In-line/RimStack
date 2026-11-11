@@ -88,6 +88,14 @@ pub struct Summary {
     pub replacements: usize,
     pub rules: usize,
     pub last_launch: Option<LastLaunch>,
+    pub kept_note: Sentence,
+    pub kept: Vec<KeptCount>,
+}
+
+#[derive(Serialize)]
+pub struct KeptCount {
+    pub label: Sentence,
+    pub value: Sentence,
 }
 
 #[derive(Serialize, Default)]

@@ -83,13 +83,10 @@ ListView {
     property int tick: 0
     readonly property int topCategory: {
         const drawn = tick
-        if (drawn < 0 || count === 0 || !model.at(0).isHeader)
+        if (drawn < 0 || count === 0)
             return -1
         const top = indexAt(10, contentY + 1)
-        if (top < 0)
-            return -1
-        const row = model.at(top)
-        return row.isHeader && !row.isSub ? -1 : row.category
+        return top < 0 ? -1 : model.categoryAt(top)
     }
     Rectangle {
         parent: list
@@ -116,19 +113,6 @@ ListView {
     }
 
     property real kept: 0
-    // Rust lays the model out anew after a change; the list keeps its place over that reset.
-    property real keptOverReset: 0
-    Connections {
-        target: list.model
-        function onModelAboutToBeReset() { list.keptOverReset = list.contentY }
-        function onModelReset() {
-            const at = list.keptOverReset
-            Qt.callLater(() => {
-                list.contentY = at
-                list.returnToBounds()
-            })
-        }
-    }
     Connections {
         target: list.model
         function onRowsInserted() { list.tick++ }

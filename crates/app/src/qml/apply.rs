@@ -12,8 +12,7 @@ pub trait Shown: Sized {
     unsafe fn end_remove(self: Pin<&mut Self>);
     unsafe fn begin_move(self: Pin<&mut Self>, from: i32, before: i32);
     unsafe fn end_move(self: Pin<&mut Self>);
-    unsafe fn begin_reset(self: Pin<&mut Self>);
-    unsafe fn end_reset(self: Pin<&mut Self>);
+    fn changed(self: Pin<&mut Self>, first: i32, last: i32);
 }
 
 pub fn apply<M: Shown>(mut model: Pin<&mut M>, steps: &[Step], items: &[M::Item]) {
@@ -45,12 +44,26 @@ pub fn apply<M: Shown>(mut model: Pin<&mut M>, steps: &[Step], items: &[M::Item]
     }
 }
 
+/// Fills the rows again in place: the delegates are rebound to their new rows, not rebuilt.
 pub fn renew<M: Shown>(mut model: Pin<&mut M>, items: Vec<M::Item>) {
-    // SAFETY: the reset ends below, after the rows changed.
-    unsafe { model.as_mut().begin_reset() };
+    let old = model.as_mut().shown().len();
+    let new = items.len();
+    // SAFETY: each change is announced before the rows change and ended right after.
+    unsafe {
+        if new > old {
+            model.as_mut().begin_insert(old as i32, new as i32 - 1);
+            model.as_mut().shown().extend(items[old..].iter().cloned());
+            model.as_mut().end_insert();
+        } else if new < old {
+            model.as_mut().begin_remove(new as i32, old as i32 - 1);
+            model.as_mut().shown().truncate(new);
+            model.as_mut().end_remove();
+        }
+    }
     *model.as_mut().shown() = items;
-    // SAFETY: ends the reset begun above.
-    unsafe { model.end_reset() };
+    if new > 0 {
+        model.changed(0, new as i32 - 1);
+    }
 }
 
 macro_rules! shown_rows {
@@ -79,11 +92,10 @@ macro_rules! shown_rows {
             unsafe fn end_move(self: Pin<&mut Self>) {
                 unsafe { self.end_move_rows() }
             }
-            unsafe fn begin_reset(self: Pin<&mut Self>) {
-                unsafe { self.begin_reset_model() }
-            }
-            unsafe fn end_reset(self: Pin<&mut Self>) {
-                unsafe { self.end_reset_model() }
+            fn changed(self: Pin<&mut Self>, first: i32, last: i32) {
+                let root = QModelIndex::default();
+                let (top, bottom) = (self.index(first, 0, &root), self.index(last, 0, &root));
+                self.data_changed(&top, &bottom, &QVector::default());
             }
         }
     };

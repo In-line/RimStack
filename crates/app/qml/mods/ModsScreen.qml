@@ -202,7 +202,7 @@ Rectangle {
         }
     }
 
-    PopMenu { id: rowMenu }
+    PopMenu { id: rowMenu; doers: Mods.menus.doers }
     Prompt {
         id: subPrompt
         property int modId: -1
@@ -319,7 +319,7 @@ Timer {
     }
     // Opened by address, so Qt's test module is needed only for this.
     Loader {
-        source: Mods.checkMode === "pointer" ? "qrc:/qt/qml/RimStack/Ui/qml/checks/PointerChecks.qml" : ""
+        source: Mods.checkMode === "pointer" ? Qt.resolvedUrl("../checks/PointerChecks.qml") : ""
         onLoaded: {
             item.screen = screen
             item.activePane = activePane

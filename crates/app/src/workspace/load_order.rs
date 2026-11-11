@@ -10,18 +10,22 @@ use rimstack_core::mods::{demo, sort_reasons};
 use rimstack_core::rimworld::paths::Source;
 use rimstack_core::{say, say_n};
 use serde::Serialize;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 mod details;
 mod edits;
+mod menu;
 mod orders;
 mod rows;
 mod rules;
 mod sorting;
+mod summary;
 
 pub use details::{Details, Files, Overview};
+pub use menu::{Clicked, Entry};
 pub use orders::Orders;
 pub use rows::RowView;
+pub use summary::SelectionSummary;
 
 pub struct Preview {
     before: Vec<Mod>,
@@ -676,31 +680,17 @@ impl LoadOrder {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Carried {
-    /// -1 for none.
-    pub first: i32,
+    pub ids: Vec<ModId>,
     pub active: bool,
-    /// The others, as the window keeps them: id to `true`.
-    pub also: BTreeMap<String, bool>,
 }
 
 impl Carried {
     fn of(ids: &[ModId], active: bool) -> Carried {
-        let Some((&first, others)) = ids.split_first() else {
-            return Carried {
-                first: -1,
-                active: false,
-                also: BTreeMap::new(),
-            };
-        };
         Carried {
-            first: first.to_qml(),
-            active,
-            also: others
-                .iter()
-                .map(|id| (id.to_qml().to_string(), true))
-                .collect(),
+            ids: ids.to_vec(),
+            active: active && !ids.is_empty(),
         }
     }
 }

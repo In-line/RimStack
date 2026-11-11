@@ -82,8 +82,7 @@ impl qobject::ModsData {
     }
 
     /// `to` is the place dropped on, the list's length for its end. More than one `held`
-    /// move together; one alone moves by `index`, so a missing mod does as well. Whether
-    /// the selected mod is active after it.
+    /// move together; one alone moves by `index`, so a missing mod does as well.
     pub(super) fn drop(
         mut self: Pin<&mut Self>,
         from_active: bool,
@@ -91,8 +90,7 @@ impl qobject::ModsData {
         held: &QVariant,
         to_active: bool,
         to: i32,
-        selected: i32,
-    ) -> bool {
+    ) {
         let held = ids(held).unwrap_or_default();
         let (from, into) = (Side::of(from_active), Side::of(to_active));
         match (usize::try_from(to), held.len() > 1, from == into) {
@@ -114,8 +112,6 @@ impl qobject::ModsData {
             }
             (Ok(_), false, false) => self.as_mut().take(from_active, index, to),
         }
-        let active = self.order.list(Side::Active);
-        id(selected).is_some_and(|id| active.position_of(id).is_some())
     }
 
     pub(super) fn to_edge(mut self: Pin<&mut Self>, given: &QVariant, top: bool) {

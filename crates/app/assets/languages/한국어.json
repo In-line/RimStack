@@ -1244,7 +1244,6 @@
  "kept as they are": "그대로 유지됨",
  "limit exceeded": "한도 초과",
  "load-order rules kept by players, for mods whose files do not say enough": "모드 파일에 정보가 부족할 때 사용하는 플레이어 관리 배열 규칙",
- "loaded in {} min {} s": "{}분 {}초 만에 불러옴",
  "loading": "로딩",
  "loads {}": "불러오는 순서: {}",
  "local": "로컬",

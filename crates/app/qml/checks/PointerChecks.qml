@@ -255,6 +255,61 @@ Item {
         onTriggered: {
             const moved = checks.inactiveList.contentY - before
             checks.check("one notch of the wheel scrolls the system's lines, not more", Math.abs(moved - Application.styleHints.wheelScrollLines * 40) < 2)
+            tipRow.start()
+        }
+    }
+    function tipIn(item, text) {
+        for (const child of item.children) {
+            if (child.over !== undefined && child.text === text)
+                return child
+            const found = checks.tipIn(child, text)
+            if (found)
+                return found
+        }
+        return null
+    }
+    Timer {
+        id: tipRow
+        property ModRow row
+        interval: 300
+        onTriggered: {
+            const list = checks.activeList
+            for (let at = 0; at < list.count && !row; at++) {
+                const item = list.itemAtIndex(at) as ModRow
+                if (item && !item.isHeader && item.modIndex >= 0 && !item.current && item.y >= list.contentY)
+                    row = item
+            }
+            events.mouseMove(row, row.width / 2, row.height / 2, -1, Qt.NoButton, Qt.NoModifier)
+            tipButton.start()
+        }
+    }
+    Timer {
+        id: tipButton
+        property Tip tip
+        interval: 300
+        onTriggered: {
+            tip = checks.tipIn(tipRow.row, Theme.say("Deactivate")) as Tip
+            checks.check("the pointer on a mod shows its buttons", tip !== null)
+            if (tip)
+                events.mouseMove(tip, tip.width / 2, tip.height / 2, -1, Qt.NoButton, Qt.NoModifier)
+            tipShown.start()
+        }
+    }
+    Timer {
+        id: tipShown
+        interval: 900
+        onTriggered: {
+            const tip = tipButton.tip
+            checks.check("resting on a button says what it does, below and in a tooltip", tip !== null && Notices.hint === tip.text && Notices.tipShown && Notices.tipped === tip)
+            events.mouseMove(checks.details, checks.details.width / 2, Theme.control, -1, Qt.NoButton, Qt.NoModifier)
+            tipGone.start()
+        }
+    }
+    Timer {
+        id: tipGone
+        interval: 300
+        onTriggered: {
+            checks.check("leaving the mod from its button takes the words and the tooltip away", Notices.hint !== Theme.say("Deactivate") && !Notices.tipShown && Notices.tipped === null)
             comparing.start()
         }
     }

@@ -29,19 +29,10 @@ impl qobject::ModsData {
     }
 
     pub(super) fn version_warned(&self, given: &QVariant) -> QVariant {
-        let list = self.order.list(Side::Active);
-        let warned = |id: &ModId| {
-            let own = list
-                .position_of(*id)
-                .and_then(|at| self.order.troubles().get(at));
-            own.is_some_and(|own| rimstack_core::mods::describe::warned_for_version(own))
-        };
-        let Some(given) = ids(given) else {
-            return to_qml(&Vec::<i32>::new());
-        };
-        let found: Vec<i32> = given
+        let found: Vec<i32> = ids(given)
+            .map(|given| self.order.version_warned(&given))
+            .unwrap_or_default()
             .into_iter()
-            .filter(warned)
             .map(ModId::to_qml)
             .collect();
         to_qml(&found)
@@ -165,19 +156,6 @@ impl qobject::ModsData {
         held_id(id(mod_id).and_then(|id| list.beside_mod(id)))
     }
 
-    pub(super) fn others_through(&self, active: bool, from: i32, to: i32) -> QVariant {
-        let list = self.order.list(Side::of(active));
-        let others = id(from)
-            .zip(id(to))
-            .and_then(|(a, b)| list.others_through(a, b));
-        to_qml(&others.map(|ids| ids.into_iter().map(ModId::to_qml).collect::<Vec<_>>()))
-    }
-
-    pub(super) fn carried(&self, given: &QVariant) -> QVariant {
-        let selected = ids(given).unwrap_or_default();
-        to_qml(&self.order.carried(&self.same, &selected))
-    }
-
     pub(super) fn place_alone(&self, side: Side, to: usize) -> i32 {
         let last = self.order.list(side).mods().len().saturating_sub(1);
         to.min(last) as i32
@@ -202,17 +180,6 @@ impl qobject::ModsData {
     pub(super) fn holding(&self, mod_id: i32, name: &QString, selected: &QVariant) -> QVariant {
         let selected = ids(selected).unwrap_or_default();
         to_qml(&Holding::of(id(mod_id), &name.to_string(), &selected))
-    }
-
-    pub(super) fn inverted(
-        &self,
-        active: bool,
-        selected_active: bool,
-        given: &QVariant,
-    ) -> QVariant {
-        let selected = ids(given).unwrap_or_default();
-        let (side, selected_on) = (Side::of(active), Side::of(selected_active));
-        to_qml(&self.order.inverted(side, selected_on, &selected))
     }
 
     pub(super) fn in_load_order(&self, a: i32, b: i32) -> QVariant {

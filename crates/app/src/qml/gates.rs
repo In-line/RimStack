@@ -2,12 +2,12 @@ use std::path::{Path, PathBuf};
 
 /// The most there may be; lower them as QML loses some, never raise them.
 const MOST: [(&str, usize); 7] = [
-    ("functions", 172),
+    ("functions", 170),
     ("timers", 11),
-    ("arrow functions", 264),
-    ("ifs", 221),
-    ("ternaries", 734),
-    ("array callbacks", 64),
+    ("arrow functions", 246),
+    ("ifs", 198),
+    ("ternaries", 702),
+    ("array callbacks", 55),
     ("comparisons with a text", 26),
 ];
 

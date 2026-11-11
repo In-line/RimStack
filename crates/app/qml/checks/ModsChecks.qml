@@ -43,7 +43,7 @@ Item {
             stop()
             const scripted = { screens: "ScreensChecks", layout: "LayoutChecks", find: "FindChecks", findtaps: "FindTapChecks" }
             if (scripted[Mods.checkMode]) {
-                const made = Qt.createComponent("qrc:/qt/qml/RimStack/Ui/qml/checks/" + scripted[Mods.checkMode] + ".qml")
+                const made = Qt.createComponent(Qt.resolvedUrl(scripted[Mods.checkMode] + ".qml"))
                 if (made.status !== Component.Ready) {
                     console.log("check FAIL the screen checks did not load: " + made.errorString())
                     Qt.exit(1)
@@ -261,10 +261,15 @@ Item {
         while (Hub.mods.canUndo)
             Hub.mods.undo()
         check("undo all the way is the saved list", !Hub.mods.dirty && order() === start)
+        const offered = Hub.mods.rowMenu(true, 1, second)
+        Mods.menus.doers[offered[0].action](offered[0])
+        check("the first entry of a mod's menu moves it across", Mods.active.count === counts[0] - 1 && Mods.inactive.count === counts[1] + 1 && offered.length > 3)
+        Hub.mods.undo()
 
         Mods.select(Mods.nthMod(Mods.active, 0), true)
         Mods.selectThrough(Mods.nthMod(Mods.active, 2), true)
         check("shift selects a run", Mods.selectedCount === 3)
+        check("and the details list them in the order of the list", Hub.mods.selectionSummary.rows.length === 3 && Hub.mods.selectionSummary.place.length > 0)
         Mods.selectAlso(Mods.nthMod(Mods.active, 1), true)
         check("ctrl takes one out", Mods.selectedCount === 2)
         Mods.moveSelected()

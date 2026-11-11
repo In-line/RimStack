@@ -396,6 +396,23 @@ ApplicationWindow {
         }
     }
 
+    Timer {
+        interval: 600
+        running: Notices.tipped !== null
+        onTriggered: Notices.tipShown = true
+    }
+    ToolTip {
+        parent: Notices.tipped
+        visible: Notices.tipShown && Notices.tipText !== ""
+        delay: 0
+        timeout: 15000
+        padding: Theme.gap
+        margins: Theme.gap
+        contentWidth: Math.min(words.implicitWidth, Theme.sized(340))
+        contentItem: Text { id: words; wrapMode: Text.WordWrap; color: Theme.ink; font.pixelSize: Theme.small; lineHeight: 1.25; text: Notices.tipText }
+        background: Rectangle { radius: Theme.corner; color: Theme.bar; border.width: 1; border.color: Theme.line }
+    }
+
     // `--hunt-works` saves the game's settings: give it a copy.
     Timer {
         interval: 1200

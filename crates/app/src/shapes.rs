@@ -1,4 +1,4 @@
-//! `RIMSTACK_SHAPES=write cargo test -p rimstack-app shapes` writes `shapes.txt` again;
+//! `RIMSTACK_SHAPES=write just test shapes` writes `shapes.txt` again;
 //! the diff is what QML must follow.
 
 use crate::layers::bridges;

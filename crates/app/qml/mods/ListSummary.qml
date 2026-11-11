@@ -10,7 +10,9 @@ Column {
     spacing: Theme.gapCard
     readonly property var facts: Hub.mods.summary || ({})
     readonly property int changed: (Hub.downloads.since || {}).count || 0
-    readonly property var errors: Mods.troubles.filter(trouble => trouble.error)
+    readonly property int errorCount: Mods.overview.errorCount || 0
+    readonly property var firstErrors: Mods.overview.firstErrors || []
+    readonly property int moreErrors: Mods.overview.moreErrors || 0
     readonly property var slowest: Mods.overview.slowest || []
     readonly property real keptWidth: Math.max(keptSaves.advanceWidth, keptSnapshots.advanceWidth, keptOwn.advanceWidth, keptCommunity.advanceWidth) + Theme.gap
     TextMetrics { id: keptSaves; font.pixelSize: Theme.body; text: Theme.say("Saves") }
@@ -47,14 +49,14 @@ Column {
     Card {
         id: verdict
         visible: !Theme.demo
-        readonly property bool playable: summary.errors.length === 0 && !Hub.mods.dirty
+        readonly property bool playable: summary.errorCount === 0 && !Hub.mods.dirty
         readonly property int versionOnly: Mods.overview.versionOnly || 0
         title: !playable ? Theme.say("Before you play") : Hub.mods.warnings === 0 ? Theme.say("Ready to play") : Theme.plural(Hub.mods.warnings, "Playable, {} warning", "Playable, {} warnings")
-        tone: summary.errors.length > 0 ? Theme.err : Hub.mods.dirty ? Theme.warn : Hub.mods.warnings > 0 ? Theme.ink : Theme.ok
-        note: summary.errors.length > 0 ? summary.errors.length : ""
+        tone: summary.errorCount > 0 ? Theme.err : Hub.mods.dirty ? Theme.warn : Hub.mods.warnings > 0 ? Theme.ink : Theme.ok
+        note: summary.errorCount > 0 ? summary.errorCount : ""
         spacing: Theme.gap
         Repeater {
-            model: summary.errors.slice(0, 4)
+            model: summary.firstErrors
             ProblemLine {
                 required property var modelData
                 width: summary.width
@@ -68,7 +70,7 @@ Column {
         }
         Line {
             visible: Mods.troubles.length > 0
-            text: summary.errors.length > 4 ? Theme.plural(summary.errors.length - 4, "{} more problem", "{} more problems") : Hub.mods.warnings === 0 ? "" : verdict.versionOnly === Hub.mods.warnings ? Theme.say("All for the game version") : Theme.plural(Hub.mods.warnings, "{} mod with a warning", "{} mods with a warning")
+            text: summary.moreErrors > 0 ? Theme.plural(summary.moreErrors, "{} more problem", "{} more problems") : Hub.mods.warnings === 0 ? "" : verdict.versionOnly === Hub.mods.warnings ? Theme.say("All for the game version") : Theme.plural(Hub.mods.warnings, "{} mod with a warning", "{} mods with a warning")
             action: Theme.say("All problems")
             onActed: Mods.problemsOpen = true
         }
@@ -84,15 +86,12 @@ Column {
                 wrapMode: Text.WordWrap
                 color: Theme.ink2
                 font.pixelSize: Theme.body
-                text: [Theme.fill("Last started {}", Theme.moment(launched.launch.time || 0)),
-                    launched.launch.loadSeconds ? Theme.fill("loaded in {} min {} s", Math.floor(launched.launch.loadSeconds / 60), Math.round(launched.launch.loadSeconds % 60)) : "",
-                    launched.logged === null || launched.logged === undefined ? "" : launched.logged === 0 ? Theme.say("no errors") : Theme.plural(launched.logged, "{} different error", "{} different errors"),
-                ].filter(part => part !== "").join(", ")
+                text: launched.launch.line || ""
             }
             Btn { visible: launched.logged > 0; text: Theme.say("Open log"); onClicked: Mods.showSection(Theme.sections.logs) }
         }
         Line { visible: Hub.mods.dirty; text: Theme.fill("Not saved: {}", Hub.mods.unsaved); action: Theme.say("Save"); primary: true; onActed: Mods.save() }
-        Line { visible: summary.errors.length === 0 && !Hub.mods.dirty && Mods.troubles.length === 0; text: Theme.say("No problems, and the list is saved.") }
+        Line { visible: summary.errorCount === 0 && !Hub.mods.dirty && Mods.troubles.length === 0; text: Theme.say("No problems, and the list is saved.") }
     }
 
     Card {
@@ -152,24 +151,16 @@ Column {
         title: Theme.say("Kept")
         key: "overview-inventory"
         startsFolded: true
-        note: folded ? [summary.facts.saves === undefined ? "" : Theme.plural(summary.facts.saves, "{} save", "{} saves"),
-            Theme.plural(summary.facts.snapshots || 0, "{} snapshot", "{} snapshots"),
-            Mods.overview.communityMods ? Theme.plural(Mods.overview.communityMods, "rules for {} mod", "rules for {} mods") : "",
-        ].filter(part => part !== "").join(", ") : ""
+        note: folded ? summary.facts.keptNote || "" : ""
         Repeater {
-            model: [
-                [Theme.say("Saves"), summary.facts.saves === undefined ? "" : (summary.facts.folders > 1 ? Theme.fill("{} in {} RimSaves folders", summary.facts.saves, summary.facts.folders) : summary.facts.saves + "")],
-                [Theme.say("Snapshots"), (summary.facts.snapshots || 0) + ""],
-                [Theme.say("Own rules"), (summary.facts.rules || 0) + ""],
-                [Theme.say("Community rules"), Mods.overview.communityMods ? Theme.plural(Mods.overview.communityMods, "{} mod", "{} mods") : Theme.say("Not downloaded")],
-            ].filter(pair => pair[1] !== "")
+            model: summary.facts.kept || []
             Item {
                 id: about
                 required property var modelData
                 width: summary.width
                 height: kept.implicitHeight + Theme.gapTiny
-                Text { id: kept; width: summary.keptWidth; color: Theme.ink2; font.pixelSize: Theme.body; text: Theme.say(about.modelData[0]) }
-                Text { x: kept.width; width: parent.width - kept.width; elide: Text.ElideRight; color: Theme.ink; font.pixelSize: Theme.body; text: about.modelData[1] }
+                Text { id: kept; width: summary.keptWidth; color: Theme.ink2; font.pixelSize: Theme.body; text: about.modelData.label }
+                Text { x: kept.width; width: parent.width - kept.width; elide: Text.ElideRight; color: Theme.ink; font.pixelSize: Theme.body; text: about.modelData.value }
             }
         }
         Text {

@@ -1,4 +1,4 @@
-// Entries: { text, note, icon, off, danger, run }, { line: true } for a divider,
+// Entries: { text, note, icon, off, danger, run or action }, { line: true } for a divider,
 // or { title } for a caption.
 pragma ComponentBehavior: Bound
 import QtQuick
@@ -10,6 +10,7 @@ Popup {
     enter: PopIn {}
     id: menu
     property var entries: []
+    property var doers: ({})
     // The entry the arrow keys are on; -1 for none.
     property int at: -1
     function step(by) {
@@ -43,7 +44,7 @@ Popup {
     contentItem: Column {
         Keys.onDownPressed: menu.step(1)
         Keys.onUpPressed: menu.step(-1)
-        Keys.onReturnPressed: if (menu.at >= 0) { const chosen = menu.entries[menu.at]; menu.close(); chosen.run() }
+        Keys.onReturnPressed: if (menu.at >= 0) { const chosen = menu.entries[menu.at]; const act = chosen.run || menu.doers[chosen.action]; menu.close(); act(chosen) }
         Repeater {
             model: menu.entries
             Item {
@@ -96,8 +97,10 @@ Popup {
                     TapHandler {
                         enabled: !entry.off
                         onTapped: {
+                            const chosen = entry.modelData
+                            const act = chosen.run || menu.doers[chosen.action]
                             menu.close()
-                            entry.modelData.run()
+                            act(chosen)
                         }
                     }
                 }

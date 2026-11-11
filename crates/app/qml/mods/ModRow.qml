@@ -10,6 +10,7 @@ Item {
     required property bool isSub
     required property string loadTime
     required property bool again
+    required property bool selected
     required property bool versionIgnored
     required property string name
     required property string author
@@ -43,17 +44,21 @@ Item {
     required property string sizeText
     required property string downloadedAgo
     required property string activatedAgo
+    required property string accessibleName
+    required property real loadSeconds
+    required property string versionLine
     readonly property bool comfortable: columns && Theme.stored.comfortable
 
     readonly property var listView: ListView.view
     readonly property var ownModel: listView.model
     readonly property bool columns: listView.columns
-    readonly property bool current: !isHeader && modId >= 0 && (modId === Mods.selectedId || Mods.also[modId] === true)
+    readonly property bool current: selected
+    readonly property bool chosen: current && Mods.selectedCount === 1
+    property bool overButton: false
     readonly property color quiet: current ? Theme.onSelectedDim : Theme.ink2
 
     Accessible.role: isHeader ? Accessible.Heading : Accessible.ListItem
-    Accessible.name: isHeader ? name + ", " + count
-        : [name, columns ? Theme.fill("{} of {}", number, ownModel.count) : "", troubleText, fresh ? Theme.say("new") : ""].filter(part => part !== "").join(", ")
+    Accessible.name: accessibleName
     Accessible.selectable: !isHeader
     Accessible.selected: current
 
@@ -81,8 +86,6 @@ Item {
     ListView.onReused: { offset = 0; settle() }
     onModIdChanged: settle()
 
-    // "82 ms" or "2.6 s", as the model writes it.
-    readonly property real loadSeconds: loadTime === "" ? 0 : parseFloat(loadTime) / (loadTime.endsWith("ms") ? 1000 : 1)
     readonly property color categoryColour: Theme.categoryColours[category] || Theme.ink3
     readonly property int movedBy: movedFrom > 0 ? Math.abs(movedFrom - number) : 0
 
@@ -116,79 +119,85 @@ Item {
         opacity: row.current ? 1 : conflicts ? 0.12 : row.movedFrom > 0 ? 0.1 : hover.hovered && !row.isHeader ? 0.04 : 0
     }
     HoverHandler { id: hover }
-    Tip { text: !row.isHeader && nameText.truncated ? row.name : ""; over: hover.hovered && !quick.hovered }
+    Tip { text: !row.isHeader && nameText.truncated ? row.name : ""; over: hover.hovered && !row.overButton }
 
-    Row {
-        visible: row.isSub
-        anchors.verticalCenter: parent.verticalCenter
-        x: Theme.gapWide + row.listView.numberWidth
-        spacing: Theme.gapSmall
-        Text { width: Theme.sized(10); color: Theme.ink3; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
-        Text { color: Theme.ink2; font.pixelSize: Theme.small; text: row.name; Tip { text: row.collapsed ? Theme.say("Click to show its mods") : Theme.say("The mods whose first tag this is. Click to fold them away.") } }
-        Text { color: Theme.ink3; font.pixelSize: Theme.small; text: row.groupSize > row.count ? Theme.fill("{} of {}", Theme.count(row.count), Theme.count(row.groupSize)) : Theme.count(row.count) }
-        Text {
-            visible: row.again
-            color: Theme.ink3
-            font.pixelSize: Theme.small
-            text: Theme.say("the rest of it")
-            Tip { text: Theme.say("This group has mods further up as well: a rule keeps them apart, and Sort follows rules before groups.") }
+    Loader {
+        active: row.isSub
+        anchors.fill: parent
+        sourceComponent: Item {
+            Row {
+                anchors.verticalCenter: parent.verticalCenter
+                x: Theme.gapWide + row.listView.numberWidth
+                spacing: Theme.gapSmall
+                Text { width: Theme.sized(10); color: Theme.ink3; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
+                Text { color: Theme.ink2; font.pixelSize: Theme.small; text: row.name; Tip { text: row.collapsed ? Theme.say("Click to show its mods") : Theme.say("The mods whose first tag this is. Click to fold them away.") } }
+                Text { color: Theme.ink3; font.pixelSize: Theme.small; text: row.groupSize > row.count ? Theme.fill("{} of {}", Theme.count(row.count), Theme.count(row.groupSize)) : Theme.count(row.count) }
+                Text {
+                    visible: row.again
+                    color: Theme.ink3
+                    font.pixelSize: Theme.small
+                    text: Theme.say("the rest of it")
+                    Tip { text: Theme.say("This group has mods further up as well: a rule keeps them apart, and Sort follows rules before groups.") }
+                }
+            }
+            Rectangle {
+                visible: hover.hovered
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.gapCard
+                anchors.verticalCenter: parent.verticalCenter
+                width: Theme.sized(24)
+                height: Theme.sized(24)
+                radius: Theme.corner
+                color: subOff.hovered ? Theme.ctlHi : Theme.ctl
+                Accessible.role: Accessible.Button
+                Accessible.ignored: !visible
+                Accessible.name: Theme.fill("Remove the tag {} from these mods", row.name)
+                Icon { anchors.centerIn: parent; name: "x"; size: Theme.sized(12); color: Theme.ink }
+                HoverHandler { id: subOff; cursorShape: Qt.PointingHandCursor }
+                Binding { target: row; property: "overButton"; value: subOff.hovered }
+                Accessible.onPressAction: Mods.removeSub(row.ownModel, row.index)
+                TapHandler { onTapped: Mods.removeSub(row.ownModel, row.index) }
+                Tip { text: Theme.say("Takes this tag off these mods; they stay where they are"); over: subOff.hovered }
+            }
         }
     }
-    Rectangle {
-        visible: row.isSub && hover.hovered
-        anchors.right: parent.right
-        anchors.rightMargin: Theme.gapCard
-        anchors.verticalCenter: parent.verticalCenter
-        width: Theme.sized(24)
-        height: Theme.sized(24)
-        radius: Theme.corner
-        color: subOff.hovered ? Theme.ctlHi : Theme.ctl
-        Accessible.role: Accessible.Button
-        Accessible.ignored: !visible
-        Accessible.name: Theme.fill("Remove the tag {} from these mods", row.name)
-        Icon { anchors.centerIn: parent; name: "x"; size: Theme.sized(12); color: Theme.ink }
-        HoverHandler { id: subOff; cursorShape: Qt.PointingHandCursor }
-        Accessible.onPressAction: Mods.removeSub(row.ownModel, row.index)
-        TapHandler { onTapped: Mods.removeSub(row.ownModel, row.index) }
-        Tip { text: Theme.say("Takes this tag off these mods; they stay where they are"); over: subOff.hovered }
+    Loader {
+        active: row.isHeader && !row.isSub && !row.again
+        anchors.fill: parent
+        sourceComponent: Row {
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Theme.gapSmall
+            x: Theme.gapWide
+            spacing: Theme.gapSmall
+            Text { width: Theme.sized(10); color: Theme.ink2; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
+            Icon { name: Theme.categoryIcons[row.category] || ""; color: row.categoryColour; anchors.verticalCenter: parent.verticalCenter }
+            Text { color: Theme.ink; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say(row.name); Tip { text: row.collapsed ? Theme.say("Click to show its mods") : Theme.say("Click to fold its mods away") } }
+            Text { color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.count(row.count) }
+        }
     }
-    Row {
-        visible: row.isHeader && !row.isSub && !row.again
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: Theme.gapSmall
-        x: Theme.gapWide
-        spacing: Theme.gapSmall
-        Text { width: Theme.sized(10); color: Theme.ink2; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
-        Icon { name: Theme.categoryIcons[row.category] || ""; color: row.categoryColour; anchors.verticalCenter: parent.verticalCenter }
-        Text { color: Theme.ink; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say(row.name); Tip { text: row.collapsed ? Theme.say("Click to show its mods") : Theme.say("Click to fold its mods away") } }
-        Text { color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.count(row.count) }
-    }
-    Item {
-        visible: row.again && !row.isSub
+    Loader {
+        active: row.again && !row.isSub
         anchors.fill: parent
         anchors.leftMargin: Theme.gapWide
         anchors.rightMargin: Theme.gapWide
-        Row {
-            id: stray
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Theme.gapSmall
-            Text { width: Theme.sized(10); color: Theme.ink3; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
-            Text { color: Theme.ink3; font.pixelSize: Theme.caption; text: Theme.say(row.name) + "  " + Theme.count(row.count) + "  " + Theme.say("out of category order") }
-        }
-        Row {
-            anchors.left: stray.right
-            anchors.leftMargin: Theme.gap
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            height: 1
-            clip: true
-            spacing: Theme.gapTiny
-            Repeater {
-                model: row.again ? Math.ceil(row.width / 8) : 0
-                Rectangle { width: 4; height: 1; color: Theme.line }
+        sourceComponent: Item {
+            Row {
+                id: stray
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Theme.gapSmall
+                Text { width: Theme.sized(10); color: Theme.ink3; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
+                Text { color: Theme.ink3; font.pixelSize: Theme.caption; text: Theme.say(row.name) + "  " + Theme.count(row.count) + "  " + Theme.say("out of category order") }
             }
+            Rectangle {
+                anchors.left: stray.right
+                anchors.leftMargin: Theme.gap
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                height: 1
+                color: Theme.line
+            }
+            Tip { text: Theme.say("This category has mods further up as well. Sort brings a category's mods together.") }
         }
-        Tip { text: Theme.say("This category has mods further up as well. Sort brings a category's mods together.") }
     }
 
     RowLayout {
@@ -285,7 +294,7 @@ Item {
                 visible: row.twin && !row.columns
                 color: row.quiet
                 font.pixelSize: Theme.small
-                text: [row.version, row.source === 2 ? Theme.say("Git") : row.source === 1 ? Theme.say("local") : Theme.say("Workshop")].filter(part => part !== "").join(", ")
+                text: row.versionLine
             }
             Item { Layout.fillWidth: true }
             Text {
@@ -345,7 +354,7 @@ Item {
                 readonly property bool bare: !row.listView.wide
                 visible: kind !== 0
                 anchors.right: parent.right
-                anchors.rightMargin: quick.chosen ? Theme.sized(26) : 0
+                anchors.rightMargin: row.chosen ? Theme.sized(26) : 0
                 anchors.verticalCenter: parent.verticalCenter
                 maxWidth: parent.width - anchors.rightMargin
                 onAccent: row.current
@@ -359,65 +368,63 @@ Item {
         }
     }
 
-    Row {
-        id: quick
-        readonly property bool hovered: toggleHover.hovered || folderHover.hovered || moreHover.hovered
-        readonly property bool chosen: row.current && Mods.selectedCount === 1
-        visible: (hover.hovered || chosen) && !row.isHeader && row.modIndex >= 0 && Mods.drag.held === null && !Hub.mods.previewing && Mods.picking === ""
+    Loader {
+        active: (hover.hovered || row.chosen) && !row.isHeader && row.modIndex >= 0 && Mods.drag.held === null && !Hub.mods.previewing && Mods.picking === ""
         anchors.right: parent.right
         anchors.rightMargin: Theme.gapCard
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Theme.gapHair
-        Rectangle {
-            visible: hover.hovered
-            width: Theme.sized(24)
-            height: Theme.sized(24)
-            radius: Theme.corner
-            color: toggleHover.hovered ? Theme.ctlHi : Theme.ctl
-            Accessible.role: Accessible.Button
-            Accessible.ignored: !quick.visible
-            Accessible.name: row.columns ? Theme.say("Deactivate") : Theme.say("Activate")
-            Icon { anchors.centerIn: parent; name: row.columns ? "minus" : "plus"; size: Theme.sized(13); color: Theme.ink }
-            HoverHandler { id: toggleHover; cursorShape: Qt.PointingHandCursor }
-            Accessible.onPressAction: Mods.moveAcross(row.ownModel, row.modIndex, row.modId)
-            TapHandler { onTapped: Mods.moveAcross(row.ownModel, row.modIndex, row.modId) }
-            Tip { text: row.columns ? Theme.say("Deactivate") : Theme.say("Activate"); over: toggleHover.hovered }
-        }
-        Rectangle {
-            visible: hover.hovered && row.modId >= 0
-            width: Theme.sized(24)
-            height: Theme.sized(24)
-            radius: Theme.corner
-            color: folderHover.hovered ? Theme.ctlHi : Theme.ctl
-            Accessible.role: Accessible.Button
-            Accessible.ignored: !quick.visible || !visible
-            Accessible.name: Theme.say("Open folder")
-            Icon { anchors.centerIn: parent; name: "folder-open"; size: Theme.sized(13); color: Theme.ink }
-            HoverHandler { id: folderHover; cursorShape: Qt.PointingHandCursor }
-            Accessible.onPressAction: Mods.openFolder(row.modId)
-            TapHandler { onTapped: Mods.openFolder(row.modId) }
-            Tip { text: Theme.say("Open folder"); over: folderHover.hovered }
-        }
-        Rectangle {
-            visible: quick.chosen || hover.hovered
-            width: Theme.sized(24)
-            height: Theme.sized(24)
-            radius: Theme.corner
-            color: moreHover.hovered ? Theme.ctlHi : Theme.ctl
-            Accessible.role: Accessible.Button
-            Accessible.ignored: !quick.visible
-            Accessible.name: Theme.say("Menu")
-            Icon { anchors.centerIn: parent; name: "ellipsis"; size: Theme.sized(13); color: Theme.ink }
-            HoverHandler { id: moreHover; cursorShape: Qt.PointingHandCursor }
-            Accessible.onPressAction: Mods.rowMenu(row, row.width - 30, row.height)
-            TapHandler { onTapped: Mods.rowMenu(row, row.width - 30, row.height) }
-            Tip { text: Theme.say("Menu (right-click)"); over: moreHover.hovered }
+        sourceComponent: Row {
+            spacing: Theme.gapHair
+            Binding { target: row; property: "overButton"; value: toggleHover.hovered || folderHover.hovered || moreHover.hovered }
+            Rectangle {
+                visible: hover.hovered
+                width: Theme.sized(24)
+                height: Theme.sized(24)
+                radius: Theme.corner
+                color: toggleHover.hovered ? Theme.ctlHi : Theme.ctl
+                Accessible.role: Accessible.Button
+                Accessible.name: row.columns ? Theme.say("Deactivate") : Theme.say("Activate")
+                Icon { anchors.centerIn: parent; name: row.columns ? "minus" : "plus"; size: Theme.sized(13); color: Theme.ink }
+                HoverHandler { id: toggleHover; cursorShape: Qt.PointingHandCursor }
+                Accessible.onPressAction: Mods.moveAcross(row.ownModel, row.modIndex)
+                TapHandler { onTapped: Mods.moveAcross(row.ownModel, row.modIndex) }
+                Tip { text: row.columns ? Theme.say("Deactivate") : Theme.say("Activate"); over: toggleHover.hovered }
+            }
+            Rectangle {
+                visible: hover.hovered && row.modId >= 0
+                width: Theme.sized(24)
+                height: Theme.sized(24)
+                radius: Theme.corner
+                color: folderHover.hovered ? Theme.ctlHi : Theme.ctl
+                Accessible.role: Accessible.Button
+                Accessible.ignored: !visible
+                Accessible.name: Theme.say("Open folder")
+                Icon { anchors.centerIn: parent; name: "folder-open"; size: Theme.sized(13); color: Theme.ink }
+                HoverHandler { id: folderHover; cursorShape: Qt.PointingHandCursor }
+                Accessible.onPressAction: Mods.openFolder(row.modId)
+                TapHandler { onTapped: Mods.openFolder(row.modId) }
+                Tip { text: Theme.say("Open folder"); over: folderHover.hovered }
+            }
+            Rectangle {
+                visible: row.chosen || hover.hovered
+                width: Theme.sized(24)
+                height: Theme.sized(24)
+                radius: Theme.corner
+                color: moreHover.hovered ? Theme.ctlHi : Theme.ctl
+                Accessible.role: Accessible.Button
+                Accessible.name: Theme.say("Menu")
+                Icon { anchors.centerIn: parent; name: "ellipsis"; size: Theme.sized(13); color: Theme.ink }
+                HoverHandler { id: moreHover; cursorShape: Qt.PointingHandCursor }
+                Accessible.onPressAction: Mods.rowMenu(row, row.width - 30, row.height)
+                TapHandler { onTapped: Mods.rowMenu(row, row.width - 30, row.height) }
+                Tip { text: Theme.say("Menu (right-click)"); over: moreHover.hovered }
+            }
         }
     }
 
     TapHandler {
         onTapped: {
-            if (quick.hovered || subOff.hovered)
+            if (row.overButton)
                 return
             if (row.isSub)
                 Hub.mods.toggleSub(row.ownModel === Mods.active, row.index)
@@ -433,17 +440,14 @@ Item {
                 Mods.select(row.modId, row.ownModel === Mods.active)
             row.listView.forceActiveFocus()
         }
-        onDoubleTapped: if (!row.isHeader && !quick.hovered && !Hub.mods.previewing) Mods.moveAcross(row.ownModel, row.modIndex, row.modId)
+        onDoubleTapped: if (!row.isHeader && !row.overButton && !Hub.mods.previewing) Mods.moveAcross(row.ownModel, row.modIndex)
     }
 
     TapHandler {
         acceptedButtons: Qt.RightButton
         onTapped: (point) => {
             if (row.isSub)
-                Mods.menuRequested(row, point.position.x, point.position.y, [
-                    { text: row.collapsed ? Theme.say("Show its mods") : Theme.say("Fold its mods away"), run: () => Hub.mods.toggleSub(row.ownModel === Mods.active, row.index) },
-                    { text: Theme.say("Take this tag off these mods"), icon: "x", run: () => Mods.removeSub(row.ownModel, row.index) },
-                ])
+                Mods.menuRequested(row, point.position.x, point.position.y, Hub.mods.subMenu(row.ownModel === Mods.active, row.index))
             else if (row.isHeader)
                 Mods.categoryMenu(row, point.position.x, point.position.y, row.category)
             else if (row.modIndex >= 0)
