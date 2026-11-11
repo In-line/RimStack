@@ -5,6 +5,7 @@ use crate::said;
 use std::path::{Path, PathBuf};
 
 use crate::rimworld::paths::APP_ID as GAME;
+use crate::rimworld::workshop::is_id;
 
 /// None on macOS, where it is not run.
 pub fn steamcmd(data_dir: &Path) -> Option<PathBuf> {
@@ -126,10 +127,6 @@ pub(super) fn not_an_id(id: &str) -> Error {
     Error::refused(said!("{} is not a Workshop id", id))
 }
 
-pub(super) fn is_workshop_id(id: &str) -> bool {
-    !id.is_empty() && id.chars().all(|c| c.is_ascii_digit())
-}
-
 /// The folders are deleted when this is dropped: keep what is needed by moving it out first.
 pub struct Fetched {
     pub items: Vec<(String, Result<PathBuf>)>,
@@ -208,8 +205,7 @@ pub fn fetch_all(steamcmd: &Path, ids: &[String], scratch: &Path) -> Fetched {
     if let Err(problem) = on_this_system() {
         return every(problem);
     }
-    let (asked, refused): (Vec<&String>, Vec<&String>) =
-        ids.iter().partition(|id| is_workshop_id(id));
+    let (asked, refused): (Vec<&String>, Vec<&String>) = ids.iter().partition(|id| is_id(id));
     let not_an_id = |id: &&String| ((*id).clone(), Err(not_an_id(id)));
     let mut items: Vec<_> = refused.iter().map(not_an_id).collect();
     if asked.is_empty() {
@@ -266,7 +262,7 @@ pub fn fetch_all(steamcmd: &Path, ids: &[String], scratch: &Path) -> Fetched {
 
 /// Replaces an earlier download of the id.
 pub fn put_in_local(fresh: &Path, workshop_id: &str, local_mods: &Path) -> Result<PathBuf> {
-    if !is_workshop_id(workshop_id) {
+    if !is_id(workshop_id) {
         return Err(not_an_id(workshop_id));
     }
     note_workshop_id(fresh, workshop_id)?;

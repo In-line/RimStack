@@ -119,8 +119,9 @@ impl App {
         let mut kept = self.last_check();
         let ids: Vec<String> = library
             .workshop_mods()
-            .keys()
-            .map(|id| id.to_string())
+            .into_keys()
+            .filter(|folder| workshop::is_id(folder))
+            .map(str::to_string)
             .collect();
         let problem = match workshop::fetch_details(&ids) {
             Ok(now) => {

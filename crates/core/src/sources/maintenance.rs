@@ -1,5 +1,6 @@
-use super::redownload::{is_workshop_id, not_an_id, note_workshop_id};
+use super::redownload::{not_an_id, note_workshop_id};
 use crate::base::error::{Error, Result};
+use crate::rimworld::workshop::is_id;
 use crate::said;
 
 use std::path::{Path, PathBuf};
@@ -7,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// Into a folder named by the Workshop id, as SteamCMD's downloads are, with the id noted in it.
 /// Nothing is replaced: a folder of that name refuses the copy.
 pub fn copy_to_local(mod_root: &Path, workshop_id: &str, local_mods: &Path) -> Result<PathBuf> {
-    if !is_workshop_id(workshop_id) {
+    if !is_id(workshop_id) {
         return Err(not_an_id(workshop_id));
     }
     let to = local_mods.join(workshop_id);

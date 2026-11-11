@@ -56,6 +56,12 @@ fn installed(acf: &str, fact: &str) -> HashMap<String, u64> {
     times
 }
 
+/// Steam reads each id up to its first non-digit and refuses the whole request when one comes
+/// out as 0: one folder named `Backup` in the Workshop folder would sink every other answer.
+pub fn is_id(text: &str) -> bool {
+    text.bytes().all(|b| b.is_ascii_digit()) && text.parse::<u64>().is_ok_and(|n| n != 0)
+}
+
 pub fn ids_in(text: &str) -> Vec<String> {
     let mut found: Vec<String> = Vec::new();
     for piece in text.split(|c: char| c.is_whitespace() || c == ',' || c == ';') {
@@ -65,7 +71,7 @@ pub fn ids_in(text: &str) -> Vec<String> {
             None if piece.chars().all(|c| c.is_ascii_digit()) => piece.to_string(),
             None => String::new(),
         };
-        if (6..=12).contains(&id.len()) && !found.contains(&id) {
+        if (6..=12).contains(&id.len()) && is_id(&id) && !found.contains(&id) {
             found.push(id);
         }
     }
@@ -225,11 +231,15 @@ pub fn parse_details(json: &str) -> Result<Vec<Details>, Error> {
     Ok(files.iter().filter_map(details_of).collect())
 }
 
-/// One POST of up to 100 ids. Blocks on the network.
+/// One POST of up to 100 ids; those that are not ids are left out. Blocks on the network.
 pub fn fetch_batch(agent: &ureq::Agent, batch: &[String]) -> Result<Vec<Details>, Error> {
+    let batch: Vec<&String> = batch.iter().filter(|id| is_id(id)).collect();
+    if batch.is_empty() {
+        return Ok(Vec::new());
+    }
     let mut form = vec![("itemcount".to_string(), batch.len().to_string())];
     for (i, id) in batch.iter().enumerate() {
-        form.push((format!("publishedfileids[{i}]"), id.clone()));
+        form.push((format!("publishedfileids[{i}]"), id.to_string()));
     }
     let pairs = form.iter().map(|(k, v)| (k.as_str(), v.as_str()));
     let mut response = agent
@@ -357,6 +367,36 @@ mod tests {
         let pasted = "https://steamcommunity.com/sharedfiles/filedetails/?id=2009463077&searchtext=x\n\
                       818773962, 2009463077 hello 12 steam://url/CommunityFilePage/1 ?id=abc";
         assert_eq!(ids_in(pasted), ["2009463077", "818773962"]);
+    }
+
+    #[test]
+    fn only_what_steam_reads_as_an_id_is_one() {
+        for id in ["2009463077", "0002009463077"] {
+            assert!(is_id(id), "{id}");
+        }
+        let not = [
+            "",
+            "0",
+            "000",
+            "Backup",
+            "\u{feff}2009463077",
+            "+5",
+            "2009463077 copy",
+        ];
+        for text in not {
+            assert!(!is_id(text), "{text:?}");
+        }
+        assert!(ids_in("000000 https://x/?id=0000000").is_empty());
+    }
+
+    #[test]
+    fn a_batch_of_folder_names_asks_steam_nothing() {
+        let names = ["Backup".to_string(), "0".to_string(), String::new()];
+        let offline = ureq::Agent::config_builder()
+            .proxy(ureq::Proxy::new("http://127.0.0.1:9").ok())
+            .build()
+            .into();
+        assert_eq!(fetch_batch(&offline, &names).unwrap(), []);
     }
 
     #[test]
