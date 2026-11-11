@@ -151,6 +151,7 @@ impl App {
             version_warnings: settings.switch(Switch::VersionWarnings),
             version_aside_for: owned("versionAsideFor"),
             file_hints: settings.switch(Switch::FileHints),
+            dim_left_out: settings.switch(Switch::DimLeftOut),
             git_for_workshop: settings.switch(Switch::GitForWorkshop),
             git: self.git().clone(),
             self_check: settings.switch(Switch::SelfCheck),

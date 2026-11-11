@@ -232,12 +232,19 @@ Item {
             checks.check("and stay selected", Mods.selectedCount === 2 && Mods.selectedActive)
             Mods.select(-1, false)
 
-            const last = Mods.inactive.at(0).name
+            const found = Mods.inactive.at(0).name
             Mods.filtered = "is:inactive"
-            checks.drag(checks.inactiveList, 13, checks.activeList, checks.activeList.height / 2)
+            const dimmed = Mods.active.dimmed && Mods.active.rows() === Mods.active.count
+            checks.drag(checks.inactiveList, 13, checks.activeList, row(4))
+            Mods.filtered = ""
+            checks.check("with is:inactive the load order stays, dimmed, and a mod dragged into it lands where it was dropped", dimmed && Mods.active.count === count + 4 && checks.nameAt(4) === found)
+
+            const last = Mods.inactive.at(0).name
+            Mods.filtered = "is:active is:changed"
+            checks.drag(checks.inactiveList, 13, checks.activeList, checks.activeList.height - 13)
             Mods.filtered = ""
             checks.activeList.forceLayout()
-            checks.check("a mod dropped on the empty part of the active list is activated at its end", Mods.active.count === count + 4 && checks.nameAt(Mods.active.count - 1) === last)
+            checks.check("a mod dropped on the empty part of the active list is activated at its end", Mods.active.count === count + 5 && checks.nameAt(Mods.active.count - 1) === last)
 
             events.mouseClick(checks.activeList, 120, row(3), Qt.RightButton, Qt.NoModifier, -1)
             checks.check("the right mouse button selects the mod and opens its menu", Mods.info.name === checks.nameAt(3) && checks.screen.menuOpen)

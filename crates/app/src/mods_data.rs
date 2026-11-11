@@ -326,7 +326,7 @@ use qobject::ModRows;
 use rimstack_core::base::sentence::Sentence;
 use rimstack_core::mods::columns;
 use rimstack_core::mods::library::ModId;
-use rimstack_core::mods::list::SortKey;
+use rimstack_core::mods::list::{LeftOut, SortKey};
 use std::sync::Arc;
 
 pub struct ModsDataRust {
@@ -642,6 +642,9 @@ impl qobject::ModsData {
         if changes.contains(Changes::NOTES) {
             order.sync(&app);
         }
+        if changes.contains(Changes::SETTINGS) {
+            order.follow_left_out(&app);
+        }
         if changes.contains(Changes::PROBLEMS | Changes::COMMUNITY) {
             order.recheck(&app);
         }
@@ -672,9 +675,10 @@ impl qobject::ModsData {
         for side in [Side::Active, Side::Inactive] {
             let list = self.order.list(side);
             let (count, matching) = (list.mods().len(), list.matching());
+            let dimmed = list.left_out() == Some(LeftOut::Dimmed);
             let rows = self.order.rows(&app, side);
             if let Some(model) = self.as_mut().rows(side) {
-                model.show(rows, count, matching);
+                model.show(rows, count, matching, dimmed);
             }
         }
         let (dirty, unsaved, undo, redo) = {

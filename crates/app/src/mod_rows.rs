@@ -25,6 +25,7 @@ pub mod qobject {
         #[qproperty(bool, active, READ, CONSTANT)]
         #[qproperty(i32, count)]
         #[qproperty(i32, matching)]
+        #[qproperty(bool, dimmed)]
         type ModRows = super::ModRowsRust;
     }
 
@@ -159,6 +160,7 @@ pub struct ModRowsRust {
     active: bool,
     count: i32,
     matching: i32,
+    dimmed: bool,
     shown: Vec<RowView>,
     chosen: HashSet<i32>,
 }
@@ -413,6 +415,7 @@ impl qobject::ModRows {
         rows: Vec<RowView>,
         count: usize,
         matching: usize,
+        dimmed: bool,
     ) {
         let before: Vec<_> = self.shown.iter().map(|r| r.key.clone()).collect();
         let after: Vec<_> = rows.iter().map(|r| r.key.clone()).collect();
@@ -424,7 +427,8 @@ impl qobject::ModRows {
             None => crate::qml::apply::renew(self.as_mut(), rows),
         }
         self.as_mut().set_count(count as i32);
-        self.set_matching(matching as i32);
+        self.as_mut().set_matching(matching as i32);
+        self.set_dimmed(dimmed);
     }
 
     fn changed_rows(mut self: Pin<&mut Self>, rows: Vec<RowView>) {

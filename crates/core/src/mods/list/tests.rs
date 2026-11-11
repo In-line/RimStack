@@ -278,27 +278,69 @@ fn source_terms_tell_the_workshop_from_git_checkouts_and_the_game() {
     assert!(names(&list).is_empty());
 }
 
+fn shown(list: &GroupedList) -> usize {
+    let rows = list.rows().iter();
+    rows.filter(|r| matches!(r, Row::Mod { .. })).count()
+}
+
+fn dimmed() -> GroupedList {
+    let mut list = sample();
+    list.set_left_out(LeftOut::Dimmed);
+    list
+}
+
 #[test]
-fn a_side_term_empties_the_other_list_and_both_empty_both() {
-    let mut active = sample();
-    let mut inactive = sample();
+fn a_side_term_leaves_the_other_list_out_and_both_leave_both() {
+    let mut active = dimmed();
+    let mut inactive = dimmed();
     let count = |list: &GroupedList| list.matching();
+    let out = |list: &GroupedList| list.left_out().is_some();
 
     active.set_filter_on(Side::Active, "is:active");
     inactive.set_filter_on(Side::Inactive, "is:active");
     assert_eq!((count(&active), count(&inactive)), (6, 0));
-    assert!(inactive.rows().is_empty());
+    assert_eq!((out(&active), out(&inactive)), (false, true));
+    assert_eq!(shown(&inactive), 6);
 
     active.set_filter_on(Side::Active, "is:inactive royalty");
     inactive.set_filter_on(Side::Inactive, "is:inactive royalty");
     assert_eq!((count(&active), count(&inactive)), (0, 1));
+    assert_eq!((shown(&active), shown(&inactive)), (6, 1));
 
     active.set_filter_on(Side::Active, "is:active is:inactive");
     inactive.set_filter_on(Side::Inactive, "is:inactive is:active");
     assert_eq!((count(&active), count(&inactive)), (0, 0));
+    assert!(out(&active) && out(&inactive));
 
     active.set_filter("is:inactive");
     assert_eq!(count(&active), 6);
+    assert!(!out(&active));
+}
+
+#[test]
+fn any_filter_that_matches_nothing_in_a_list_leaves_it_out() {
+    let mut list = dimmed();
+    list.set_filter("dub");
+    assert_eq!(
+        (list.matching(), shown(&list), list.left_out()),
+        (2, 2, None)
+    );
+    list.set_filter("author:nobody");
+    assert_eq!((list.matching(), shown(&list)), (0, 6));
+    assert_eq!(list.left_out(), Some(LeftOut::Dimmed));
+    list.set_filter("");
+    assert_eq!((list.matching(), list.left_out()), (6, None));
+}
+
+#[test]
+fn a_list_left_out_hidden_shows_nothing_and_dimmed_again_shows_all() {
+    let mut list = sample();
+    list.set_filter("author:nobody");
+    assert!(list.rows().is_empty());
+    assert_eq!(list.left_out(), Some(LeftOut::Hidden));
+    list.set_left_out(LeftOut::Dimmed);
+    assert_eq!(shown(&list), 6);
+    assert_eq!(list.left_out(), Some(LeftOut::Dimmed));
 }
 
 #[test]

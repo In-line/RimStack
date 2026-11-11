@@ -57,6 +57,7 @@ pub struct SettingsReport {
     pub version_warnings: bool,
     pub version_aside_for: Option<String>,
     pub file_hints: bool,
+    pub dim_left_out: bool,
     pub git_for_workshop: bool,
     pub git: Option<String>,
     pub self_check: bool,

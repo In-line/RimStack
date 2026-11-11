@@ -251,6 +251,8 @@ pub struct GroupedList {
     filter: Filter,
     /// Which list this is, as the filter last said; `None` lets `is:active` and `is:inactive` pass.
     side: Option<Side>,
+    left_out: LeftOut,
+    unmatched: bool,
     /// Empty until `set_flags`, and again after the order changes.
     flags: Vec<u16>,
     grouped: bool,
@@ -279,6 +281,13 @@ struct Filter {
     flags: u16,
     only: Option<Side>,
     both: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LeftOut {
+    Dimmed,
+    #[default]
+    Hidden,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -410,6 +419,8 @@ impl GroupedList {
             collapsed_subs: HashSet::new(),
             filter: Filter::default(),
             side: None,
+            left_out: LeftOut::default(),
+            unmatched: false,
             flags: Vec::new(),
             grouped: true,
             shown_by: None,
@@ -544,7 +555,21 @@ impl GroupedList {
     }
 
     pub fn matching(&self) -> usize {
+        if self.unmatched {
+            return 0;
+        }
         (0..self.mods.len()).filter(|&i| self.matches(i)).count()
+    }
+
+    pub fn left_out(&self) -> Option<LeftOut> {
+        self.unmatched.then_some(self.left_out)
+    }
+
+    pub fn set_left_out(&mut self, left_out: LeftOut) {
+        if self.left_out != left_out {
+            self.left_out = left_out;
+            self.rebuild();
+        }
     }
 
     pub fn set_filter(&mut self, text: &str) {
@@ -645,16 +670,24 @@ impl GroupedList {
                 .admits(&self.mods[index], &self.haystacks[index], flags, facts)
     }
 
+    fn shows(&self, index: usize) -> bool {
+        match self.unmatched {
+            true => self.left_out == LeftOut::Dimmed,
+            false => self.matches(index),
+        }
+    }
+
     fn rebuild(&mut self) {
+        self.unmatched = !self.filter.is_empty() && !(0..self.mods.len()).any(|i| self.matches(i));
         if let Some((key, descending)) = self.shown_by {
-            let shown: Vec<usize> = (0..self.mods.len()).filter(|&i| self.matches(i)).collect();
+            let shown: Vec<usize> = (0..self.mods.len()).filter(|&i| self.shows(i)).collect();
             let shown = sorted(shown, |&i| sorted_by(&self.mods[i], key), descending);
             self.rows = shown.into_iter().map(|index| Row::Mod { index }).collect();
             return;
         }
         if !self.grouped {
             self.rows = (0..self.mods.len())
-                .filter(|&i| self.matches(i))
+                .filter(|&i| self.shows(i))
                 .map(|index| Row::Mod { index })
                 .collect();
             return;
@@ -667,7 +700,7 @@ impl GroupedList {
             while end < self.mods.len() && self.mods[end].category == category {
                 end += 1;
             }
-            let visible: Vec<usize> = (start..end).filter(|&i| self.matches(i)).collect();
+            let visible: Vec<usize> = (start..end).filter(|&i| self.shows(i)).collect();
             if !visible.is_empty() {
                 let collapsed = self.collapsed.contains(&category);
                 rows.push(Row::Header {

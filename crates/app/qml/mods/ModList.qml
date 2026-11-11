@@ -35,6 +35,10 @@ ListView {
 
     clip: true
     reuseItems: true
+    states: State {
+        when: list.model.dimmed
+        PropertyChanges { list.opacity: 0.5 }
+    }
     acceptedButtons: Qt.NoButton
     boundsBehavior: Flickable.StopAtBounds
     Wheel {}

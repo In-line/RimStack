@@ -883,6 +883,7 @@ settings.report: object
   configFolder: text
   dataFolder: text
   diagnosticsFile: text
+  dimLeftOut: bool
   english: bool
   fileHints: bool
   font: text

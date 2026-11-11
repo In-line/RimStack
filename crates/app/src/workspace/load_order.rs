@@ -1,11 +1,12 @@
 use crate::App;
 use rimstack_core::base::locks::Shared;
 use rimstack_core::base::sentence::Sentence;
+use rimstack_core::kept::settings::Switch;
 use rimstack_core::kept::{activated, launches};
 use rimstack_core::mods::describe::Trouble;
 use rimstack_core::mods::library::{Library, ModId};
 pub use rimstack_core::mods::list::Side;
-use rimstack_core::mods::list::{Category, GroupedList, Mod, SortKey, flag};
+use rimstack_core::mods::list::{Category, GroupedList, LeftOut, Mod, SortKey, flag};
 use rimstack_core::mods::{demo, sort_reasons};
 use rimstack_core::rimworld::paths::Source;
 use rimstack_core::{say, say_n};
@@ -166,6 +167,7 @@ impl LoadOrder {
         order.active.set_grouped(headings);
         order.inactive = GroupedList::new(now.inactive);
         order.inactive.arrange(inactive_by);
+        order.follow_left_out(app);
         order.status = [
             match library.missing {
                 0 => say!("{} active", library.active.len()),
@@ -383,6 +385,15 @@ impl LoadOrder {
         self.inactive_by = order;
         self.inactive.arrange(order);
         self.settle(app);
+    }
+
+    pub fn follow_left_out(&mut self, app: &App) {
+        let left_out = match app.settings().switch(Switch::DimLeftOut) {
+            true => LeftOut::Dimmed,
+            false => LeftOut::Hidden,
+        };
+        self.active.set_left_out(left_out);
+        self.inactive.set_left_out(left_out);
     }
 
     pub fn set_filter(&mut self, text: &str) {

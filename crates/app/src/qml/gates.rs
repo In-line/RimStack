@@ -7,7 +7,7 @@ const MOST: [(&str, usize); 7] = [
     ("arrow functions", 246),
     ("ifs", 198),
     ("ternaries", 702),
-    ("array callbacks", 55),
+    ("array callbacks", 54),
     ("comparisons with a text", 26),
 ];
 

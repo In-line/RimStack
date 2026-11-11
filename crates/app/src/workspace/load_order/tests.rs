@@ -31,7 +31,7 @@ fn the_two_lists_are_the_load_order_and_the_rest() {
 }
 
 #[test]
-fn a_side_term_filters_its_own_list_and_empties_the_other() {
+fn a_side_term_filters_its_own_list_and_matches_none_in_the_other() {
     let (_tmp, app) = installed();
     let mut order = LoadOrder::read(&app, true, None);
     let matching = |order: &LoadOrder| {
@@ -44,6 +44,24 @@ fn a_side_term_filters_its_own_list_and_empties_the_other() {
     assert_eq!(matching(&order), (1, 0));
     order.set_filter("");
     assert_eq!(matching(&order), (1, 1));
+}
+
+#[test]
+fn the_list_left_out_is_dimmed_or_hidden_as_the_setting_says() {
+    let (_tmp, app) = installed();
+    let mut order = LoadOrder::read(&app, true, None);
+    let left_out = |order: &LoadOrder| order.list(Side::Active).left_out();
+    let shown = |order: &LoadOrder| order.rows(&app, Side::Active).len();
+    order.set_filter("is:inactive");
+    assert_eq!(left_out(&order), Some(LeftOut::Dimmed));
+    assert!(shown(&order) > 0);
+    app.keep_setting("dimLeftOut", "off").unwrap();
+    order.follow_left_out(&app);
+    assert_eq!(left_out(&order), Some(LeftOut::Hidden));
+    assert_eq!(shown(&order), 0);
+    let mut order = LoadOrder::read(&app, true, None);
+    order.set_filter("is:inactive");
+    assert_eq!(left_out(&order), Some(LeftOut::Hidden));
 }
 
 #[test]

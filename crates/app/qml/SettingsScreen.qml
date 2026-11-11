@@ -24,7 +24,7 @@ Item {
 
     property string finding
     function matches(words) {
-        const wanted = finding.trim().toLowerCase().split(" ").filter(word => word !== "")
+        const wanted = finding.trim().toLowerCase().split(/ +/)
         return wanted.every(word => words.toLowerCase().indexOf(word) !== -1)
     }
     function resetIn(item) {
@@ -469,6 +469,19 @@ Item {
                         options: ["Compact", "Roomy", "With pictures"]
                         current: Theme.stored.comfortable ? 2 : Theme.stored.largeRows ? 1 : 0
                         onPicked: (index) => { Theme.stored.comfortable = index === 2; Theme.stored.largeRows = index === 1 }
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                Line {
+                    title: Theme.say("A list the filter leaves out")
+                    tip: Theme.say("A list in which the filter matches no mod. Dimmed: it shows every mod, faint, and still takes a drop.")
+                    changed: !screen.info.dimLeftOut
+                    onReset: screen.keep("dimLeftOut", "on")
+                    Choice {
+                        title: Theme.say("A list the filter leaves out")
+                        options: ["Dimmed", "Hidden"]
+                        current: Number(!screen.info.dimLeftOut)
+                        onPicked: (index) => screen.keep("dimLeftOut", ["on", "off"][index])
                     }
                     Item { Layout.fillWidth: true }
                 }
