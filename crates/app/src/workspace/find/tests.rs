@@ -189,7 +189,7 @@ fn hits_past_the_cap_are_not_kept_and_the_summary_says_so() {
     });
     assert_eq!(summary.matches, MOST_HITS + 5 + 2);
     let said = app.find_finish(started.generation, summary).unwrap();
-    assert!(crate::words::put(&said).contains("showing the first 20000"));
+    assert!(crate::words::put(&said).contains("showing the first 20,000"));
     app.find_results(|r| {
         assert!(r.capped());
         let hits = r

@@ -22,6 +22,10 @@ trash = "5"
 chrono = "0.4"
 # The languages the system is set to, to start in one of them (MIT/Apache-2.0).
 sys-locale = "0.3"
+# Digit grouping of a number in a sentence, from CLDR (Unicode-3.0); the ICU4X
+# family is already built for `icu_plurals`.
+icu_decimal = "2.3"
+icu_locale_core = "2.3"
 
 [build-dependencies]
 cxx-qt-build = { version = "0.10", features = ["link_qt_object_files"] }
