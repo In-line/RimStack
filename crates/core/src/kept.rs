@@ -3,6 +3,7 @@ pub mod desktop;
 pub mod journal;
 pub mod launches;
 pub mod lists;
+pub mod mod_facts;
 pub mod new_mods;
 pub mod notes;
 pub mod owntheme;

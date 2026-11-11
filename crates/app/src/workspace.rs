@@ -20,6 +20,7 @@ mod install;
 pub mod lists;
 pub mod load_order;
 pub mod logs;
+mod mod_facts;
 mod notes;
 mod records;
 pub mod saves;
@@ -84,6 +85,9 @@ pub struct App {
     conflicts: RwLock<Option<Conflicts>>,
     /// Changes only while `conflicts` is held for writing.
     conflicts_generation: AtomicU64,
+    facts: RwLock<mod_facts::Read>,
+    facts_runs: AtomicU64,
+    facts_counted: std::sync::atomic::AtomicUsize,
     behind: RwLock<Option<HashSet<String>>>,
     list_on_disk: Mutex<(u64, bool)>,
     /// Read once: git installed later is not seen.
@@ -137,6 +141,9 @@ impl App {
             steamcmd: Reread::new(),
             conflicts: RwLock::new(None),
             conflicts_generation: AtomicU64::new(0),
+            facts: RwLock::default(),
+            facts_runs: AtomicU64::new(0),
+            facts_counted: Default::default(),
             behind: RwLock::new(None),
             list_on_disk: Mutex::new((0, false)),
             git: OnceLock::new(),
@@ -262,6 +269,18 @@ impl App {
     pub fn user_rules(&self) -> &RwLock<UserRules> {
         self.user_rules
             .get_or_init(|| RwLock::new(UserRules::read(&self.user_rules_file())))
+    }
+
+    fn facts(&self) -> &RwLock<mod_facts::Read> {
+        &self.facts
+    }
+
+    fn facts_runs(&self) -> &AtomicU64 {
+        &self.facts_runs
+    }
+
+    fn facts_counted(&self) -> &std::sync::atomic::AtomicUsize {
+        &self.facts_counted
     }
 
     pub fn conflicts(&self) -> &RwLock<Option<Conflicts>> {

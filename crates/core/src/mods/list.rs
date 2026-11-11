@@ -1,5 +1,7 @@
+use crate::mods::facts::{Facts, Has};
 use crate::mods::library::ModId;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 /// Earlier variants load earlier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -254,6 +256,8 @@ pub struct GroupedList {
     grouped: bool,
     shown_by: Option<(SortKey, bool)>,
     rows: Vec<Row>,
+    /// What reading the files gave, of the mods read so far.
+    facts: Arc<HashMap<ModId, Arc<Facts>>>,
 }
 
 fn haystack(m: &Mod) -> String {
@@ -270,6 +274,9 @@ struct Filter {
     git: bool,
     code: bool,
     patches: Vec<String>,
+    has: Vec<Has>,
+    defines: Vec<String>,
+    patches_def: Vec<String>,
     flags: u16,
     only: Option<Side>,
     both: bool,
@@ -323,6 +330,15 @@ impl Filter {
                 Some(("patches", method)) if !method.is_empty() => {
                     filter.patches.push(method.to_string())
                 }
+                Some(("has", what)) if Has::named(what).is_some() => {
+                    filter.has.extend(Has::named(what))
+                }
+                Some(("defines", name)) if !name.is_empty() => {
+                    filter.defines.push(name.to_string())
+                }
+                Some(("patchesdef", name)) if !name.is_empty() => {
+                    filter.patches_def.push(name.to_string())
+                }
                 Some(("is", "error")) => filter.flags |= flag::ERROR,
                 Some(("is", "warning")) => filter.flags |= flag::WARNING,
                 Some(("is", "conflict")) => filter.flags |= flag::CONFLICT,
@@ -352,8 +368,20 @@ impl Filter {
         *self == Self::default()
     }
 
-    fn admits(&self, m: &Mod, haystack: &str, flags: u16) -> bool {
+    fn needs_facts(&self) -> bool {
+        !(self.has.is_empty() && self.defines.is_empty() && self.patches_def.is_empty())
+    }
+
+    fn admits(&self, m: &Mod, haystack: &str, flags: u16, facts: Option<&Facts>) -> bool {
         if flags & self.flags != self.flags {
+            return false;
+        }
+        let read = |facts: &Facts| {
+            self.has.iter().all(|&what| facts.has(what))
+                && self.defines.iter().all(|name| facts.defines(name))
+                && self.patches_def.iter().all(|name| facts.patches_def(name))
+        };
+        if self.needs_facts() && !facts.is_some_and(read) {
             return false;
         }
         let author = || m.author.to_lowercase();
@@ -387,6 +415,7 @@ impl GroupedList {
             grouped: true,
             shown_by: None,
             rows: Vec::new(),
+            facts: Arc::default(),
         };
         list.rebuild();
         list
@@ -496,6 +525,23 @@ impl GroupedList {
         self.rebuild();
     }
 
+    /// The facts of the mods read so far, kept through any change of the order.
+    pub fn set_facts(&mut self, facts: Arc<HashMap<ModId, Arc<Facts>>>) {
+        self.facts = facts;
+        if self.filter.needs_facts() {
+            self.rebuild();
+        }
+    }
+
+    /// Installed mods a word of the filter cannot judge yet; none while no word needs the files.
+    pub fn unread(&self) -> usize {
+        if !self.filter.needs_facts() || self.filter.shuts(self.side) {
+            return 0;
+        }
+        let installed = self.mods.iter().filter_map(|m| m.installed);
+        installed.filter(|id| !self.facts.contains_key(id)).count()
+    }
+
     pub fn matching(&self) -> usize {
         (0..self.mods.len()).filter(|&i| self.matches(i)).count()
     }
@@ -585,13 +631,17 @@ impl GroupedList {
 
     fn matches(&self, index: usize) -> bool {
         let flags = self.flags.get(index).copied().unwrap_or(0);
+        let facts = self.mods[index]
+            .installed
+            .and_then(|id| self.facts.get(&id));
+        let facts = facts.map(|facts| &**facts);
         if self.filter.shuts(self.side) {
             return false;
         }
         self.filter.is_empty()
             || self
                 .filter
-                .admits(&self.mods[index], &self.haystacks[index], flags)
+                .admits(&self.mods[index], &self.haystacks[index], flags, facts)
     }
 
     fn rebuild(&mut self) {

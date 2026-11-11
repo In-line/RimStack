@@ -2,10 +2,11 @@
 
 use crate::base::sentence::Sentence;
 use crate::say;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Scanned {
     pub defines: HashSet<String>,
     pub bases: HashSet<String>,
@@ -45,7 +46,7 @@ fn xml_files(dir: &Path, into: &mut Vec<PathBuf>) {
     into.extend(crate::base::walk::files(dir).into_iter().filter(is_xml));
 }
 
-fn subfolder(folder: &Path, name: &str) -> Option<PathBuf> {
+pub(crate) fn subfolder(folder: &Path, name: &str) -> Option<PathBuf> {
     let entries = std::fs::read_dir(folder).ok()?;
     let found = entries
         .flatten()
@@ -90,7 +91,8 @@ fn is_name(s: &str) -> bool {
     !s.is_empty() && s.len() < 120 && s.chars().all(|c| c.is_alphanumeric() || "_-.".contains(c))
 }
 
-pub fn scan(load_folders: &[PathBuf], game: &HashSet<String>) -> Scanned {
+/// Defs and patches only: no assembly is opened.
+pub fn scan_xml(load_folders: &[PathBuf]) -> Scanned {
     let mut found = Scanned::default();
     for folder in load_folders {
         let mut files = Vec::new();
@@ -144,6 +146,11 @@ pub fn scan(load_folders: &[PathBuf], game: &HashSet<String>) -> Scanned {
             }
         }
     }
+    found
+}
+
+pub fn scan(load_folders: &[PathBuf], game: &HashSet<String>) -> Scanned {
+    let mut found = scan_xml(load_folders);
     for dll in dlls_of(load_folders) {
         let stem = dll
             .file_stem()

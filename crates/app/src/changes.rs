@@ -30,6 +30,8 @@ impl Changes {
     pub const FOLDERS: Self = Self(1 << 17);
     pub const MOD_FILES: Self = Self(1 << 18);
     pub const FIND: Self = Self(1 << 19);
+    /// A batch of mods' files was read in the background.
+    pub const FACTS: Self = Self(1 << 20);
 
     pub fn contains(self, any_of: Self) -> bool {
         self.0 & any_of.0 != 0

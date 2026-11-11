@@ -41,6 +41,7 @@ pub mod qobject {
         #[qproperty(i32, library_version, cxx_name = "libraryVersion")]
         #[qproperty(QVariant, overview)]
         #[qproperty(QVariant, summary)]
+        #[qproperty(QString, filter_found, cxx_name = "filterFound")]
         /// -1 for none.
         #[qproperty(i32, selected)]
         #[qproperty(QVariant, details)]
@@ -319,6 +320,7 @@ pub struct ModsDataRust {
     library_version: i32,
     overview: QVariant,
     summary: QVariant,
+    filter_found: QString,
     selected: i32,
     details: QVariant,
     textures: QVariant,
@@ -373,6 +375,7 @@ impl Default for ModsDataRust {
             library_version: 0,
             overview: QVariant::default(),
             summary: QVariant::default(),
+            filter_found: QString::default(),
             selected: -1,
             details: QVariant::default(),
             textures: QVariant::default(),
@@ -593,6 +596,9 @@ impl qobject::ModsData {
         if changes.contains(Changes::UPDATES | Changes::LAUNCHES | Changes::FIND) {
             order.settle(&app);
         }
+        if changes.contains(Changes::FACTS) {
+            order.facts_read(&app);
+        }
         if changes.contains(Changes::FILES_READ) {
             self.as_mut().set_files_read(true);
         }
@@ -640,6 +646,10 @@ impl qobject::ModsData {
         let moves = order.sort_move_count() as i32;
         let conflicts = order.in_conflict(&app).len() as i32;
         let problem = crate::words::said(&order.problem);
+        let filter_found = match self.filter.is_empty() {
+            true => QString::default(),
+            false => crate::words::said(&order.filter_summary()),
+        };
         let status = order.status.clone();
         let overview = to_qml(&order.overview(&app));
         let fresh = to_qml(&order.fresh(&app, Side::Inactive));
@@ -653,6 +663,7 @@ impl qobject::ModsData {
         self.as_mut().set_sort_move_count(moves);
         self.as_mut().set_conflicts(conflicts);
         self.as_mut().set_problem(problem);
+        self.as_mut().set_filter_found(filter_found);
         self.as_mut()
             .set_status_active(crate::words::said(&status[0]));
         self.as_mut()

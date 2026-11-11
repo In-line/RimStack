@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsStr;
 use std::hash::{Hash, Hasher};
@@ -6,7 +7,7 @@ use std::path::Path;
 /// The modification times of a folder and all its subfolders, which change
 /// when a file or folder is added, removed or renamed inside one, and not when
 /// a file is edited in place. So it vouches for lists of names, never contents.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FolderStamp {
     folders: usize,
     sum: u64,

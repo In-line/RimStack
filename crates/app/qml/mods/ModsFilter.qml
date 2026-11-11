@@ -10,7 +10,7 @@ FilterField {
     keys: Theme.say("Ctrl + F")
     chips: true
     placeholder: Theme.say("Filter active and inactive mods")
-    found: Mods.filtered === "" ? "" : Theme.fill("{} active, {} inactive", Theme.count(Mods.active.matching), Theme.count(Mods.inactive.matching))
+    found: Hub.mods.filterFound
     readonly property alias suggesting: suggestions.visible
     onTypingChanged: suggestions.shut = false
     onEditingChanged: suggestions.shut = false
@@ -26,7 +26,7 @@ FilterField {
         width: Math.min(filter.width, Theme.sized(420))
         padding: 6
         background: Rectangle { radius: Theme.cornerLarge; color: Theme.bar; border.width: 1; border.color: Theme.line }
-        readonly property string widestKey: "is:notinsave"
+        readonly property string widestKey: "has:languages"
         TextMetrics { id: keyFont; font.family: "monospace"; font.pixelSize: Theme.small; text: suggestions.widestKey }
         contentItem: Column {
             id: suggestList
@@ -49,6 +49,13 @@ FilterField {
                     ["is:duplicate", Theme.say("installed more than once")],
                     ["in:search", Theme.say("has matches in the last search of Find")],
                     ["has:code", Theme.say("ships compiled code")],
+                    ["has:defs", Theme.say("has XML defs")],
+                    ["has:patches", Theme.say("has XML patches")],
+                    ["has:textures", Theme.say("has textures")],
+                    ["has:sounds", Theme.say("has sounds")],
+                    ["has:languages", Theme.say("has translations")],
+                    ["defines:", Theme.say("defines this defName")],
+                    ["patchesdef:", Theme.say("patches this defName")],
                     ["patches:", Theme.say("patches this method of the game")],
                     ["tag:", Theme.say("has this tag")],
                     ["author:", Theme.say("by this author")],

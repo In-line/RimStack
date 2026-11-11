@@ -8,7 +8,7 @@ pub use rimstack_core::mods::list::Side;
 use rimstack_core::mods::list::{Category, GroupedList, Mod, SortKey, flag};
 use rimstack_core::mods::{demo, sort_reasons};
 use rimstack_core::rimworld::paths::Source;
-use rimstack_core::say;
+use rimstack_core::{say, say_n};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -295,6 +295,33 @@ impl LoadOrder {
             let flags = self.flags(app, library, side);
             self.list_mut(side).set_flags(flags);
         }
+        self.share_facts(app);
+    }
+
+    fn share_facts(&mut self, app: &App) {
+        let facts = app.mod_facts(&self.reading(app));
+        self.active.set_facts(facts.clone());
+        self.inactive.set_facts(facts);
+    }
+
+    /// A batch of mods' files was read in the background.
+    pub fn facts_read(&mut self, app: &App) {
+        self.share_facts(app);
+    }
+
+    /// What the filter found on each side, and how many mods a word of it still waits to read.
+    pub fn filter_summary(&self) -> Sentence {
+        let (active, inactive) = (self.active.matching(), self.inactive.matching());
+        match self.active.unread() + self.inactive.unread() {
+            0 => say!("{} active, {} inactive", active, inactive),
+            n => say_n!(
+                n,
+                "{} mod not read yet: {} active, {} inactive",
+                "{} mods not read yet: {} active, {} inactive",
+                active,
+                inactive
+            ),
+        }
     }
 
     pub fn recheck(&mut self, app: &App) {
@@ -508,11 +535,13 @@ impl App {
         }
     }
 
-    /// Off the window's thread.
+    /// Off the window's thread. The active mods first, then the others in the background.
     pub fn read_active_files(&self, members: Vec<ModId>) {
         use rayon::prelude::*;
-        use rimstack_core::mods::{conflicts, infer};
+        use rimstack_core::kept::mod_facts::ModFacts;
+        use rimstack_core::mods::conflicts;
         let generation = self.conflicts_generation();
+        let run = self.begin_facts_run();
         let loaded = self.library();
         let Ok((library, _)) = &*loaded else {
             return;
@@ -521,30 +550,50 @@ impl App {
             .iter()
             .filter_map(|&i| library.get(i)?.key())
             .collect();
-        let read: Vec<(Vec<String>, infer::Scanned)> = members
-            .par_iter()
+        let jobs: Vec<super::mod_facts::Job> = members
+            .iter()
             .map(|&i| {
-                let Some(root) = library.get(i).map(|m| &m.path) else {
-                    return Default::default();
-                };
+                let root = library.get(i).map(|m| m.path.clone()).unwrap_or_default();
                 let loaded = rimstack_core::rimworld::loadfolders::folders(
-                    root,
+                    &root,
                     &library.game_version,
                     &|m| active.contains(m),
                 );
-                (
-                    conflicts::provided(&loaded),
-                    infer::scan(&loaded, &library.game_assemblies),
-                )
+                super::mod_facts::Job {
+                    root,
+                    loaded,
+                    whole: true,
+                }
             })
             .collect();
-        let (provided, scanned): (Vec<_>, Vec<_>) = read.into_iter().unzip();
+        let mut record = ModFacts::read(&self.facts_file(), &library.game_version);
+        let (facts, read) = super::mod_facts::gather(&mut record, &jobs, &library.game_assemblies);
+        self.count_mods_read(read);
+        let provided: Vec<Vec<String>> = jobs
+            .par_iter()
+            .map(|job| conflicts::provided(&job.loaded))
+            .collect();
+        let scanned = members
+            .iter()
+            .copied()
+            .zip(facts.iter().map(|f| f.scanned.clone()));
         let found = super::Conflicts {
             overlaps: conflicts::overlaps(&provided),
-            scanned: members.iter().copied().zip(scanned).collect(),
-            members,
+            scanned: scanned.collect(),
+            members: members.clone(),
         };
+        if !self.keep_facts(run, &loaded, members.iter().copied().zip(facts)) {
+            return;
+        }
         self.keep_files_read(generation, found);
+        let installed: HashSet<String> = library
+            .ids()
+            .map(|(_, m)| m.path.to_string_lossy().into_owned())
+            .collect();
+        if read > 0 {
+            self.keep_record(run, &mut record, &installed);
+        }
+        self.read_inactive_facts(run, &loaded, &mut record, &members);
     }
 
     /// Dropped when `textures_changed` ran since `generation`.

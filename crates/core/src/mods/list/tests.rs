@@ -749,3 +749,67 @@ fn a_mod_goes_below_another_only_when_that_one_loads_after_it() {
     assert_eq!(list.below(id(104), id(100)), None);
     assert_eq!(list.below(id(100), id(999)), None);
 }
+
+fn read_with(files: &[(&str, &str)]) -> Arc<Facts> {
+    let tmp = tempfile::tempdir().unwrap();
+    for (file, text) in files {
+        let path = tmp.path().join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, text).unwrap();
+    }
+    let folders = crate::rimworld::loadfolders::every_folder(tmp.path(), "1.6");
+    Arc::new(Facts::read(folders, &HashSet::new()))
+}
+
+fn installed_list() -> GroupedList {
+    let mods = (0..3).map(|n| {
+        let mut one = m(&format!("Mod {n}"), "x", Category::Content);
+        one.installed = Some(id(n));
+        one
+    });
+    GroupedList::flat(mods.collect())
+}
+
+#[test]
+fn file_words_keep_the_mods_read_that_have_them_and_count_those_not_read_yet() {
+    let gold = read_with(&[
+        (
+            "Defs/a.xml",
+            "<Defs><ThingDef><defName>Gold</defName></ThingDef></Defs>",
+        ),
+        ("Textures/a.png", "x"),
+    ]);
+    let patcher = read_with(&[(
+        "Patches/p.xml",
+        r#"<Patch><Operation><xpath>Defs/ThingDef[defName="Gold"]</xpath></Operation></Patch>"#,
+    )]);
+    let mut list = installed_list();
+    list.set_filter("has:defs");
+    assert_eq!((list.rows().len(), list.unread()), (0, 3));
+    list.set_facts(Arc::new(HashMap::from([(id(0), gold), (id(1), patcher)])));
+    assert_eq!(
+        (list.rows(), list.unread()),
+        (&[Row::Mod { index: 0 }][..], 1)
+    );
+    list.set_filter("has:patches");
+    assert_eq!(list.rows(), &[Row::Mod { index: 1 }]);
+    list.set_filter("has:textures defines:GOLD");
+    assert_eq!(list.rows(), &[Row::Mod { index: 0 }]);
+    list.set_filter("patchesdef:gold");
+    assert_eq!(list.rows(), &[Row::Mod { index: 1 }]);
+    list.set_filter("defines:gold patchesdef:gold");
+    assert!(list.rows().is_empty());
+    list.set_filter("has:sounds");
+    assert!(list.rows().is_empty());
+    list.set_filter("has:code");
+    assert_eq!(list.unread(), 0);
+    list.set_filter("has:nothing");
+    assert_eq!((list.rows().len(), list.unread()), (0, 0));
+}
+
+#[test]
+fn a_mod_that_is_not_installed_is_never_unread() {
+    let mut list = GroupedList::flat(vec![m("Gone", "x", Category::Content)]);
+    list.set_filter("has:defs");
+    assert_eq!(list.unread(), 0);
+}
