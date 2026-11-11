@@ -38,43 +38,43 @@ Item {
 
     readonly property var steps: [
         {
-            section: 3,
+            section: Theme.sections.saves,
             what: "Saves lists both saves, with the mods each was saved with",
             ready: () => !Hub.saves.busy && (Hub.saves.saves || []).length > 0,
             ok: () => checks.listed(Hub.saves.saves).length === 2 && checks.listed(Hub.saves.saves).every(save => save.ids.length >= 43)
         },
         {
-            section: 3,
+            section: Theme.sections.saves,
             what: "and says the save with a mod that is not installed breaks the list",
             ready: () => true,
             ok: () => checks.listed(Hub.saves.saves).filter(save => save.verdict.breaks).length === 1
         },
         {
-            section: 4,
+            section: Theme.sections.logs,
             what: "Logs reads the game's log and groups its errors",
             ready: () => !Hub.logs.busy && !!Hub.logs.head,
             ok: () => Hub.logs.head.errors >= 2 && Hub.logs.errors.length === 2
         },
         {
-            section: 4,
+            section: Theme.sections.logs,
             what: "and shows its lines",
             ready: () => (Hub.logs.lines || []).length > 0,
             ok: () => checks.listed(Hub.logs.lines).some(line => line.error)
         },
         {
-            section: 2,
+            section: Theme.sections.textures,
             what: "Textures counts the textures of the mods",
             ready: () => !Hub.textures.busy && !!Hub.textures.report && Hub.textures.report.all > 0,
             ok: () => Hub.textures.report.all >= 33 && Hub.textures.report.rows.length > 0
         },
         {
-            section: 1,
+            section: Theme.sections.downloads,
             what: "Downloads offers the mod the load order needs and nothing installs",
             ready: () => !Hub.downloads.queueBusy && !!Hub.downloads.queue,
             ok: () => (Mods.overview.toGet || []).length >= 1
         },
         {
-            section: 1,
+            section: Theme.sections.downloads,
             what: "a needed mod's problem ignored is gone, and back with the undo",
             ready: () => true,
             ok: () => {
@@ -87,20 +87,19 @@ Item {
             }
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "Browse opened with a search lists the mods that match, from the made-up database",
             ready: () => {
                 if (!checks.browsed) {
                     checks.browsed = true
-                    Mods.browseText = "harmony"
-                    Mods.browse()
+                    Hub.workshop.browse("harmony")
                 }
-                return Mods.browsing && !Hub.workshop.searching && Hub.workshop.total > 0
+                return !Hub.workshop.searching && Hub.workshop.total > 0
             },
             ok: () => Hub.workshop.ready && Hub.workshop.total === 1 && Hub.workshop.problem === ""
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "the sidebar counts the matches of the search and lists every game version beside them",
             ready: () => true,
             ok: () => {
@@ -109,7 +108,7 @@ Item {
             }
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "a search of nothing lists every made-up mod, the pages of three loading as the grid is scrolled near its end",
             ready: () => {
                 if (!checks.faceted) {
@@ -122,7 +121,7 @@ Item {
             ok: () => checks.ids().length === 7
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "ticking Mod and then crossing out 1.5 leaves the two mods for 1.6 only",
             ready: () => {
                 if (!checks.crossed) {
@@ -139,7 +138,7 @@ Item {
             }
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "clearing the filters brings back every result",
             ready: () => {
                 if (!checks.cleared) {
@@ -151,7 +150,7 @@ Item {
             ok: () => Hub.workshop.sidebar.chips.length === 0
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "choosing Most subscribed reorders every result by the sweep's subscriber counts",
             ready: () => {
                 if (!checks.swept) {
@@ -168,7 +167,7 @@ Item {
             }
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "a card selected shows its details, with the requirement the database does not know",
             ready: () => {
                 if (!checks.picked && !Hub.workshop.searching) {
@@ -181,13 +180,13 @@ Item {
             ok: () => Hub.workshop.details.id === "3100000002" && Hub.workshop.details.requires.length === 2 && Hub.workshop.details.unknownRequirements.length === 1
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "and the grid keeps its columns and the card its place",
             ready: () => true,
             ok: () => checks.placed !== "" && checks.cardPlace("3100000002") === checks.placed
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "Add with what it requires fills the download list beside the results",
             ready: () => {
                 if (!checks.added) {
@@ -198,12 +197,11 @@ Item {
             },
             ok: () => {
                 Hub.workshop.select("")
-                Mods.browsing = false
                 return Hub.workshop.list.count === 3 && Hub.workshop.list.rows.every(row => row.reason !== "")
             }
         },
         {
-            section: 6,
+            section: Theme.sections.settings,
             what: "Settings keeps a made-up Steam Web API key once Steam accepts it, and shows it kept",
             ready: () => {
                 if (!checks.keyTyped) {
@@ -215,15 +213,14 @@ Item {
             ok: () => Hub.settings.steamKey.available && !Hub.settings.steamKey.refused && !Hub.settings.steamKey.note
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "Browse in key mode offers Steam's sorts with one chosen, and the game versions",
             ready: () => {
                 if (!checks.keyBrowsed) {
                     checks.keyBrowsed = true
-                    Mods.browseText = ""
-                    Mods.browse()
+                    Hub.workshop.browse("")
                 }
-                return Mods.browsing && !Hub.workshop.searching && Hub.workshop.keyMode && Hub.workshop.total > 1
+                return !Hub.workshop.searching && Hub.workshop.keyMode && Hub.workshop.total > 1
             },
             ok: () => {
                 const sorts = checks.listed(Hub.workshop.sorts)
@@ -232,7 +229,7 @@ Item {
             }
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "choosing Most subscribed puts the results in another order and marks that sort",
             ready: () => {
                 if (!checks.keySorted) {
@@ -244,7 +241,7 @@ Item {
             ok: () => checks.ids().join() !== checks.firstIds.join() && checks.listed(Hub.workshop.sorts).filter(sort => sort.chosen).map(sort => sort.id).join() === "subscribed"
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "the Collections choice shows the collection and nothing else",
             ready: () => {
                 if (!checks.keyCollected) {
@@ -256,7 +253,7 @@ Item {
             ok: () => checks.ids().length === 1 && Hub.workshop.rows.data(Hub.workshop.rows.index(0, 0), 258) === "Fixture Collection"
         },
         {
-            section: 1,
+            section: Theme.sections.workshop,
             what: "details in key mode show the votes and a row of screenshots",
             ready: () => {
                 if (!checks.keyDetailed) {
@@ -269,12 +266,11 @@ Item {
             ok: () => {
                 const shown = Hub.workshop.details
                 Hub.workshop.select("")
-                Mods.browsing = false
                 return shown.id === "3100000002" && !!shown.votesSaid && shown.screenshots.length === 3
             }
         },
         {
-            section: 6,
+            section: Theme.sections.settings,
             what: "Forget the key takes it away again",
             ready: () => {
                 if (!checks.keyForgotten) {
@@ -286,13 +282,13 @@ Item {
             ok: () => Hub.settings.steamKey.available
         },
         {
-            section: 6,
+            section: Theme.sections.settings,
             what: "Settings shows the folders in use, worked out in Rust",
             ready: () => true,
             ok: () => Hub.settings.report.game.endsWith("game") && Hub.settings.report.localMods.endsWith("Mods") && Hub.settings.report.gameLog.endsWith("Player.log")
         },
         {
-            section: 6,
+            section: Theme.sections.settings,
             what: "a folder typed in Settings is judged after a pause, and a missing one is refused and not kept",
             ready: () => {
                 if (!checks.typed) {
@@ -304,7 +300,7 @@ Item {
             ok: () => !Hub.settings.folderChecks.config.ok && !Hub.settings.report.setConfig
         },
         {
-            section: 6,
+            section: Theme.sections.settings,
             what: "the text size follows a drag one step at a time without keeping the window busy",
             ready: () => {
                 if (checks.dragged < checks.sizes.length) {
@@ -320,7 +316,7 @@ Item {
             }
         },
         {
-            section: 6,
+            section: Theme.sections.settings,
             what: "a theme chosen paints the open window without a restart",
             ready: () => checks.flipped(() => Theme.stored.theme = "light"),
             ok: () => {
@@ -330,7 +326,7 @@ Item {
             }
         },
         {
-            section: 6,
+            section: Theme.sections.settings,
             what: "high contrast strengthens grey text in the open window",
             ready: () => checks.flipped(() => {
                 checks.before = String(Theme.ink3)
@@ -343,7 +339,7 @@ Item {
             }
         },
         {
-            section: 6,
+            section: Theme.sections.settings,
             what: "reduced motion stops animations at once",
             ready: () => checks.flipped(() => Theme.stored.reduceMotion = true),
             ok: () => {
@@ -353,7 +349,7 @@ Item {
             }
         },
         {
-            section: 6,
+            section: Theme.sections.settings,
             what: "taller mod rows apply at once",
             ready: () => checks.flipped(() => {
                 checks.before = String(Theme.row)
@@ -366,7 +362,7 @@ Item {
             }
         },
         {
-            section: 6,
+            section: Theme.sections.settings,
             what: "a font chosen reaches every text already shown",
             ready: () => checks.flipped(() => {
                 checks.before = Qt.application.font.family
@@ -380,7 +376,7 @@ Item {
             }
         },
         {
-            section: 5,
+            section: Theme.sections.find,
             what: "Find lists the matches of a word in the mods' files, grouped by mod and file",
             ready: () => {
                 if (!checks.searched) {
@@ -393,7 +389,7 @@ Item {
             ok: () => Hub.find.count >= 2
         },
         {
-            section: 5,
+            section: Theme.sections.find,
             what: "a hit chosen shows its file around it, the line marked",
             ready: () => {
                 if (!checks.hitPicked) {
@@ -405,7 +401,7 @@ Item {
             ok: () => Hub.find.preview.lines.length > 1 && Hub.find.preview.lines.some(line => line.marked && line.number === Hub.find.preview.line) && !Hub.find.preview.problem
         },
         {
-            section: 5,
+            section: Theme.sections.find,
             what: "ticking Match case searches again at once, without Search pressed",
             ready: () => {
                 if (!checks.recased) {
@@ -428,7 +424,7 @@ Item {
             }
         },
         {
-            section: 5,
+            section: Theme.sections.find,
             what: "a bad regular expression is said at once, before any search",
             ready: () => checks.flipped(() => {
                 Hub.find.text = "(Fixture"
@@ -442,7 +438,7 @@ Item {
             }
         },
         {
-            section: 5,
+            section: Theme.sections.find,
             what: "Stop ends a search of every installed mod",
             ready: () => {
                 if (!checks.stopped) {
@@ -458,7 +454,7 @@ Item {
             ok: () => !Hub.find.running && Hub.find.summary !== "" && Hub.find.problem === ""
         },
         {
-            section: 5,
+            section: Theme.sections.find,
             what: "Show these mods in the list leaves Mods showing the mods with matches",
             ready: () => {
                 if (!checks.shown) {
@@ -472,12 +468,12 @@ Item {
             },
             ok: () => {
                 Mods.filterBy(Hub.find.showInMods())
-                Mods.showSection(0)
+                Mods.showSection(Theme.sections.mods)
                 return Hub.find.showInMods() === "in:search"
             }
         },
         {
-            section: 0,
+            section: Theme.sections.mods,
             what: "and Mods keeps exactly those mods",
             ready: () => Mods.filtered === "in:search",
             ok: () => {
@@ -599,7 +595,7 @@ Item {
                 return
             }
             stop()
-            checks.window.section = 0
+            checks.window.section = Theme.sections.mods
             Qt.exit(checks.failed > 0 ? 1 : 0)
         }
     }

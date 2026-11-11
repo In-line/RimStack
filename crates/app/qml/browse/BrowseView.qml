@@ -29,11 +29,10 @@ Item {
     onOpenedChanged: details.enlarged = ""
 
     Component.onCompleted: {
-        field.text = Mods.browseText
-        Mods.browseText = ""
-        Hub.workshop.select("")
-        Hub.workshop.search(field.text)
+        Hub.workshop.open()
     }
+
+    Binding { target: field; property: "text"; value: Hub.workshop.query }
 
     ColumnLayout {
         anchors.fill: parent
@@ -43,7 +42,6 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.gap
-            Btn { icon: "undo-2"; text: Theme.say("Back"); tip: Theme.say("Back to Downloads"); onClicked: Mods.browsing = false }
             Btn { visible: !view.wide; primary: Mods.browseFilters; icon: "funnel"; text: Theme.say("Filters"); onClicked: Mods.browseFilters = !Mods.browseFilters }
             FilterField {
                 id: field

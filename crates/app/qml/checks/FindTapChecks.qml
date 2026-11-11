@@ -283,8 +283,8 @@ Item {
                 Qt.exit(checks.failed > 0 ? 1 : 0)
                 return
             }
-            if (checks.window.section !== 5) {
-                checks.window.section = 5
+            if (checks.window.section !== Theme.sections.find) {
+                checks.window.section = Theme.sections.find
                 return
             }
             const step = checks.steps[checks.at]

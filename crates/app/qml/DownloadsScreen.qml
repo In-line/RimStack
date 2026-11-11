@@ -61,15 +61,8 @@ Item {
         font.pixelSize: Theme.body
     }
 
-    Loader {
-        anchors.fill: parent
-        active: Mods.browsing
-        sourceComponent: BrowseView {}
-    }
-
     Flickable {
         id: scroller
-        visible: !Mods.browsing
         anchors.fill: parent
         contentHeight: page.implicitHeight + 2 * Theme.gapWide
         clip: true
@@ -105,12 +98,6 @@ Item {
                         text: screen.downloads.queueBusy ? Theme.say("Asking Steam…") : Theme.say("Look up")
                         tip: Theme.say("Looks up what is pasted beside it: paste a link or an id first.")
                         onClicked: screen.downloads.lookUp(pasted.text)
-                    }
-                    Btn {
-                        icon: "search"
-                        text: Theme.say("Browse the Workshop")
-                        tip: Theme.say("Search the Workshop here and collect the mods to download.")
-                        onClicked: Mods.browse()
                     }
                 }
             }

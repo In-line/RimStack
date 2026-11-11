@@ -103,13 +103,13 @@ ApplicationWindow {
     }
 
     function showMod(modId) {
-        section = 0
+        section = Theme.sections.mods
         Mods.showMod(modId)
     }
 
     function useList(ids) {
         Mods.useList(ids)
-        section = 0
+        section = Theme.sections.mods
     }
 
     Rectangle {
@@ -149,24 +149,28 @@ ApplicationWindow {
                 currentIndex: window.section
                 ModsScreen { id: modsScreen }
                 Loader {
-                    active: window.section === 1 || item !== null
+                    active: window.section === Theme.sections.workshop || item !== null
+                    sourceComponent: BrowseView {}
+                }
+                Loader {
+                    active: window.section === Theme.sections.downloads || item !== null
                     sourceComponent: DownloadsScreen {
                         onShowMod: modId => window.showMod(modId)
                     }
                 }
                 Loader {
-                    active: window.section === 2 || item !== null
+                    active: window.section === Theme.sections.textures || item !== null
                     sourceComponent: TexturesScreen {}
                 }
                 Loader {
-                    active: window.section === 3 || item !== null
+                    active: window.section === Theme.sections.saves || item !== null
                     sourceComponent: SavesScreen {
                         onUseList: ids => window.useList(ids)
                     }
                 }
                 Loader {
                     id: logsLoader
-                    active: window.section === 4 || item !== null
+                    active: window.section === Theme.sections.logs || item !== null
                     sourceComponent: LogsScreen {
                         onUseList: ids => window.useList(ids)
                         onShowMod: modId => window.showMod(modId)
@@ -174,12 +178,12 @@ ApplicationWindow {
                     }
                 }
                 Loader {
-                    active: window.section === 5 || item !== null
+                    active: window.section === Theme.sections.find || item !== null
                     sourceComponent: FindScreen {}
                 }
                 Loader {
                     id: settingsLoader
-                    active: window.section === 6 || item !== null
+                    active: window.section === Theme.sections.settings || item !== null
                     sourceComponent: SettingsScreen {
                         overview: Mods.overview
                         onUseList: ids => window.useList(ids)
@@ -196,7 +200,7 @@ ApplicationWindow {
                 tasks: window.tasks
                 onUseList: ids => window.useList(ids)
                 onKeys: keysSheet.open()
-                onLogs: window.section = 4
+                onLogs: window.section = Theme.sections.logs
             }
         }
 
@@ -236,9 +240,10 @@ ApplicationWindow {
             const folders = Theme.demo ? ({}) : Hub.settings.report
             const open = path => Qt.openUrlExternally(Theme.fileUrl(path))
             const mod = Mods.selectedId >= 0 && Mods.selectedCount === 1 ? Mods.info : null
-            const filter = text => { window.section = 0; Mods.filterBy(text) }
-            const settings = part => { window.section = 6; Qt.callLater(() => settingsLoader.item.part = part) }
-            const logs = view => { window.section = 4; Qt.callLater(() => logsLoader.item.view = view) }
+            const go = at => () => window.section = at
+            const filter = text => { window.section = Theme.sections.mods; Mods.filterBy(text) }
+            const settings = part => { window.section = Theme.sections.settings; Qt.callLater(() => settingsLoader.item.part = part) }
+            const logs = view => { window.section = Theme.sections.logs; Qt.callLater(() => logsLoader.item.view = view) }
             const found = [
                 ["RimWorld folder", 0], ["Config and saves folder", 0], ["Workshop mods folder", 0], ["Play starts the game: through Steam or directly", 0], ["Launch arguments", 0], ["Git for Workshop mods", 0],
                 [Theme.say("Theme"), 1], [Theme.say("Language"), 1], [Theme.say("Colours"), 1], [Theme.say("Font"), 1], [Theme.say("Text size"), 1], [Theme.say("Mod rows"), 1], [Theme.say("Motion"), 1], [Theme.say("Contrast"), 1], [Theme.say("First-run hints"), 1], [Theme.say("Workshop pages open in"), 1],
@@ -249,16 +254,16 @@ ApplicationWindow {
             return found.concat([
                 { name: Theme.say("Keyboard shortcuts"), group: Theme.say("Help"), keys: "?", run: () => keysSheet.open() },
                 { name: Theme.say("Report a problem"), group: Theme.say("Help"), run: () => Qt.openUrlExternally(Theme.issues) },
-                { name: Theme.say("Show the first-run hints again"), group: Theme.say("Help"), run: () => { Theme.stored.hintsSeen = false; window.section = 0; Mods.startHints() } },
+                { name: Theme.say("Show the first-run hints again"), group: Theme.say("Help"), run: () => { Theme.stored.hintsSeen = false; window.section = Theme.sections.mods; Mods.startHints() } },
                 { name: Theme.say("Find the broken mod"), group: Theme.say("Game"), run: () => hunt.start(), when: !Theme.demo && !Hub.search.active },
-                { name: Theme.say("All problems"), group: Theme.say("Load order"), run: () => { window.section = 0; Mods.problemsOpen = true }, when: Mods.troubles.length > 0 },
+                { name: Theme.say("All problems"), group: Theme.say("Load order"), run: () => { window.section = Theme.sections.mods; Mods.problemsOpen = true }, when: Mods.troubles.length > 0 },
                 { name: Theme.say("What RimStack changed"), group: Theme.say("Help"), run: () => statusBar.historyMenu.open(), when: !Theme.demo },
-                { name: Theme.say("Sort"), group: Theme.say("Load order"), run: () => { window.section = 0; Mods.previewSort() }, when: !Theme.demo },
+                { name: Theme.say("Sort"), group: Theme.say("Load order"), run: () => { window.section = Theme.sections.mods; Mods.previewSort() }, when: !Theme.demo },
                 { name: Theme.say("Save"), group: Theme.say("Load order"), keys: Theme.say("Ctrl + S"), run: () => Mods.save(), when: Mods.dirty },
                 { name: Theme.say("Undo"), group: Theme.say("Load order"), keys: Theme.say("Ctrl + Z"), run: () => Hub.mods.undo(), when: Hub.mods.canUndo },
                 { name: Theme.say("Redo"), group: Theme.say("Load order"), keys: Theme.say("Ctrl + Shift + Z"), run: () => Hub.mods.redo(), when: Hub.mods.canRedo },
                 { name: Theme.say("Play"), group: Theme.say("Game"), run: () => window.pressPlay() },
-                { name: Theme.say("Next problem"), group: Theme.say("Load order"), run: () => { window.section = 0; Mods.showNextProblem() }, when: Mods.errors + Hub.mods.warnings > 0 },
+                { name: Theme.say("Next problem"), group: Theme.say("Load order"), run: () => { window.section = Theme.sections.mods; Mods.showNextProblem() }, when: Mods.errors + Hub.mods.warnings > 0 },
                 { name: Theme.say("Saved lists"), group: Theme.say("Load order"), run: () => topBar.listsMenu.open(), when: !Theme.demo },
                 { name: Theme.say("Use the list from before RimStack"), group: Theme.say("Load order"), run: () => { const ids = Hub.lists.original(); if (ids) window.useList(ids) }, when: !!folders.backup },
 
@@ -279,17 +284,18 @@ ApplicationWindow {
                 { name: Theme.say("Clear filter"), group: Theme.say("Filter"), run: () => filter("") },
 
                 { name: Theme.say("Read the mod folders again"), group: Theme.say("Mods"), run: () => Hub.mods.rescan(), when: !Theme.demo },
-                { name: Theme.say("Check for updates"), group: Theme.say("Downloads"), run: () => { window.section = 1; Hub.downloads.checkUpdates() }, when: !Theme.demo },
-                { name: Theme.say("Browse the Workshop"), group: Theme.say("Downloads"), run: Mods.browse, when: !Theme.demo },
+                { name: Theme.say("Check for updates"), group: Theme.say("Downloads"), run: () => { window.section = Theme.sections.downloads; Hub.downloads.checkUpdates() }, when: !Theme.demo },
+                { name: Theme.say("Browse the Workshop"), group: Theme.say("Go to"), run: go(Theme.sections.workshop), when: !Theme.demo },
                 { name: Theme.say("Update community rules"), group: Theme.say("Sorting"), run: () => Hub.settings.downloadCommunity(), when: !Theme.demo && !Hub.settings.communityCurrent },
-                { name: Theme.say("Read the saves again"), group: Theme.say("Saves"), run: () => { window.section = 3; Hub.saves.reread() }, when: !Theme.demo },
-                { name: Theme.say("Read the log again"), group: Theme.say("Logs"), run: () => { window.section = 4; Qt.callLater(() => logsLoader.item.load()) }, when: !Theme.demo },
+                { name: Theme.say("Read the saves again"), group: Theme.say("Saves"), run: () => { window.section = Theme.sections.saves; Hub.saves.reread() }, when: !Theme.demo },
+                { name: Theme.say("Read the log again"), group: Theme.say("Logs"), run: () => { window.section = Theme.sections.logs; Qt.callLater(() => logsLoader.item.load()) }, when: !Theme.demo },
                 { name: Theme.say("Back up the newest save"), group: Theme.say("Saves"), run: () => Hub.saves.backUp(), when: !Theme.demo },
 
-                { name: Theme.say("Mods"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 1), run: () => window.section = 0 },
-                { name: Theme.say("Downloads"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 2), run: () => window.section = 1 },
-                { name: Theme.say("Textures"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 3), run: () => window.section = 2 },
-                { name: Theme.say("Saves"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 4), run: () => window.section = 3 },
+                { name: Theme.say("Mods"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 1), run: go(Theme.sections.mods) },
+                { name: Theme.say("Workshop"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 2), run: go(Theme.sections.workshop) },
+                { name: Theme.say("Downloads"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 3), run: go(Theme.sections.downloads) },
+                { name: Theme.say("Textures"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 4), run: go(Theme.sections.textures) },
+                { name: Theme.say("Saves"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 5), run: go(Theme.sections.saves) },
                 { name: Theme.say("Find in mods' files"), group: Theme.say("Go to"), keys: Theme.say("Ctrl + Shift + F"), run: findKey.activated },
                 { name: Theme.say("Logs: errors"), group: Theme.say("Go to"), run: () => logs(0) },
                 { name: Theme.say("Logs: mods"), group: Theme.say("Go to"), run: () => logs(1) },
@@ -317,9 +323,9 @@ ApplicationWindow {
         }
     }
     Shortcut { sequence: "Ctrl+K"; onActivated: commands.open() }
-    Shortcut { id: findKey; sequence: "Ctrl+Shift+F"; enabled: window.section !== 5; onActivated: window.section = 5 }
+    Shortcut { id: findKey; sequence: "Ctrl+Shift+F"; enabled: window.section !== Theme.sections.find; onActivated: window.section = Theme.sections.find }
     Repeater {
-        model: topBar.sections.length
+        model: Theme.sections.names.length
         Item {
             id: sectionKey
             required property int index

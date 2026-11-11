@@ -39,6 +39,8 @@ pub mod qobject {
         /// Said once when a search went to the kept list because Steam would not answer; empty
         /// for none, cleared by the next `search`.
         #[qproperty(QString, notice)]
+        /// The words of the search asked last.
+        #[qproperty(QString, query)]
         /// `{ active, which, id, title }`; `which` is `requires`, `neededBy`, `sameAuthor` or
         /// `collection` while `active`.
         #[qproperty(QVariant, related)]
@@ -60,6 +62,14 @@ pub mod qobject {
         /// The first page of the answer, with the filters and the sort as they stand.
         #[qinvokable]
         fn search(self: Pin<&mut WorkshopData>, text: &QString);
+
+        /// Searches `text` with the details closed, as a fix that points at the Workshop asks.
+        #[qinvokable]
+        fn browse(self: Pin<&mut WorkshopData>, text: &QString);
+
+        /// Searches once, when the Workshop section is first shown.
+        #[qinvokable]
+        fn open(self: Pin<&mut WorkshopData>);
 
         /// Ticks a tag (a type or a game version) to include, or to exclude; ticking it again
         /// clears it. Searches again.
@@ -187,6 +197,7 @@ pub struct WorkshopDataRust {
     sidebar: QVariant,
     collections: bool,
     notice: QString,
+    query: QString,
     related: QVariant,
     details: QVariant,
     details_busy: bool,
@@ -240,6 +251,7 @@ impl Default for WorkshopDataRust {
             sidebar: QVariant::default(),
             collections: false,
             notice: QString::default(),
+            query: QString::default(),
             related: QVariant::default(),
             details: QVariant::default(),
             details_busy: false,
@@ -569,6 +581,7 @@ impl qobject::WorkshopData {
     fn ask(mut self: Pin<&mut Self>, change: impl FnOnce(&mut Asked)) {
         let mut asked = self.asked.clone().unwrap_or_default();
         change(&mut asked);
+        self.as_mut().set_query(QString::from(asked.text.as_str()));
         self.as_mut().set_notice(QString::default());
         let me = self.as_mut().rust_mut().get_mut();
         me.asked = Some(asked);
@@ -586,6 +599,17 @@ impl qobject::WorkshopData {
     fn search(self: Pin<&mut Self>, text: &QString) {
         let text = text.to_string();
         self.ask(|asked| asked.text = text);
+    }
+
+    fn browse(mut self: Pin<&mut Self>, text: &QString) {
+        self.as_mut().select(&QString::default());
+        self.search(text);
+    }
+
+    fn open(self: Pin<&mut Self>) {
+        if self.asked.is_none() {
+            self.ask(|_| {});
+        }
     }
 
     fn toggle_tag(self: Pin<&mut Self>, id: &QString, include: bool) {

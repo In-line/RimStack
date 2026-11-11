@@ -150,7 +150,7 @@ Item {
                         tip: Theme.say("Goes to Mods and keeps only the mods with matches (in:search)")
                         onClicked: {
                             Mods.filterBy(Hub.find.showInMods())
-                            Mods.showSection(0)
+                            Mods.showSection(Theme.sections.mods)
                         }
                     }
                 }

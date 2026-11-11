@@ -120,23 +120,15 @@ Item {
         if (Hub.mods.fix(modId, fix.action, fix.target))
             return
         if (fix.page) {
-            browseText = fix.target
-            browse()
+            Hub.workshop.browse(fix.target)
+            showSection(Theme.sections.workshop)
         } else
             Theme.openWorkshop(fix.target)
     }
 
-    property bool browsing: false
-    property string browseText: ""
     property bool browseFilters: false
     property bool findFilters: false
     property bool browseList: false
-    // Toggled so a Browse left open in Downloads starts again with `browseText`.
-    function browse() {
-        browsing = false
-        browsing = true
-        showSection(1)
-    }
     function winAll(otherId) { Hub.mods.winOver(selectedId, otherId) }
 
     // No warning about the game version while the game stays on `version`;

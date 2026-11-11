@@ -20,7 +20,7 @@ Item {
 
     Component.onCompleted: {
         Theme.stored.reduceMotion = true
-        checks.window.section = 5
+        checks.window.section = Theme.sections.find
         const text = Hub.argument("--find-text")
         if (text === "") {
             idle.start()

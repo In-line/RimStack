@@ -89,7 +89,7 @@ Column {
                     launched.logged === null || launched.logged === undefined ? "" : launched.logged === 0 ? Theme.say("no errors") : Theme.plural(launched.logged, "{} different error", "{} different errors"),
                 ].filter(part => part !== "").join(", ")
             }
-            Btn { visible: launched.logged > 0; text: Theme.say("Open log"); onClicked: Mods.showSection(4) }
+            Btn { visible: launched.logged > 0; text: Theme.say("Open log"); onClicked: Mods.showSection(Theme.sections.logs) }
         }
         Line { visible: Hub.mods.dirty; text: Theme.fill("Not saved: {}", Hub.mods.unsaved); action: Theme.say("Save"); primary: true; onActed: Mods.save() }
         Line { visible: summary.errors.length === 0 && !Hub.mods.dirty && Mods.troubles.length === 0; text: Theme.say("No problems, and the list is saved.") }
@@ -110,19 +110,19 @@ Column {
             visible: summary.changed > 0
             text: Theme.plural(summary.changed, "{} mod changed since the game was last started", "{} mods changed since the game was last started")
             action: Theme.say("Show")
-            onActed: Mods.showSection(1)
+            onActed: Mods.showSection(Theme.sections.downloads)
         }
         Line {
             visible: Hub.downloads.behindActive > 0
             text: Theme.plural(Hub.downloads.behindActive, "{} update available", "{} updates available")
             action: Theme.say("Show")
-            onActed: Mods.showSection(1)
+            onActed: Mods.showSection(Theme.sections.downloads)
         }
         Line {
             visible: (summary.facts.replacements || 0) > 0
             text: Theme.plural((summary.facts.replacements || 0), "{} mod has a replacement", "{} mods have a replacement")
             action: Theme.say("Show")
-            onActed: Mods.showSection(1)
+            onActed: Mods.showSection(Theme.sections.downloads)
         }
     }
 

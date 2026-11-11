@@ -13,16 +13,16 @@ Item {
 
     readonly property var scenes: {
         const all = []
-        const add = (size, scale, what, where) => all.push(Object.assign({ size, scale, section: 0, tab: 0, popup: "", label: where + " at " + scale + " in " + (size.length > 0 ? size.join("x") : "the smallest window") }, what))
+        const add = (size, scale, what, where) => all.push(Object.assign({ size, scale, section: Theme.sections.mods, tab: 0, popup: "", label: where + " at " + scale + " in " + (size.length > 0 ? size.join("x") : "the smallest window") }, what))
         for (const size of sizes)
             for (const scale of scales) {
-                for (const section of [0, 1, 2, 3, 4, 6])
-                    add(size, scale, { section }, "section " + section)
-                add(size, scale, { section: 5 }, "find empty")
+                for (const section of [Theme.sections.mods, Theme.sections.downloads, Theme.sections.textures, Theme.sections.saves, Theme.sections.logs, Theme.sections.settings])
+                    add(size, scale, { section }, "section " + Theme.sections.names[section])
+                add(size, scale, { section: Theme.sections.find }, "find empty")
                 for (const browse of ["with the list", "with the details", "with the filters"])
-                    add(size, scale, { section: 1, browse }, "the Browse view " + browse)
+                    add(size, scale, { section: Theme.sections.workshop, browse }, "the Browse view " + browse)
                 for (const tab of [1, 2])
-                    add(size, scale, { tab }, "section 0 tab " + tab)
+                    add(size, scale, { tab }, "Mods tab " + tab)
                 for (const popup of popups)
                     add(size, scale, { popup }, "the " + popup + " sheet")
                 for (const first of [0, 1, 2, 3, 4])
@@ -30,19 +30,19 @@ Item {
             }
         for (const scale of scales)
             for (const browse of ["with the list", "with the details", "with the filters"])
-                add([2560, 1300], scale, { section: 1, browse }, "the Browse view " + browse)
+                add([2560, 1300], scale, { section: Theme.sections.workshop, browse }, "the Browse view " + browse)
         for (const size of sizes)
             for (const scale of scales) {
-                add(size, scale, { section: 5, find: "results" }, "find results")
-                add(size, scale, { section: 5, find: "none" }, "find none")
-                add(size, scale, { section: 5, find: "with the filters" }, "find with the filters")
-                add(size, scale, { section: 6, part: 3 }, "Settings key part")
+                add(size, scale, { section: Theme.sections.find, find: "results" }, "find results")
+                add(size, scale, { section: Theme.sections.find, find: "none" }, "find none")
+                add(size, scale, { section: Theme.sections.find, find: "with the filters" }, "find with the filters")
+                add(size, scale, { section: Theme.sections.settings, part: 3 }, "Settings key part")
             }
         for (const size of sizes)
             for (const scale of scales) {
-                add(size, scale, { section: 6, part: 3, keyed: true }, "Settings key part with a key")
+                add(size, scale, { section: Theme.sections.settings, part: 3, keyed: true }, "Settings key part with a key")
                 for (const browse of ["with the list", "with the details", "with the filters"])
-                    add(size, scale, { section: 1, browse, keyed: true }, "the Browse view in key mode " + browse)
+                    add(size, scale, { section: Theme.sections.workshop, browse, keyed: true }, "the Browse view in key mode " + browse)
             }
         const only = Hub.argument("--only")
         return all.filter(scene => scene.label.indexOf(only) >= 0)
@@ -179,7 +179,6 @@ Item {
             Hub.find.search()
         } else if (scene.find === "none")
             Hub.find.filterResults("no such text anywhere")
-        Mods.browsing = scene.browse !== undefined
         Mods.browseFilters = scene.browse === "with the filters"
         Mods.browseList = scene.browse === "with the list"
         if (scene.browse === "with the details") {

@@ -12,18 +12,17 @@ Rectangle {
     property var inTheWay: []
     readonly property alias listsMenu: listsMenu
     readonly property alias beforePlay: beforePlay
-    readonly property var sections: ["Mods", "Downloads", "Textures", "Saves", "Logs", "Find", "Settings"]
     signal go(int section)
     signal search()
     signal pressPlay()
     signal play()
     signal useList(var ids)
     function pickSection(from) {
-        Mods.menuRequested(from, 0, from.height + 4, sections.map((name, at) => ({ text: Theme.say(name), off: at === section, run: () => go(at) })))
+        Mods.menuRequested(from, 0, from.height + 4, Theme.sections.names.map((name, at) => ({ text: Theme.say(name), off: at === section, run: () => go(at) })))
     }
     function step(by) {
         const at = section + by
-        if (at >= 0 && at < sections.length)
+        if (at >= 0 && at < Theme.sections.names.length)
             go(at)
     }
     readonly property bool tight: width < Theme.sized(960)
@@ -126,13 +125,13 @@ Rectangle {
             spacing: Theme.gapLine
             Repeater {
                 id: tabs
-                model: bar.sections
+                model: Theme.sections.names
                 Rectangle {
                     id: tab
                     required property string modelData
                     required property int index
                     readonly property bool on: index === bar.section
-                    readonly property int badge: index === 1 ? bar.behind : 0
+                    readonly property int badge: index === Theme.sections.downloads ? bar.behind : 0
                     readonly property real inset: bar.tight ? Theme.gap : Theme.gapCard
                     readonly property real natural: tabLabel.implicitWidth + 2 * inset + (badge > 0 ? tabBadge.width + Theme.gapSmall : 0)
                     visible: on || !bar.folded
