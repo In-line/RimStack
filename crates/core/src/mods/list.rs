@@ -304,6 +304,7 @@ pub mod flag {
     pub const DUPLICATE: u16 = 64;
     pub const NEW: u16 = 128;
     pub const CHANGED: u16 = 256;
+    pub const IN_SEARCH: u16 = 512;
 }
 
 impl Filter {
@@ -331,6 +332,7 @@ impl Filter {
                 Some(("is", "duplicate")) => filter.flags |= flag::DUPLICATE,
                 Some(("is", "new")) => filter.flags |= flag::NEW,
                 Some(("is", "changed")) => filter.flags |= flag::CHANGED,
+                Some(("in", "search")) => filter.flags |= flag::IN_SEARCH,
                 _ => filter.words.push(term.to_string()),
             }
         }

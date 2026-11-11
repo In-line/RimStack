@@ -9,6 +9,7 @@ pub mod ddsaudit;
 pub mod demo;
 pub mod describe;
 pub mod details;
+pub mod find;
 pub mod hidden;
 pub mod infer;
 pub mod library;

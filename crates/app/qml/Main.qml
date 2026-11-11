@@ -173,8 +173,12 @@ ApplicationWindow {
                     }
                 }
                 Loader {
-                    id: settingsLoader
                     active: window.section === 5 || item !== null
+                    sourceComponent: FindScreen {}
+                }
+                Loader {
+                    id: settingsLoader
+                    active: window.section === 6 || item !== null
                     sourceComponent: SettingsScreen {
                         overview: Mods.overview
                         onUseList: ids => window.useList(ids)
@@ -232,7 +236,7 @@ ApplicationWindow {
             const open = path => Qt.openUrlExternally(Theme.fileUrl(path))
             const mod = Mods.selectedId >= 0 && Mods.selectedCount === 1 ? Mods.info : null
             const filter = text => { window.section = 0; Mods.filterBy(text) }
-            const settings = part => { window.section = 5; Qt.callLater(() => settingsLoader.item.part = part) }
+            const settings = part => { window.section = 6; Qt.callLater(() => settingsLoader.item.part = part) }
             const logs = view => { window.section = 4; Qt.callLater(() => logsLoader.item.view = view) }
             const found = [
                 ["RimWorld folder", 0], ["Config and saves folder", 0], ["Workshop mods folder", 0], ["Play starts the game: through Steam or directly", 0], ["Launch arguments", 0], ["Git for Workshop mods", 0],
@@ -283,6 +287,7 @@ ApplicationWindow {
                 { name: Theme.say("Downloads"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 2), run: () => window.section = 1 },
                 { name: Theme.say("Textures"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 3), run: () => window.section = 2 },
                 { name: Theme.say("Saves"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 4), run: () => window.section = 3 },
+                { name: Theme.say("Find in mods' files"), group: Theme.say("Go to"), keys: Theme.say("Ctrl + Shift + F"), run: findKey.activated },
                 { name: Theme.say("Logs: errors"), group: Theme.say("Go to"), run: () => logs(0) },
                 { name: Theme.say("Logs: mods"), group: Theme.say("Go to"), run: () => logs(1) },
                 { name: Theme.say("Logs: full log"), group: Theme.say("Go to"), run: () => logs(2) },
@@ -309,6 +314,7 @@ ApplicationWindow {
         }
     }
     Shortcut { sequence: "Ctrl+K"; onActivated: commands.open() }
+    Shortcut { id: findKey; sequence: "Ctrl+Shift+F"; enabled: window.section !== 5; onActivated: window.section = 5 }
     Repeater {
         model: topBar.sections.length
         Item {

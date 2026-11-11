@@ -12,7 +12,7 @@ Rectangle {
     property var inTheWay: []
     readonly property alias listsMenu: listsMenu
     readonly property alias beforePlay: beforePlay
-    readonly property var sections: ["Mods", "Downloads", "Textures", "Saves", "Logs", "Settings"]
+    readonly property var sections: ["Mods", "Downloads", "Textures", "Saves", "Logs", "Find", "Settings"]
     signal go(int section)
     signal search()
     signal pressPlay()
@@ -146,7 +146,7 @@ Rectangle {
                     Tip {
                         text: Theme.fill("{} · Ctrl + {}", Theme.say(tab.modelData), tab.index + 1) + "\n" + [Theme.say("The load order and every installed mod"), Theme.say("Workshop updates, looked-up mods and Git checkouts"),
                                Theme.say("Faster-loading DDS textures and the files the game would refuse"), Theme.say("Saves and how their mods differ from the load order"),
-                               Theme.say("The game's log: errors and the mods they point at"), Theme.say("Folders, appearance, sorting and upkeep")][tab.index]
+                               Theme.say("The game's log: errors and the mods they point at"), Theme.say("Words and patterns in the files of the mods"), Theme.say("Folders, appearance, sorting and upkeep")][tab.index]
                     }
                     Rectangle {
                         id: tabBadge

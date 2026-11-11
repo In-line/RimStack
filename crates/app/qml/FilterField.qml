@@ -10,6 +10,7 @@ Rectangle {
     property string found
     property string icon
     property string keys
+    property bool wanted: false
     readonly property real lead: icon !== "" ? Theme.icon + Theme.gap : 0
     readonly property real inset: clear.visible ? clear.width + 2 * Theme.gap : Theme.gapMedium
     property var terms: []
@@ -36,7 +37,7 @@ Rectangle {
     readonly property bool editing: fieldInput.activeFocus
 
     function isTerm(word) {
-        return /^(is|has|tag|author|patches):.+$/.test(word)
+        return /^(is|has|in|tag|author|patches):.+$/.test(word)
     }
     function compose() {
         syncing = true
@@ -107,6 +108,7 @@ Rectangle {
     TextInput {
         id: fieldInput
         activeFocusOnTab: true
+        focus: field.wanted
         Accessible.role: Accessible.EditableText
         Accessible.name: field.placeholder
         anchors.fill: parent

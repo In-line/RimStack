@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 pub mod changed;
 pub mod downloads;
 pub mod fetch;
+pub mod find;
 mod game;
 mod install;
 pub mod lists;
@@ -88,6 +89,7 @@ pub struct App {
     /// Read once: git installed later is not seen.
     git: OnceLock<Option<String>>,
     log_read: Mutex<Option<rimstack_core::kept::launches::LogRead>>,
+    find: find::Find,
     bus: crate::changes::Bus,
 }
 
@@ -139,6 +141,7 @@ impl App {
             list_on_disk: Mutex::new((0, false)),
             git: OnceLock::new(),
             log_read: Mutex::new(None),
+            find: find::Find::default(),
             bus: crate::changes::Bus::default(),
         }
     }

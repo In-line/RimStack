@@ -70,13 +70,13 @@ Item {
             }
         },
         {
-            section: 5,
+            section: 6,
             what: "Settings shows the folders in use, worked out in Rust",
             ready: () => true,
             ok: () => Hub.settings.report.game.endsWith("game") && Hub.settings.report.localMods.endsWith("Mods") && Hub.settings.report.gameLog.endsWith("Player.log")
         },
         {
-            section: 5,
+            section: 6,
             what: "a folder typed in Settings is judged after a pause, and a missing one is refused and not kept",
             ready: () => {
                 if (!checks.typed) {
@@ -88,7 +88,7 @@ Item {
             ok: () => !Hub.settings.folderChecks.config.ok && !Hub.settings.report.setConfig
         },
         {
-            section: 5,
+            section: 6,
             what: "the text size follows a drag one step at a time without keeping the window busy",
             ready: () => {
                 if (checks.dragged < checks.sizes.length) {
@@ -104,7 +104,7 @@ Item {
             }
         },
         {
-            section: 5,
+            section: 6,
             what: "a theme chosen paints the open window without a restart",
             ready: () => checks.flipped(() => Theme.stored.theme = "light"),
             ok: () => {
@@ -114,7 +114,7 @@ Item {
             }
         },
         {
-            section: 5,
+            section: 6,
             what: "high contrast strengthens grey text in the open window",
             ready: () => checks.flipped(() => {
                 checks.before = String(Theme.ink3)
@@ -127,7 +127,7 @@ Item {
             }
         },
         {
-            section: 5,
+            section: 6,
             what: "reduced motion stops animations at once",
             ready: () => checks.flipped(() => Theme.stored.reduceMotion = true),
             ok: () => {
@@ -137,7 +137,7 @@ Item {
             }
         },
         {
-            section: 5,
+            section: 6,
             what: "taller mod rows apply at once",
             ready: () => checks.flipped(() => {
                 checks.before = String(Theme.row)
@@ -150,7 +150,7 @@ Item {
             }
         },
         {
-            section: 5,
+            section: 6,
             what: "a font chosen reaches every text already shown",
             ready: () => checks.flipped(() => {
                 checks.before = Qt.application.font.family
@@ -162,8 +162,96 @@ Item {
                 checks.window.useFont("")
                 return left === 0 && moved > 0 && checks.fonted(checks.window.contentItem, "RimStack Check Sans") === 0
             }
+        },
+        {
+            section: 5,
+            what: "Find lists the matches of a word in the mods' files, grouped by mod and file",
+            ready: () => {
+                if (!checks.searched) {
+                    checks.searched = true
+                    Hub.find.text = "Fixture"
+                    Hub.find.search()
+                }
+                return !Hub.find.running && Hub.find.summary !== ""
+            },
+            ok: () => Hub.find.count >= 2
+        },
+        {
+            section: 5,
+            what: "a hit chosen shows its file around it, the line marked",
+            ready: () => {
+                if (!checks.picked) {
+                    checks.picked = true
+                    Hub.find.select(2)
+                }
+                return !!Hub.find.preview
+            },
+            ok: () => Hub.find.preview.lines.length > 1 && Hub.find.preview.lines.some(line => line.marked && line.number === Hub.find.preview.line) && !Hub.find.preview.problem
+        },
+        {
+            section: 5,
+            what: "a bad regular expression is said at once, before any search",
+            ready: () => checks.flipped(() => {
+                Hub.find.flip("regex")
+                Hub.find.text = "(Fixture"
+            }),
+            ok: () => {
+                const said = Hub.find.problem !== "" && !Hub.find.running
+                Hub.find.flip("regex")
+                Hub.find.text = "Fixture"
+                return said
+            }
+        },
+        {
+            section: 5,
+            what: "Stop ends a search of every installed mod",
+            ready: () => {
+                if (!checks.stopped) {
+                    checks.stopped = true
+                    Hub.find.choose("where", "installed")
+                    Hub.find.choose("files", "text")
+                    Hub.find.text = "e"
+                    Hub.find.search()
+                    Hub.find.stop()
+                }
+                return !Hub.find.running
+            },
+            ok: () => !Hub.find.running && Hub.find.summary !== "" && Hub.find.problem === ""
+        },
+        {
+            section: 5,
+            what: "Show these mods in the list leaves Mods showing the mods with matches",
+            ready: () => {
+                if (!checks.shown) {
+                    checks.shown = true
+                    Hub.find.choose("where", "active")
+                    Hub.find.choose("files", "xml")
+                    Hub.find.text = "Fixture"
+                    Hub.find.search()
+                }
+                return !Hub.find.running && Hub.find.count > 0
+            },
+            ok: () => {
+                Mods.filterBy(Hub.find.showInMods())
+                Mods.showSection(0)
+                return Hub.find.showInMods() === "in:search"
+            }
+        },
+        {
+            section: 0,
+            what: "and Mods keeps exactly those mods",
+            ready: () => Mods.filtered === "in:search",
+            ok: () => {
+                const kept = Mods.active.matching + Mods.inactive.matching
+                Mods.filterBy("")
+                return kept === Hub.find.count
+            }
         }
     ]
+    property bool searched: false
+    property bool picked: false
+    property bool stopped: false
+    property bool shown: false
     property bool typed: false
     property bool changed: false
     property string before

@@ -376,6 +376,7 @@ impl LoadOrder {
             .as_ref()
             .filter(|_| side == Side::Active);
         let steam_record = app.steam_record();
+        let found = app.find_mods();
         let seen = app.seen().reading();
         let session = app.session();
         let changes = session.changes();
@@ -423,6 +424,10 @@ impl LoadOrder {
                     flag::NEW,
                 ),
                 (changed.contains(m.id.as_str()), flag::CHANGED),
+                (
+                    m.installed.is_some_and(|i| found.contains(&i)),
+                    flag::IN_SEARCH,
+                ),
             ];
             marks
                 .iter()

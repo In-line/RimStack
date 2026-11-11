@@ -6,5 +6,6 @@ pub mod lists;
 pub mod new_mods;
 pub mod notes;
 pub mod owntheme;
+pub mod searches;
 pub mod settings;
 pub mod updates;

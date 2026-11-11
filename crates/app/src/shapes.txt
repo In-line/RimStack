@@ -104,6 +104,48 @@ downloads.updates: object
       name: text
       now: number
   problem: nothing or text
+find.options: object
+  files: list
+    []: object
+      available: bool
+      chosen: bool
+      id: text
+      label: text
+  leave: list
+    []: object
+      available: bool
+      chosen: bool
+      id: text
+      label: text
+  switches: list
+    []: object
+      available: bool
+      chosen: bool
+      id: text
+      label: text
+  where: list
+    []: object
+      available: bool
+      chosen: bool
+      id: text
+      label: text
+find.preview: object
+  line: number
+  lines: list
+    []: object
+      marked: bool
+      number: number
+      text: text
+  path: text
+  problem: nothing or text
+find.recent: list
+  []: object
+    allText: bool
+    case: bool
+    place: text
+    regex: bool
+    text: text
+    word: bool
 game.lastStart: object
   errors: number
   time: number

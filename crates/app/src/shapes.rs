@@ -244,7 +244,7 @@ fn every_field_is_seen_filled_but_those_the_made_up_install_cannot_fill() {
 }
 
 /// A model's cells, read by role: the roles are its fields.
-const NOT_RECORDS: [&str; 1] = ["mod_rows.data"];
+const NOT_RECORDS: [&str; 2] = ["mod_rows.data", "find.data"];
 
 #[test]
 fn every_value_handed_to_qml_has_its_shape_written() {

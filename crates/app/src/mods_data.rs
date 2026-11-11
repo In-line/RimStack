@@ -590,7 +590,7 @@ impl qobject::ModsData {
         if changes.contains(Changes::COMMUNITY | Changes::FILES_READ) {
             order.refile(&app);
         }
-        if changes.contains(Changes::UPDATES | Changes::LAUNCHES) {
+        if changes.contains(Changes::UPDATES | Changes::LAUNCHES | Changes::FIND) {
             order.settle(&app);
         }
         if changes.contains(Changes::FILES_READ) {

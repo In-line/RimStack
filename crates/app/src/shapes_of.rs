@@ -160,6 +160,7 @@ pub(crate) fn every() -> Shapes {
     textures(&app, &mut shapes);
     search(&app, &mut shapes);
     downloads(&app, &mut shapes);
+    find(&app, &mut shapes);
     settings_once_set(&app, &mut shapes);
     shapes
 }
@@ -375,6 +376,50 @@ fn textures(app: &App, shapes: &mut Shapes) {
     shapes.add("textures.comparison", &again);
     shapes.add("textures.shared", &again.named(""));
     shapes.add("lists.history", &app.history());
+}
+
+fn find(app: &App, shapes: &mut Shapes) {
+    use crate::workspace::find::{Place, Request};
+    let a = by_folder(app, "a");
+    let gone = app
+        .library()
+        .as_ref()
+        .as_ref()
+        .unwrap()
+        .0
+        .get(a)
+        .unwrap()
+        .path
+        .join("Defs/Gone.xml");
+    write(&gone, "<Defs>\nRock\n</Defs>");
+    let mut request = Request {
+        text: "rock".into(),
+        place: Place::Installed,
+        ..Request::default()
+    };
+    app.find_remember(&request);
+    shapes.add("find.recent", &app.find_recent());
+    shapes.add("find.options", &app.find_options(&request));
+    request.selected = Some(a);
+    shapes.add("find.options", &app.find_options(&request));
+    let started = app.find_start(&request).unwrap();
+    let summary = app.find_search(&started, |batch| {
+        app.find_add(started.generation, batch);
+    });
+    app.find_finish(started.generation, summary);
+    let hit = app.find_results(|r| {
+        r.refs()
+            .into_iter()
+            .rfind(|at| !at.is_mod() && !at.is_file())
+    });
+    let hit = hit.unwrap();
+    shapes.add("find.preview", &app.find_preview(hit));
+    std::fs::remove_file(&gone).unwrap();
+    for at in app.find_results(|r| r.refs()) {
+        if app.find_file(at).is_some_and(|f| f == gone) {
+            shapes.add("find.preview", &app.find_preview(at));
+        }
+    }
 }
 
 fn search(app: &App, shapes: &mut Shapes) {

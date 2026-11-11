@@ -324,6 +324,25 @@ fn is_terms_ask_about_the_flags_given_and_forget_them_when_the_order_changes() {
 }
 
 #[test]
+fn in_search_keeps_the_mods_flagged_by_a_search_and_none_when_there_were_none() {
+    let mut list = GroupedList::flat(sample().mods().to_vec());
+    list.set_filter("in:search");
+    list.set_flags(vec![0; 6]);
+    assert!(list.rows().is_empty());
+    list.set_flags(vec![
+        0,
+        flag::IN_SEARCH,
+        0,
+        0,
+        flag::IN_SEARCH | flag::ERROR,
+        0,
+    ]);
+    assert_eq!(list.rows(), &[Row::Mod { index: 1 }, Row::Mod { index: 4 }]);
+    list.set_filter("in:search is:error");
+    assert_eq!(list.rows(), &[Row::Mod { index: 4 }]);
+}
+
+#[test]
 fn a_list_can_be_arranged_by_name_or_by_category() {
     let mut list = sample();
     list.arrange(Some((SortKey::Name, false)));

@@ -47,6 +47,7 @@ FilterField {
                     ["is:notinsave", Theme.say("active, and not in the newest save")],
                     ["is:recent", Theme.say("updated by Steam in the last week")],
                     ["is:duplicate", Theme.say("installed more than once")],
+                    ["in:search", Theme.say("has matches in the last search of Find")],
                     ["has:code", Theme.say("ships compiled code")],
                     ["patches:", Theme.say("patches this method of the game")],
                     ["tag:", Theme.say("has this tag")],

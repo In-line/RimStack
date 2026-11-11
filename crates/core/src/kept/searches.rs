@@ -1,0 +1,111 @@
+use crate::base::error::Error;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+
+/// Searches kept, newest first.
+pub const MOST_KEPT: usize = 10;
+
+/// What a Find search was asked, in plain values: `place` is the name of where it looked.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Search {
+    pub text: String,
+    pub case: bool,
+    pub regex: bool,
+    pub whole_word: bool,
+    pub place: String,
+    pub all_text: bool,
+    pub languages: bool,
+    pub source: bool,
+    pub textures: bool,
+    pub git: bool,
+}
+
+impl Default for Search {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            case: false,
+            regex: false,
+            whole_word: false,
+            place: String::new(),
+            all_text: false,
+            languages: true,
+            source: true,
+            textures: true,
+            git: true,
+        }
+    }
+}
+
+/// Read and written whole.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Searches(Vec<Search>);
+
+impl Searches {
+    /// A missing or damaged file is no searches.
+    pub fn read(file: &Path) -> Self {
+        let kept = crate::base::atomic_file::read_json(file).map(serde_json::from_value);
+        let mut kept: Self = kept.and_then(Result::ok).unwrap_or_default();
+        kept.0.retain(|search| !search.text.is_empty());
+        kept.0.truncate(MOST_KEPT);
+        kept
+    }
+
+    pub fn write(&self, file: &Path) -> Result<(), Error> {
+        let text = serde_json::to_string(self)
+            .map_err(|e| Error::format(format!("{}: {e}", file.display())))?;
+        crate::base::atomic_file::write(file, text)
+    }
+
+    pub fn all(&self) -> &[Search] {
+        &self.0
+    }
+
+    /// Asked again, a search moves to the front instead of twice into the list.
+    pub fn with(mut self, search: Search) -> Self {
+        self.0.retain(|kept| *kept != search);
+        self.0.insert(0, search);
+        self.0.truncate(MOST_KEPT);
+        self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn asked(text: &str) -> Search {
+        Search {
+            text: text.into(),
+            ..Search::default()
+        }
+    }
+
+    #[test]
+    fn searches_are_kept_newest_first_without_repeats_and_only_ten() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("kept/searches.json");
+        assert_eq!(Searches::read(&file), Searches::default());
+        let mut kept = Searches::default();
+        for n in 0..12 {
+            kept = kept.with(asked(&n.to_string()));
+        }
+        kept = kept.with(asked("5"));
+        kept.write(&file).unwrap();
+        let read = Searches::read(&file);
+        let texts: Vec<&str> = read.all().iter().map(|s| s.text.as_str()).collect();
+        assert_eq!(texts, ["5", "11", "10", "9", "8", "7", "6", "4", "3", "2"]);
+    }
+
+    #[test]
+    fn an_older_record_missing_fields_reads_with_the_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("searches.json");
+        std::fs::write(&file, r#"[{"text":"Steel","regex":true}]"#).unwrap();
+        let read = Searches::read(&file);
+        assert!(read.all()[0].regex && read.all()[0].languages && !read.all()[0].case);
+        std::fs::write(&file, "damaged").unwrap();
+        assert_eq!(Searches::read(&file), Searches::default());
+    }
+}

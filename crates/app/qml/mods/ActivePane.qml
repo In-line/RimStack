@@ -440,7 +440,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: Theme.gap
             Btn { primary: true; icon: "folder-open"; text: Theme.say("Choose the game folder…"); onClicked: gameFolder.open() }
-            Btn { text: Theme.say("Settings"); onClicked: Mods.showSection(5) }
+            Btn { text: Theme.say("Settings"); onClicked: Mods.showSection(6) }
         }
         Text { visible: Hub.settings.report.noModFolders; width: parent.width; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap; color: Theme.ink3; font.pixelSize: Theme.small; text: Hub.mods.problem }
     }

@@ -16,14 +16,20 @@ Item {
         const add = (size, scale, what, where) => all.push(Object.assign({ size, scale, section: 0, tab: 0, popup: "", label: where + " at " + scale + " in " + (size.length > 0 ? size.join("x") : "the smallest window") }, what))
         for (const size of sizes)
             for (const scale of scales) {
-                for (const section of [0, 1, 2, 3, 4, 5])
+                for (const section of [0, 1, 2, 3, 4, 6])
                     add(size, scale, { section }, "section " + section)
+                add(size, scale, { section: 5 }, "find empty")
                 for (const tab of [1, 2])
                     add(size, scale, { tab }, "section 0 tab " + tab)
                 for (const popup of popups)
                     add(size, scale, { popup }, "the " + popup + " sheet")
                 for (const first of [0, 1, 2, 3, 4])
                     add(size, scale, { first }, "first run step " + first)
+            }
+        for (const size of sizes)
+            for (const scale of scales) {
+                add(size, scale, { section: 5, find: "results" }, "find results")
+                add(size, scale, { section: 5, find: "none" }, "find none")
             }
         const only = Hub.argument("--only")
         return all.filter(scene => scene.label.indexOf(only) >= 0)
@@ -33,7 +39,7 @@ Item {
     property bool grabbing: false
 
     function busy() {
-        return Hub.mods.rescanning || Hub.saves.busy || Hub.logs.busy || Hub.textures.busy
+        return Hub.mods.rescanning || Hub.saves.busy || Hub.logs.busy || Hub.textures.busy || Hub.find.running
     }
 
     function shownSize() {
@@ -130,6 +136,12 @@ Item {
         checks.window.width = scene.size[0] || checks.window.smallest.width
         checks.window.height = scene.size[1] || checks.window.smallest.height
         checks.window.section = scene.section
+        if (scene.find === "results") {
+            Hub.find.filterResults("")
+            Hub.find.text = "Fixture"
+            Hub.find.search()
+        } else if (scene.find === "none")
+            Hub.find.filterResults("no such text anywhere")
         Mods.tab = scene.tab
         checks.window.firstRun = scene.first !== undefined
         const popup = scene.popup !== "" ? checks.window.openable[scene.popup] : null
@@ -187,6 +199,11 @@ Item {
             if (checks.settled < 3 || (checks.busy() && checks.settled < 60))
                 return
             const scene = checks.scenes[checks.at]
+            if (scene.find === "results" && !Hub.find.preview) {
+                Hub.find.select(2)
+                checks.settled = 0
+                return
+            }
             const first = scene.first !== undefined ? checks.welcome(checks.window.contentItem) : null
             if (first && first.step !== scene.first) {
                 first.step = scene.first

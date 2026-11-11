@@ -153,6 +153,11 @@ shown "$tmp/screens.log"
 sound "$tmp/screens.log" "--check=screens"
 [ "$ok" = 0 ] || fail "the screen checks"
 
+on_fixture findtaps 60
+shown "$tmp/findtaps.log"
+sound "$tmp/findtaps.log" "--check=findtaps"
+[ "$ok" = 0 ] || fail "the Find taps and keys"
+
 on_fixture layout 300
 grep -E '^qml: check (FAIL|  )' "$tmp/layout.log" | sed 's/^qml: //' || true
 echo "check ok    $(grep -c '^qml: check ok' "$tmp/layout.log") layouts with nothing overlapping or spilling"
