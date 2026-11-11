@@ -7,3 +7,4 @@ pub mod previews;
 pub mod redownload;
 pub mod release;
 pub mod replacements;
+pub mod sweep;

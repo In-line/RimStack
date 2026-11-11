@@ -10,12 +10,12 @@ pub use steam::{Canned, Failure, KeyCheck, Steam, Transport, Web, check_key};
 
 use crate::base::error::Error;
 use crate::rimworld::workshop::{self, Details};
-use crate::rimworld::workshopindex::{Entry, Index};
-use crate::rimworld::workshopsearch::{Filters, Page, Query};
+use crate::rimworld::workshopindex::{Entry, Index, REAL_VERSION};
+use crate::rimworld::workshopsearch::{Counts, Filters, Order, Page, Query};
 use std::sync::Arc;
 
-/// Only Steam with the key sorts; the cache and the fixture rank by relevance, and by newest with
-/// no words, whatever is asked.
+/// Steam with the key does them all; the cache and the fixture do those `Browse::sorts` lists, and
+/// rank by relevance (by newest with no words) for any other.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Sort {
     /// By the words, or by votes with none.
@@ -41,6 +41,29 @@ pub struct Request {
     pub count: usize,
 }
 
+/// What the sidebar offers beside the counts: every game version and every app the source knows.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Catalog {
+    /// Oldest first.
+    pub versions: Vec<String>,
+    /// Steam app id and name, by name.
+    pub dlc: Vec<(String, String)>,
+}
+
+impl Catalog {
+    /// The versions with `REAL_VERSION` mods or more.
+    pub fn of(index: &Index) -> Catalog {
+        Catalog::of_versions_with(index, REAL_VERSION)
+    }
+
+    pub fn of_versions_with(index: &Index, at_least: usize) -> Catalog {
+        Catalog {
+            versions: index.version_tags(at_least),
+            dlc: index.apps(),
+        }
+    }
+}
+
 pub trait Browse: Send + Sync {
     fn search(&self, request: &Request) -> Result<Page, Error>;
 
@@ -56,6 +79,15 @@ pub trait Browse: Send + Sync {
     /// The game versions to filter by, newest first; see `Index::offered_versions`.
     fn versions(&self, game: Option<&str>) -> Vec<String>;
 
+    /// The sorts this source offers now: the cache adds some once a sweep is merged in.
+    fn sorts(&self) -> Vec<Sort>;
+
+    /// How many results the request has under each tag and required DLC; `None` where the source
+    /// cannot say (Steam with the key answers in pages, not whole).
+    fn counts(&self, request: &Request) -> Option<Counts>;
+
+    fn catalog(&self) -> Catalog;
+
     /// Its Workshop requirements that the source knows.
     fn requires(&self, id: &str) -> Result<Vec<String>, Error>;
 
@@ -65,6 +97,24 @@ pub trait Browse: Send + Sync {
 
     /// A collection's items, or the id itself for a mod that is not a collection.
     fn collection_items(&self, ids: &[String]) -> Result<Vec<String>, Error>;
+}
+
+/// The sorts a swept index can do; before the sweep only the newest is known, by id.
+pub(super) fn cache_sorts(index: &Index) -> Vec<Sort> {
+    let mut sorts = vec![Sort::Relevance, Sort::MostRecent];
+    if index.swept() {
+        sorts.extend([Sort::MostSubscribed, Sort::LastUpdated]);
+    }
+    sorts
+}
+
+pub(super) fn order_of(sort: Sort) -> Order {
+    match sort {
+        Sort::MostSubscribed => Order::Subscribed,
+        Sort::LastUpdated => Order::Updated,
+        Sort::MostRecent => Order::Newest,
+        Sort::Relevance | Sort::Trending { .. } => Order::Relevance,
+    }
 }
 
 pub struct Cache {
@@ -82,11 +132,25 @@ impl Browse for Cache {
         let Request {
             query,
             filters,
+            sort,
             offset,
             count,
             ..
         } = request;
-        Ok(self.index.search(query, filters, *offset, *count))
+        let order = order_of(*sort);
+        Ok(self.index.search(query, filters, order, *offset, *count))
+    }
+
+    fn sorts(&self) -> Vec<Sort> {
+        cache_sorts(&self.index)
+    }
+
+    fn counts(&self, request: &Request) -> Option<Counts> {
+        Some(self.index.counts(&request.query, &request.filters))
+    }
+
+    fn catalog(&self) -> Catalog {
+        Catalog::of(&self.index)
     }
 
     fn details(&self, ids: &[String]) -> Result<Vec<Details>, Error> {

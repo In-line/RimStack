@@ -20,7 +20,6 @@ Column {
     TextMetrics { id: nameGroup; font: nameContains.font; text: Theme.say("Group") }
     readonly property var clashes: (Mods.info.losesTo || []).map(c => ({ loses: true, clash: c }))
         .concat((Mods.info.winsOver || []).map(c => ({ loses: false, clash: c })))
-    readonly property string linkColour: "<style>a { color: " + Theme.focus + "; }</style>"
     readonly property var problems: Mods.info.problems || []
     component SavedMark: Text {
         opacity: Number(Hub.mods.notesSaved)
@@ -77,13 +76,7 @@ Column {
     Card {
         visible: !!Mods.info.description
         title: Theme.say("Description")
-        CopyText {
-            width: parent.width
-            textFormat: TextEdit.RichText
-            text: side.linkColour + (Mods.info.descriptionRich || "")
-            onLinkActivated: (link) => Qt.openUrlExternally(link)
-            HoverHandler { enabled: parent.hoveredLink !== ""; cursorShape: Qt.PointingHandCursor }
-        }
+        DescriptionView { width: parent.width; parts: [({ html: Mods.info.descriptionRich || "", image: "" })] }
     }
 
     // The game keeps the texture of the mod that loads last.

@@ -2,6 +2,7 @@
 //! `[Workshop id, title, author|null, package id|null, [tags], [required Workshop ids], [required DLC app ids]]`.
 //! After them, one line per expansion: `[Steam app id, name]`. A file without these lines reads as before.
 
+use super::workshopsweep::Sweep;
 use crate::base::error::Error;
 use crate::base::versions;
 
@@ -83,6 +84,22 @@ impl Trio {
     }
 }
 
+/// What the sweep gave of one item; all zero for an item it has not reached.
+#[derive(Clone, Copy, Default)]
+pub(super) struct Stat {
+    pub subscriptions: u32,
+    pub created: u32,
+    pub updated: u32,
+    flags: u8,
+}
+
+const REMOVED: u8 = 1;
+const BANNED: u8 = 2;
+
+fn clamped(n: u64) -> u32 {
+    u32::try_from(n).unwrap_or(u32::MAX)
+}
+
 const TITLE: usize = 0;
 const AUTHOR: usize = 1;
 const PACKAGE: usize = 2;
@@ -109,10 +126,15 @@ pub struct Index {
     apps: BTreeMap<String, String>,
     /// Game-version tags (`1.6`) with the number of mods under each.
     version_counts: Vec<(String, usize)>,
+    /// One per entry once a sweep is merged in; empty before.
+    stats: Vec<Stat>,
 }
 
 const OFFERED: usize = 5;
 const WELL_STOCKED: usize = 100;
+/// Measured on the real database: the mistyped tags (0.8 to 0.13, 1.18, 2.x) have 5 mods or
+/// fewer, the smallest real version (0.19) has 543.
+pub const REAL_VERSION: usize = 100;
 
 /// Without a database: the game's own version, then the minors below it down to `.0`, at most
 /// `OFFERED`. Empty when the game is unknown or its version is not `major.minor`.
@@ -138,6 +160,16 @@ fn is_version_tag(tag: &str) -> bool {
 
 pub fn file_in(data_dir: &Path) -> PathBuf {
     data_dir.join("workshopIndex.jsonl")
+}
+
+fn expansion_name(database_name: &str) -> &str {
+    let name = database_name
+        .strip_prefix("RimWorld - ")
+        .unwrap_or(database_name);
+    match name.trim() {
+        "" => database_name,
+        short => short,
+    }
 }
 
 fn numbers(texts: &[String]) -> impl Iterator<Item = u64> + '_ {
@@ -246,6 +278,70 @@ impl Index {
         self.by_author = authored;
     }
 
+    /// The database's entries with what Steam last said laid over them: its title and tags replace
+    /// the database's, and an item it no longer returns is marked removed.
+    pub fn with_sweep(mut self, sweep: &Sweep) -> Index {
+        if sweep.is_empty() {
+            return self;
+        }
+        let apps = std::mem::take(&mut self.apps);
+        let mut builder = Builder::default();
+        let mut stats = Vec::with_capacity(self.len());
+        for at in 0..self.len() {
+            let mut entry = self.entry(at);
+            let mut stat = Stat::default();
+            if let Some(record) = sweep.records.get(&self.ids[at]) {
+                if record.removed {
+                    stat.flags = REMOVED;
+                } else {
+                    if !record.title.trim().is_empty() {
+                        entry.title = record.title.clone();
+                    }
+                    if !record.tags.is_empty() {
+                        entry.tags = record.tags.clone();
+                    }
+                    stat = Stat {
+                        subscriptions: clamped(record.subscriptions),
+                        created: clamped(record.created),
+                        updated: clamped(record.updated),
+                        flags: if record.banned { BANNED } else { 0 },
+                    };
+                }
+            }
+            builder.push(entry);
+            stats.push(stat);
+        }
+        let mut merged = builder.finish().with_apps(apps);
+        merged.stats = stats;
+        merged
+    }
+
+    /// Whether Steam's own numbers are laid over the database's.
+    pub fn swept(&self) -> bool {
+        !self.stats.is_empty()
+    }
+
+    pub(super) fn stat(&self, at: usize) -> Stat {
+        self.stats.get(at).copied().unwrap_or_default()
+    }
+
+    /// Banned, or removed by its author or Steam.
+    pub(super) fn incompatible(&self, at: usize) -> bool {
+        self.stat(at).flags & (REMOVED | BANNED) != 0
+    }
+
+    pub(super) fn tag_count(&self) -> usize {
+        self.tag_names.len()
+    }
+
+    pub(super) fn tag_name(&self, tag: u32) -> &str {
+        &self.tag_names[tag as usize]
+    }
+
+    pub(super) fn tags_of(&self, at: usize) -> &[u32] {
+        self.tags.get(at)
+    }
+
     pub(super) fn id_at(&self, at: usize) -> u64 {
         self.ids[at]
     }
@@ -311,8 +407,31 @@ impl Index {
         self
     }
 
+    /// As Steam shows it: the database's `RimWorld - Biotech` is `Biotech`.
     pub fn app_name(&self, app_id: &str) -> Option<&str> {
-        self.apps.get(app_id).map(String::as_str)
+        self.apps.get(app_id).map(|name| expansion_name(name))
+    }
+
+    /// Every app the database names, by id and name, by name.
+    pub fn apps(&self) -> Vec<(String, String)> {
+        let mut apps: Vec<(String, String)> = self
+            .apps
+            .iter()
+            .map(|(id, name)| (id.clone(), expansion_name(name).to_string()))
+            .collect();
+        apps.sort_by_key(|(_, name)| name.to_lowercase());
+        apps
+    }
+
+    /// The game-version tags with at least `at_least` mods under them, oldest first. Steam lists
+    /// the game's real versions (0.14 to 1.7); the rest are mistyped tags (see `REAL_VERSION`).
+    pub fn version_tags(&self, at_least: usize) -> Vec<String> {
+        let mut tags: Vec<String> = (self.version_counts.iter())
+            .filter(|(_, n)| *n >= at_least)
+            .map(|(t, _)| t.clone())
+            .collect();
+        tags.sort_by_key(|tag| versions::numbers(tag));
+        tags
     }
 
     /// Game versions to offer, newest first, at most `OFFERED`: the game's own first, then the
@@ -342,6 +461,11 @@ impl Index {
 
     pub fn len(&self) -> usize {
         self.ids.len()
+    }
+
+    /// Every Workshop id, ascending.
+    pub fn ids(&self) -> &[u64] {
+        &self.ids
     }
 
     pub fn is_empty(&self) -> bool {
@@ -558,13 +682,38 @@ mod tests {
         let index = Index::new(vec![entry("1", "x", None, &[])]).with_apps(apps);
         index.store(&path).unwrap();
         let back = Index::read(&path);
-        assert_eq!(
-            (back.len(), back.app_name("3022790")),
-            (1, Some("RimWorld - Odyssey"))
-        );
+        assert_eq!((back.len(), back.app_name("3022790")), (1, Some("Odyssey")));
         std::fs::write(&path, "[\"1\",\"x\",null,null,[],[],[]]\n").unwrap();
         let old = Index::read(&path);
         assert_eq!((old.len(), old.app_name("3022790")), (1, None));
+    }
+
+    #[test]
+    fn a_file_ending_in_app_lines_names_the_expansions_as_steam_does() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = file_in(dir.path());
+        std::fs::write(
+            &path,
+            "[\"5\",\"x\",null,null,[\"Mod\"],[],[\"1826140\"]]\n\
+             [\"1149640\",\"RimWorld - Royalty\"]\n\
+             [\"1826140\",\"RimWorld - Biotech\"]\n\
+             [\"2380740\",\"Anomaly\"]\n",
+        )
+        .unwrap();
+        let index = Index::read(&path).with_sweep(&Sweep::default());
+        assert_eq!(index.len(), 1);
+        let names: Vec<_> = index.apps().into_iter().map(|(_, name)| name).collect();
+        assert_eq!(names, ["Anomaly", "Biotech", "Royalty"]);
+        assert_eq!(index.app_name("1826140"), Some("Biotech"));
+    }
+
+    #[test]
+    fn only_versions_with_a_hundred_mods_are_listed() {
+        let mut all = stocked(&["1.6", "0.19"], 100);
+        all.extend(stocked(&["0.8", "1.18"], 5));
+        let index = Index::new(all);
+        assert_eq!(index.version_tags(REAL_VERSION), ["0.19", "1.6"]);
+        assert_eq!(index.version_tags(1).len(), 4);
     }
 
     #[test]

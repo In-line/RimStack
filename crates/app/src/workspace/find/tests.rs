@@ -1,5 +1,5 @@
 use super::*;
-use crate::workspace::find::Cell;
+use crate::workspace::find::{Cell, Look};
 use crate::workspace::tests::installed;
 use std::sync::Mutex;
 
@@ -148,8 +148,10 @@ fn the_folders_left_out_and_the_files_taken_follow_the_request() {
     request.folders.languages = false;
     let (found, _) = run(&app, &request);
     assert_eq!(found.len(), 2);
-    request.folders.all_text = true;
+    request.types = ".".into();
     assert_eq!(run(&app, &request).0.len(), 2);
+    request.types = "cs".into();
+    assert!(run(&app, &request).0.is_empty());
 }
 
 #[test]
@@ -223,7 +225,11 @@ fn a_row_resolves_to_its_file_folder_line_and_preview_without_a_path_from_outsid
         app.find_line(matched).as_deref(),
         Some("<a>steel plate</a>")
     );
-    let shown = app.find_preview(matched).unwrap();
+    let looked = |look| {
+        let (file, line) = app.find_located(matched).unwrap();
+        app.find_preview(&file, line, look)
+    };
+    let shown = looked(Look::default()).shown;
     assert_eq!(shown.line, 2);
     assert!(shown.problem.is_none());
     let marked: Vec<usize> = shown
@@ -234,7 +240,7 @@ fn a_row_resolves_to_its_file_folder_line_and_preview_without_a_path_from_outsid
         .collect();
     assert_eq!(marked, [2]);
     std::fs::remove_file(&roads).unwrap();
-    assert!(app.find_preview(matched).unwrap().problem.is_some());
+    assert!(looked(Look::default()).shown.problem.is_some());
 }
 
 #[test]
@@ -269,6 +275,17 @@ fn a_bad_regex_is_said_before_anything_runs_and_an_empty_box_is_no_problem() {
         ..ask("(", Place::Active)
     };
     assert!(app.find_start(&bad).is_err());
+    assert!(
+        !app.find_ready(&bad),
+        "nothing starts unasked on a bad pattern"
+    );
+    assert!(!app.find_ready(&ask(" ", Place::Active)));
+    let bad_types = Request {
+        types: "xml, a/b".into(),
+        ..ask("Steel", Place::Active)
+    };
+    assert!(!app.find_ready(&bad_types));
+    assert!(app.find_ready(&ask("Steel", Place::Active)));
 }
 
 #[test]
@@ -276,20 +293,26 @@ fn the_last_ten_searches_are_kept_and_recalled_with_their_switches() {
     let (_tmp, app) = made_up();
     assert!(app.find_recent().is_empty());
     for n in 0..12 {
-        app.find_remember(&ask(&format!("word{n}"), Place::Active));
+        app.find_remember(&ask(&format!("word{n}"), Place::Active), false);
     }
     let mut last = ask("last", Place::Selected);
     last.switches.regex = true;
-    last.folders.all_text = true;
+    last.types = ".".into();
     last.folders.git = false;
-    app.find_remember(&last);
+    app.find_remember(&last, false);
+    last.switches.case = true;
+    app.find_remember(&last, true);
     let recent = app.find_recent();
     assert_eq!(recent.len(), 10);
     assert_eq!(recent[0].text, "last");
+    assert!(
+        recent[0].case,
+        "the options changed replace the search before"
+    );
     assert_eq!(recent[1].text, "word11");
     let recalled = app.find_recall(0, None).unwrap();
     assert_eq!(recalled.place, Place::Active, "no mod is selected");
-    assert!(recalled.switches.regex && recalled.folders.all_text && !recalled.folders.git);
+    assert!(recalled.switches.regex && recalled.types == "." && !recalled.folders.git);
     let mod_id = folder_id(&app, "roads");
     let again = app.find_recall(0, Some(mod_id)).unwrap();
     assert_eq!(
@@ -304,14 +327,15 @@ fn the_options_say_what_is_chosen_and_whether_the_selected_mod_can_be_searched()
     let (_tmp, app) = made_up();
     let mut request = Request::default();
     request.flip("regex");
-    request.choose("files", "text");
-    request.choose("where", "inactive");
+    request.types = "xml, a/b".into();
+    request.choose("inactive");
     let options = app.find_options(&request);
     let chosen =
         |list: &[Choice]| -> Vec<&str> { list.iter().filter(|c| c.chosen).map(|c| c.id).collect() };
     assert_eq!(chosen(&options.switches), ["regex"]);
     assert_eq!(chosen(&options.places), ["inactive"]);
-    assert_eq!(chosen(&options.files), ["text"]);
+    assert!(options.types.problem.is_some());
+    assert_eq!(options.types.text, "xml, a/b");
     assert_eq!(chosen(&options.leave).len(), 4);
     assert!(
         !options
@@ -344,4 +368,53 @@ fn a_settings_file_is_named_for_the_longest_folder_it_starts_with() {
     assert_eq!(of("Mod_a_Settings.xml"), Some(ModId::new(0, 1)));
     assert_eq!(of("Mod_c_Settings.xml"), None);
     assert_eq!(of("NotMod_a_Settings.xml"), None);
+}
+
+#[test]
+fn a_search_inside_the_file_finds_lines_steps_around_and_centres_the_window_on_the_match() {
+    let (tmp, app) = made_up();
+    let file = tmp.path().join("game/Mods/roads/Defs/roads.xml");
+    let look = |text: &str, found: Option<Vec<usize>>, at, step| {
+        let look = Look {
+            text: text.into(),
+            found,
+            at,
+            step,
+        };
+        app.find_preview(&file, 1, look)
+    };
+    let first = look("STEEL", None, None, 0);
+    assert_eq!((first.found.clone(), first.at), (vec![2, 3], None));
+    let marked: Vec<(usize, bool)> = (first.shown.lines.iter())
+        .filter(|l| l.found)
+        .map(|l| (l.number, l.here))
+        .collect();
+    assert_eq!(marked, [(2, false), (3, false)]);
+    let next = look("steel", Some(vec![2, 3]), None, 1);
+    assert_eq!((next.at, next.shown.line), (Some(0), 2));
+    let after = look("steel", Some(vec![2, 3]), next.at, 1);
+    assert_eq!((after.at, after.shown.line), (Some(1), 3));
+    assert!(after.shown.lines.iter().any(|l| l.here && l.number == 3));
+    let around = look("steel", Some(vec![2, 3]), after.at, 1);
+    assert_eq!(around.at, Some(0));
+    let back = look("steel", Some(vec![2, 3]), Some(0), -1);
+    assert_eq!(back.at, Some(1));
+    let none = look("zinc", None, None, 1);
+    assert_eq!((none.found.len(), none.at, none.shown.line), (0, None, 1));
+}
+
+#[test]
+fn the_mods_found_are_listed_with_counts_and_a_pick_keeps_one_mods_rows() {
+    let (_tmp, app) = made_up();
+    run(&app, &ask("steel", Place::Installed));
+    let list = app.find_results(|r| r.found_mods());
+    assert!(list.rows.len() >= 2 && list.all_chosen);
+    assert_eq!(
+        list.all_count,
+        list.rows.iter().map(|m| m.count).sum::<usize>()
+    );
+    let one = list.rows[0].index;
+    let rows = app.find_change(|r| r.set_pick(Some(one)));
+    assert!(rows.iter().all(|r| r.same_mod(rows[0])));
+    assert!(app.find_results(|r| r.found_mods()).rows[0].chosen);
 }

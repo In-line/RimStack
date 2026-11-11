@@ -16,13 +16,22 @@ Item {
         border.color: Theme.line
     }
 
+    readonly property bool wide: width >= Theme.sized(1100)
+    readonly property bool sideShown: wide || Mods.browseFilters
+    readonly property real sideWidth: Theme.sized(250) * Number(wide)
+    readonly property real cardLeast: Theme.sized(369)
+    readonly property real columnWidth: Math.min(Theme.sized(360), width * 0.4)
+    readonly property bool docked: width - 2 * Theme.gapWide - sideWidth - columnWidth - 2 * Theme.gapLarge >= cardLeast
+    readonly property bool covered: !docked && (opened || Mods.browseList) && (wide || !Mods.browseFilters)
+    readonly property var facets: Hub.workshop.sidebar
+
     onOpenedChanged: details.enlarged = ""
 
     Component.onCompleted: {
         field.text = Mods.browseText
         Mods.browseText = ""
         Hub.workshop.select("")
-        Hub.workshop.search(field.text, Hub.workshop.version, Hub.workshop.kind, Hub.workshop.sort)
+        Hub.workshop.search(field.text)
     }
 
     ColumnLayout {
@@ -34,6 +43,7 @@ Item {
             Layout.fillWidth: true
             spacing: Theme.gap
             Btn { icon: "undo-2"; text: Theme.say("Back"); tip: Theme.say("Back to Downloads"); onClicked: Mods.browsing = false }
+            Btn { visible: !view.wide; primary: Mods.browseFilters; icon: "funnel"; text: Theme.say("Filters"); onClicked: Mods.browseFilters = !Mods.browseFilters }
             FilterField {
                 id: field
                 Layout.fillWidth: true
@@ -41,89 +51,19 @@ Item {
                 implicitHeight: Theme.sized(30)
                 icon: "search"
                 placeholder: Theme.say("Search, or w: id  t: tag  d: expansion  m: needs a mod  a: author  or a link")
-                onAccepted: Hub.workshop.search(field.text, Hub.workshop.version, Hub.workshop.kind, Hub.workshop.sort)
+                onAccepted: Hub.workshop.search(field.text)
                 Tip { text: Theme.say("Words match titles, authors and package ids. w:<id> one item, t:<tag>, d:<expansion app id>, m:<id> mods that need that mod, a:<author>. A pasted Workshop or collection link works too.") }
             }
-            Btn { primary: true; text: Theme.say("Search"); onClicked: Hub.workshop.search(field.text, Hub.workshop.version, Hub.workshop.kind, Hub.workshop.sort) }
-        }
-
-        Flow {
-            Layout.fillWidth: true
-            spacing: Theme.gapSmall
-            Text { height: Theme.control; verticalAlignment: Text.AlignVCenter; color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.say("Type") }
-            Repeater {
-                model: ["Mod", "Translation", "Scenario", "Any"]
-                Chip {
-                    required property string modelData
-                    pressable: true
-                    onAccent: Hub.workshop.kind === modelData.toLowerCase()
-                    text: Theme.say(modelData)
-                    onClicked: Hub.workshop.search(field.text, Hub.workshop.version, modelData.toLowerCase(), Hub.workshop.sort)
+            Btn { primary: true; text: Theme.say("Search"); onClicked: Hub.workshop.search(field.text) }
+            Btn {
+                primary: Mods.browseList || view.opened
+                icon: "list"
+                text: Theme.fill("Download list ({})", Hub.workshop.list.count)
+                tip: Theme.say("Show or hide the download list.")
+                onClicked: {
+                    Hub.workshop.select("")
+                    Mods.browseList = view.opened || !Mods.browseList
                 }
-            }
-            Item { width: Theme.gapLarge; height: Theme.control }
-            Text { height: Theme.control; verticalAlignment: Text.AlignVCenter; color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.say("Game version") }
-            Chip {
-                pressable: true
-                onAccent: Hub.workshop.version === ""
-                text: Theme.say("Any")
-                onClicked: Hub.workshop.search(field.text, "", Hub.workshop.kind, Hub.workshop.sort)
-            }
-            Repeater {
-                model: Hub.workshop.versions || []
-                Chip {
-                    required property string modelData
-                    pressable: true
-                    onAccent: Hub.workshop.version === modelData
-                    text: modelData
-                    onClicked: Hub.workshop.search(field.text, modelData, Hub.workshop.kind, Hub.workshop.sort)
-                }
-            }
-            Item { width: Theme.gapLarge; height: Theme.control }
-            Text { height: Theme.control; verticalAlignment: Text.AlignVCenter; color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.say("Expansions") }
-            Chip {
-                pressable: true
-                onAccent: !Hub.workshop.owned
-                text: Theme.say("Any")
-                onClicked: { Hub.workshop.owned = false; Hub.workshop.search(field.text, Hub.workshop.version, Hub.workshop.kind, Hub.workshop.sort) }
-            }
-            Chip {
-                pressable: true
-                onAccent: Hub.workshop.owned
-                text: Theme.say("Only those I own")
-                tip: Theme.say("Leaves out mods that need an expansion this game does not have.")
-                onClicked: { Hub.workshop.owned = true; Hub.workshop.search(field.text, Hub.workshop.version, Hub.workshop.kind, Hub.workshop.sort) }
-            }
-        }
-
-        Flow {
-            visible: Hub.workshop.keyMode
-            Layout.fillWidth: true
-            spacing: Theme.gapSmall
-            Text { height: Theme.control; verticalAlignment: Text.AlignVCenter; color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.say("Sort") }
-            Repeater {
-                model: Hub.workshop.sorts || []
-                Chip {
-                    required property var modelData
-                    pressable: true
-                    onAccent: modelData.chosen
-                    text: modelData.label
-                    onClicked: Hub.workshop.search(field.text, Hub.workshop.version, Hub.workshop.kind, modelData.id)
-                }
-            }
-            Item { width: Theme.gapLarge; height: Theme.control }
-            Text { height: Theme.control; verticalAlignment: Text.AlignVCenter; color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.say("Show") }
-            Chip {
-                pressable: true
-                onAccent: !Hub.workshop.collections
-                text: Theme.say("Items")
-                onClicked: Hub.workshop.showCollections(false)
-            }
-            Chip {
-                pressable: true
-                onAccent: Hub.workshop.collections
-                text: Theme.say("Collections")
-                onClicked: Hub.workshop.showCollections(true)
             }
         }
 
@@ -148,28 +88,68 @@ Item {
             Layout.fillHeight: true
             spacing: Theme.gapLarge
 
+            FilterSidebar {
+                visible: view.sideShown
+                Layout.fillHeight: true
+                Layout.fillWidth: !view.wide
+                Layout.preferredWidth: view.sideWidth
+            }
+
             ColumnLayout {
+                id: results
+                visible: view.wide || !Mods.browseFilters
+                opacity: Number(!view.covered)
+                enabled: !view.covered
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.preferredWidth: 0
                 spacing: Theme.gap
                 Text { visible: Hub.workshop.notice !== ""; Layout.fillWidth: true; Layout.preferredWidth: 0; wrapMode: Text.WordWrap; color: Theme.warn; font.pixelSize: Theme.small; text: Hub.workshop.notice }
-                Row {
+                RowLayout {
+                    visible: view.found
+                    Layout.fillWidth: true
                     spacing: Theme.gap
-                    Text { visible: view.found; color: Theme.ink2; font.pixelSize: Theme.small; text: Theme.plural(Hub.workshop.total, "{} result", "{} results") }
+                    Text { Layout.fillWidth: true; Layout.preferredWidth: 0; elide: Text.ElideRight; color: Theme.ink2; font.pixelSize: Theme.small; text: view.facets.found }
                     Text { visible: Hub.workshop.searching; color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.say("Searching…") }
+                    SortMenu {}
+                }
+                Flow {
+                    visible: view.found
+                    Layout.fillWidth: true
+                    spacing: Theme.gapSmall
+                    Repeater {
+                        model: view.facets.chips
+                        Chip {
+                            required property var modelData
+                            pressable: true
+                            tone: Theme[modelData.tone]
+                            icon: "x"
+                            text: modelData.label
+                            tip: Theme.say("Remove this filter")
+                            onClicked: Hub.workshop.clearFilter(modelData.id)
+                        }
+                    }
+                    Chip { visible: view.facets.searched; pressable: true; icon: "x"; text: Theme.say("Clear search"); onClicked: { field.text = ""; Hub.workshop.search("") } }
+                    Chip { visible: view.facets.filtered; pressable: true; icon: "x"; text: Theme.say("Clear filters"); onClicked: Hub.workshop.clearAll() }
+                    Chip { visible: Hub.workshop.keyMode; pressable: true; onAccent: !Hub.workshop.collections; text: Theme.say("Items"); onClicked: Hub.workshop.showCollections(false) }
+                    Chip { visible: Hub.workshop.keyMode; pressable: true; onAccent: Hub.workshop.collections; text: Theme.say("Collections"); onClicked: Hub.workshop.showCollections(true) }
                 }
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Scrolled {
+                        id: grid
+                        objectName: "resultGrid"
                         anchors.fill: parent
                         visible: view.found && Hub.workshop.total > 0
+                        readonly property bool hungry: contentY + 2 * height >= contentHeight && !Hub.workshop.searching
+                        onHungryChanged: Hub.workshop.wantMore(hungry)
                         Flow {
                             id: cards
+                            objectName: "resultCards"
                             width: parent.width
                             spacing: Theme.gapLarge
-                            readonly property int across: Math.max(1, Math.floor((width + spacing) / (Theme.sized(200) + spacing)))
+                            readonly property int across: Math.max(1, Math.floor((width + spacing) / (view.cardLeast + spacing)))
                             readonly property real each: (width - (across - 1) * spacing) / across
                             Repeater {
                                 model: Hub.workshop.rows
@@ -204,7 +184,7 @@ Item {
                         width: Math.min(parent.width, Theme.sized(420))
                         spacing: Theme.gapLarge
                         EmptyState { width: parent.width; icon: "circle-alert"; title: Theme.say("The search did not work"); hint: Hub.workshop.problem }
-                        Btn { anchors.horizontalCenter: parent.horizontalCenter; text: Theme.say("Try again"); onClicked: Hub.workshop.search(field.text, Hub.workshop.version, Hub.workshop.kind, Hub.workshop.sort) }
+                        Btn { anchors.horizontalCenter: parent.horizontalCenter; text: Theme.say("Try again"); onClicked: Hub.workshop.search(field.text) }
                     }
                     EmptyState {
                         visible: view.found && !Hub.workshop.searching && Hub.workshop.total === 0
@@ -212,39 +192,40 @@ Item {
                         width: Math.min(parent.width, Theme.sized(420))
                         icon: "search"
                         title: Theme.say("No mods match")
-                        hint: Theme.say("Try fewer words, another type or any game version.")
+                        hint: Theme.say("Try fewer words or clear some filters.")
                     }
-                }
-                Btn {
-                    visible: Hub.workshop.more
-                    Layout.alignment: Qt.AlignHCenter
-                    enabled: !Hub.workshop.searching
-                    text: Theme.say("Show more")
-                    onClicked: Hub.workshop.showMore()
                 }
             }
 
-            Panel {
+            Item {
+                id: slot
                 Layout.fillHeight: true
-                Layout.preferredWidth: Math.min(Theme.sized(360), view.width * 0.4)
-                BrowseDetails {
-                    id: details
-                    visible: view.opened
-                    anchors.fill: parent
-                    anchors.margins: Theme.gapCard
-                }
-                ColumnLayout {
-                    visible: !view.opened
-                    anchors.fill: parent
-                    anchors.margins: Theme.gapCard
-                    spacing: Theme.gap
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Theme.gap
-                        Text { color: Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say("Download list") }
-                        Text { Layout.fillWidth: true; Layout.preferredWidth: 0; elide: Text.ElideRight; color: Theme.ink3; font.pixelSize: Theme.small; text: Hub.workshop.list.sizeSaid || "" }
+                Layout.preferredWidth: view.columnWidth * Number(view.docked)
+                Panel {
+                    visible: view.docked || view.covered
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.right: parent.right
+                    width: slot.width + Number(!view.docked) * (results.width + Theme.gapLarge)
+                    BrowseDetails {
+                        id: details
+                        visible: view.opened
+                        anchors.fill: parent
+                        anchors.margins: Theme.gapCard
                     }
-                    ListPane { Layout.fillWidth: true; Layout.fillHeight: true }
+                    ColumnLayout {
+                        visible: !view.opened
+                        anchors.fill: parent
+                        anchors.margins: Theme.gapCard
+                        spacing: Theme.gap
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.gap
+                            Text { color: Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say("Download list") }
+                            Text { Layout.fillWidth: true; Layout.preferredWidth: 0; elide: Text.ElideRight; color: Theme.ink3; font.pixelSize: Theme.small; text: Hub.workshop.list.sizeSaid || "" }
+                        }
+                        ListPane { Layout.fillWidth: true; Layout.fillHeight: true }
+                    }
                 }
             }
         }

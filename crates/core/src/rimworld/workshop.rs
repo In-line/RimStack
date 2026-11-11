@@ -76,12 +76,16 @@ pub struct Details {
     pub title: String,
     /// Seconds since 1970.
     pub updated: u64,
+    /// Seconds since 1970; 0 when Steam does not say.
+    pub created: u64,
     /// 0 when Steam does not say.
     pub size: u64,
     pub preview_url: String,
     pub description: String,
     pub subscriptions: u64,
     pub favorited: u64,
+    /// Steam's unique visitors; 0 when it does not say.
+    pub views: u64,
     pub banned: bool,
     /// A Steam id, not a name.
     pub creator: String,
@@ -175,11 +179,13 @@ pub(crate) fn details_of(file: &Value) -> Option<Details> {
         id: id_text(file.get("publishedfileid")?)?,
         title: file.get("title")?.as_str()?.to_string(),
         updated: count("time_updated"),
+        created: count("time_created"),
         size: count("file_size"),
         preview_url: text("preview_url"),
         description,
         subscriptions: count("subscriptions"),
         favorited: count("favorited"),
+        views: count("views"),
         banned: file.get("banned").is_some_and(|b| {
             b.as_bool()
                 .unwrap_or_else(|| number(b).is_some_and(|n| n != 0))
@@ -205,31 +211,35 @@ pub fn parse_details(json: &str) -> Result<Vec<Details>, Error> {
     Ok(files.iter().filter_map(details_of).collect())
 }
 
+/// One POST of up to 100 ids. Blocks on the network.
+pub fn fetch_batch(agent: &ureq::Agent, batch: &[String]) -> Result<Vec<Details>, Error> {
+    let mut form = vec![("itemcount".to_string(), batch.len().to_string())];
+    for (i, id) in batch.iter().enumerate() {
+        form.push((format!("publishedfileids[{i}]"), id.clone()));
+    }
+    let pairs = form.iter().map(|(k, v)| (k.as_str(), v.as_str()));
+    let mut response = agent
+        .post(DETAILS_URL)
+        .send_form(pairs)
+        .map_err(crate::base::web::steam_failed)?;
+    // Descriptions come along, so this is above the default limit.
+    let mut body = response
+        .body_mut()
+        .with_config()
+        .limit(64 * 1024 * 1024)
+        .reader();
+    let mut text = String::new();
+    std::io::Read::read_to_string(&mut body, &mut text).map_err(crate::base::web::steam_failed)?;
+    parse_details(&text)
+}
+
 /// Blocks on the network. Steam is slow per item, so chunks of 100 go out in parallel.
 pub fn fetch_details(ids: &[String]) -> Result<Vec<Details>, Error> {
     let agent = crate::base::web::agent(120);
-    let ask = |batch: &[String]| -> Result<Vec<Details>, Error> {
-        let mut form = vec![("itemcount".to_string(), batch.len().to_string())];
-        for (i, id) in batch.iter().enumerate() {
-            form.push((format!("publishedfileids[{i}]"), id.clone()));
-        }
-        let pairs = form.iter().map(|(k, v)| (k.as_str(), v.as_str()));
-        let mut response = agent
-            .post(DETAILS_URL)
-            .send_form(pairs)
-            .map_err(crate::base::web::steam_failed)?;
-        // Descriptions come along, so this is above the default limit.
-        let mut body = response
-            .body_mut()
-            .with_config()
-            .limit(64 * 1024 * 1024)
-            .reader();
-        let mut text = String::new();
-        std::io::Read::read_to_string(&mut body, &mut text)
-            .map_err(crate::base::web::steam_failed)?;
-        parse_details(&text)
-    };
-    let answers: Vec<Result<Vec<Details>, Error>> = ids.par_chunks(100).map(ask).collect();
+    let answers: Vec<Result<Vec<Details>, Error>> = ids
+        .par_chunks(100)
+        .map(|batch| fetch_batch(&agent, batch))
+        .collect();
     let mut all = Vec::new();
     for answer in answers {
         all.extend(answer?);

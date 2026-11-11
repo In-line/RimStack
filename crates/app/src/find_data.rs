@@ -40,6 +40,17 @@ pub mod qobject {
         #[qproperty(QVariant, recent)]
         #[qproperty(QVariant, preview)]
         #[qproperty(QVariant, options)]
+        /// The mods with matches, by count, and which one the results are of.
+        #[qproperty(QVariant, mods)]
+        /// What is typed for the file types, as `xml, cs; json`.
+        #[qproperty(QString, file_types, cxx_name = "fileTypes")]
+        /// What the box inside the previewed file asks for.
+        #[qproperty(QString, inside_text, cxx_name = "insideText")]
+        #[qproperty(QString, inside_said, cxx_name = "insideSaid")]
+        /// Lines with a match in the file previewed.
+        #[qproperty(i32, inside_found, cxx_name = "insideFound")]
+        /// Long lines of the preview wrap instead of being cut.
+        #[qproperty(bool, wrap)]
         type FindData = super::FindDataRust;
     }
 
@@ -69,7 +80,8 @@ pub mod qobject {
     }
 
     extern "RustQt" {
-        /// Looks as the box and the options say; a newer search ends the one before.
+        /// Looks as the box and the options say; a newer search ends the one before. A change of
+        /// the options runs it again by itself.
         #[qinvokable]
         fn search(self: Pin<&mut FindData>);
 
@@ -79,6 +91,16 @@ pub mod qobject {
         /// A hit, or a file (its first hit), is chosen and shown in `preview`.
         #[qinvokable]
         fn select(self: Pin<&mut FindData>, row: i32);
+
+        /// The next match inside the previewed file (`by` 1) or the one before (-1).
+        #[qinvokable]
+        #[cxx_name = "insideStep"]
+        fn inside_step(self: Pin<&mut FindData>, by: i32);
+
+        /// Shows only the results of one mod, by its index in `mods.rows`; -1 for every mod.
+        #[qinvokable]
+        #[cxx_name = "pickMod"]
+        fn pick_mod(self: Pin<&mut FindData>, group: i32);
 
         /// The row `by` file or line rows from `row` (a mod's row and a gap are passed over);
         /// `row` itself when there is none.
@@ -129,9 +151,9 @@ pub mod qobject {
         #[qinvokable]
         fn flip(self: Pin<&mut FindData>, id: &QString);
 
-        /// `group` is "where" or "files"; `id` is one of `options.where` or `options.files`.
+        /// `id` is one of `options.where`.
         #[qinvokable]
-        fn choose(self: Pin<&mut FindData>, group: &QString, id: &QString);
+        fn choose(self: Pin<&mut FindData>, id: &QString);
     }
 
     unsafe extern "RustQt" {
@@ -211,8 +233,11 @@ use rimstack_core::mods::library::ModId;
 use rimstack_core::say;
 use std::sync::{Arc, Mutex};
 
+mod look;
+
 const FIRST_ROLE: i32 = 257;
 const IN_SEARCH: &str = "in:search";
+const TYPES_PAUSE: std::time::Duration = std::time::Duration::from_millis(400);
 
 pub struct FindDataRust {
     text: QString,
@@ -229,6 +254,13 @@ pub struct FindDataRust {
     recent: QVariant,
     preview: QVariant,
     options: QVariant,
+    mods: QVariant,
+    file_types: QString,
+    inside_text: QString,
+    inside_said: QString,
+    inside_found: i32,
+    wrap: bool,
+    viewing: look::Viewing,
     app: crate::hub::Given,
     request: Request,
     generation: u64,
@@ -237,6 +269,7 @@ pub struct FindDataRust {
     working: Option<Sentence>,
     runs: crate::jobs::Lane,
     previews: crate::jobs::Lane,
+    retyped: crate::jobs::Lane,
 }
 
 impl Default for FindDataRust {
@@ -256,6 +289,13 @@ impl Default for FindDataRust {
             recent: QVariant::default(),
             preview: QVariant::default(),
             options: QVariant::default(),
+            mods: QVariant::default(),
+            file_types: QString::from("xml"),
+            inside_text: QString::default(),
+            inside_said: QString::default(),
+            inside_found: 0,
+            wrap: false,
+            viewing: look::Viewing::default(),
             app: crate::hub::Given::default(),
             request: Request::default(),
             generation: 0,
@@ -264,6 +304,7 @@ impl Default for FindDataRust {
             working: None,
             runs: crate::jobs::Lane::default(),
             previews: crate::jobs::Lane::default(),
+            retyped: crate::jobs::Lane::default(),
         }
     }
 }
@@ -294,7 +335,14 @@ impl qobject::FindData {
         self.as_mut()
             .on_selected_mod_changed(|me| me.show_options())
             .release();
+        self.as_mut()
+            .on_file_types_changed(|me| me.types_typed())
+            .release();
+        self.as_mut()
+            .on_inside_text_changed(|me| me.inside_typed())
+            .release();
         self.as_mut().show_options();
+        self.as_mut().show_mods();
         crate::jobs::run(
             "find recent",
             self.qt_thread(),
@@ -309,6 +357,8 @@ impl qobject::FindData {
         }
         self.as_mut().show_options();
         self.as_mut().show_texts();
+        self.as_mut().show_mods();
+        self.as_mut().show_inside();
         let recent = self.app().find_recent();
         self.as_mut().set_recent(to_qml(&recent));
         self.changed_all();
@@ -334,6 +384,7 @@ impl qobject::FindData {
     fn request_now(&self) -> Request {
         Request {
             text: self.text.to_string(),
+            types: self.file_types.to_string(),
             selected: ModId::from_qml(self.selected_mod),
             ..self.request.clone()
         }
@@ -358,20 +409,47 @@ impl qobject::FindData {
             .request
             .flip(&id.to_string());
         self.as_mut().show_options();
-        self.check();
+        self.as_mut().check();
+        self.rerun();
     }
 
-    fn choose(mut self: Pin<&mut Self>, group: &QString, id: &QString) {
-        let (group, id) = (group.to_string(), id.to_string());
-        self.as_mut()
-            .rust_mut()
-            .get_mut()
-            .request
-            .choose(&group, &id);
-        self.show_options();
+    fn choose(mut self: Pin<&mut Self>, id: &QString) {
+        let id = id.to_string();
+        self.as_mut().rust_mut().get_mut().request.choose(&id);
+        self.as_mut().show_options();
+        self.rerun();
     }
 
-    fn search(mut self: Pin<&mut Self>) {
+    fn types_typed(mut self: Pin<&mut Self>) {
+        let typed = self.file_types.to_string();
+        if typed == self.request.types {
+            return;
+        }
+        self.as_mut().rust_mut().get_mut().request.types = typed;
+        self.as_mut().show_options();
+        self.retyped.cancel();
+        if self.app().find_ready(&self.request_now()) {
+            self.retyped.run(
+                "find types",
+                self.qt_thread(),
+                |turn| turn.after(TYPES_PAUSE),
+                |me, _| me.rerun(),
+            );
+        }
+    }
+
+    fn rerun(self: Pin<&mut Self>) {
+        if self.app().find_ready(&self.request_now()) {
+            self.begin(true);
+        }
+    }
+
+    fn search(self: Pin<&mut Self>) {
+        self.begin(false);
+    }
+
+    fn begin(mut self: Pin<&mut Self>, revised: bool) {
+        self.retyped.cancel();
         let app = self.app();
         let request = self.request_now();
         let started = match app.find_start(&request) {
@@ -386,6 +464,9 @@ impl qobject::FindData {
         me.said = None;
         me.working = Some(say!("Searching"));
         self.as_mut().set_preview(QVariant::default());
+        self.as_mut().rust_mut().get_mut().viewing = look::Viewing::default();
+        self.as_mut().show_inside();
+        self.as_mut().show_mods();
         self.as_mut().set_capped(false);
         self.as_mut().set_count(0);
         self.as_mut().set_done(0);
@@ -397,7 +478,7 @@ impl qobject::FindData {
             "find remember",
             self.qt_thread(),
             move || {
-                remember.find_remember(&request);
+                remember.find_remember(&request, revised);
                 remember.find_recent()
             },
             |mut me, recent| me.as_mut().set_recent(to_qml(&recent)),
@@ -429,6 +510,7 @@ impl qobject::FindData {
         self.as_mut().set_done(int(done));
         self.as_mut().set_total(int(total));
         self.as_mut().set_count(int(arrived.mods));
+        self.as_mut().show_mods();
         self.as_mut().set_capped(arrived.capped);
         self.as_mut().rust_mut().get_mut().working =
             Some(say!("Mods searched: {} of {}", done, total));
@@ -528,24 +610,8 @@ impl qobject::FindData {
         }
     }
 
-    fn row(&self, row: i32) -> Option<RowRef> {
+    pub(self) fn row(&self, row: i32) -> Option<RowRef> {
         self.shown.get(usize::try_from(row).ok()?).copied()
-    }
-
-    fn select(mut self: Pin<&mut Self>, row: i32) {
-        let Some(at) = self.row(row).filter(|at| !at.is_mod()) else {
-            self.previews.cancel();
-            self.as_mut().set_current(-1);
-            return self.set_preview(QVariant::default());
-        };
-        self.as_mut().set_current(row);
-        let app = self.app();
-        self.previews.run(
-            "find preview",
-            self.qt_thread(),
-            move |_| app.find_preview(at),
-            |mut me, shown| me.as_mut().set_preview(to_qml(&shown)),
-        );
     }
 
     fn step(&self, row: i32, by: i32) -> i32 {
@@ -647,16 +713,19 @@ impl qobject::FindData {
             return;
         };
         let text = QString::from(request.text.as_str());
+        let types = QString::from(request.types.as_str());
         self.as_mut().rust_mut().get_mut().request = request;
         self.as_mut().set_text(text);
+        self.as_mut().set_file_types(types);
         self.as_mut().show_options();
         self.search();
     }
 
-    fn filter_results(self: Pin<&mut Self>, text: &QString) {
+    fn filter_results(mut self: Pin<&mut Self>, text: &QString) {
         let text = text.to_string();
         let rows = self.app().find_change(|results| results.set_filter(&text));
-        self.reach(rows);
+        self.as_mut().reach(rows);
+        self.show_mods();
     }
 
     fn data(&self, index: &QModelIndex, role: i32) -> QVariant {

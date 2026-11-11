@@ -19,7 +19,7 @@ Item {
                 for (const section of [0, 1, 2, 3, 4, 6])
                     add(size, scale, { section }, "section " + section)
                 add(size, scale, { section: 5 }, "find empty")
-                for (const browse of ["with the list", "with the details"])
+                for (const browse of ["with the list", "with the details", "with the filters"])
                     add(size, scale, { section: 1, browse }, "the Browse view " + browse)
                 for (const tab of [1, 2])
                     add(size, scale, { tab }, "section 0 tab " + tab)
@@ -28,16 +28,20 @@ Item {
                 for (const first of [0, 1, 2, 3, 4])
                     add(size, scale, { first }, "first run step " + first)
             }
+        for (const scale of scales)
+            for (const browse of ["with the list", "with the details", "with the filters"])
+                add([2560, 1300], scale, { section: 1, browse }, "the Browse view " + browse)
         for (const size of sizes)
             for (const scale of scales) {
                 add(size, scale, { section: 5, find: "results" }, "find results")
                 add(size, scale, { section: 5, find: "none" }, "find none")
+                add(size, scale, { section: 5, find: "with the filters" }, "find with the filters")
                 add(size, scale, { section: 6, part: 3 }, "Settings key part")
             }
         for (const size of sizes)
             for (const scale of scales) {
                 add(size, scale, { section: 6, part: 3, keyed: true }, "Settings key part with a key")
-                for (const browse of ["with the list", "with the details"])
+                for (const browse of ["with the list", "with the details", "with the filters"])
                     add(size, scale, { section: 1, browse, keyed: true }, "the Browse view in key mode " + browse)
             }
         const only = Hub.argument("--only")
@@ -52,7 +56,7 @@ Item {
         return Hub.mods.rescanning || Hub.saves.busy || Hub.logs.busy || Hub.textures.busy || Hub.find.running
         const key = Hub.settings.steamKey || ({})
         const waiting = checks.keyed && !(Hub.workshop.keyMode && key.stored)
-        return Hub.mods.rescanning || Hub.saves.busy || Hub.logs.busy || Hub.textures.busy || Hub.workshop.searching || Hub.workshop.detailsBusy || key.checking || waiting || (checks.keyed && !!Hub.workshop.details && Hub.workshop.details.screenshots.length === 0)
+        return Hub.mods.rescanning || Hub.saves.busy || Hub.logs.busy || Hub.textures.busy || Hub.workshop.searching || Hub.workshop.detailsBusy || key.checking || waiting || (checks.keyed && !!Hub.workshop.details && Hub.workshop.details.screenshots.length === 0) || (!!Hub.workshop.details && Hub.workshop.details.description.some(part => !!part.note))
     }
 
     function settingsOf(item) {
@@ -165,16 +169,23 @@ Item {
         if (checks.keyed && !Hub.workshop.keyMode)
             Hub.settings.checkKey("made-up-key")
         checks.window.section = scene.section
-        if (scene.find === "results") {
+        Mods.findFilters = scene.find === "with the filters"
+        Hub.find.insideText = ""
+        Hub.find.fileTypes = "xml"
+        Hub.find.wrap = scene.find === "with the filters"
+        if (scene.find === "results" || scene.find === "with the filters") {
             Hub.find.filterResults("")
             Hub.find.text = "Fixture"
             Hub.find.search()
         } else if (scene.find === "none")
             Hub.find.filterResults("no such text anywhere")
         Mods.browsing = scene.browse !== undefined
+        Mods.browseFilters = scene.browse === "with the filters"
+        Mods.browseList = scene.browse === "with the list"
         if (scene.browse === "with the details") {
-            Hub.workshop.add("3100000002", true)
-            Hub.workshop.select("3100000002")
+            const item = Hub.argument("--select") || "3100000002"
+            Hub.workshop.add(item, true)
+            Hub.workshop.select(item)
         } else if (scene.browse !== undefined)
             Hub.workshop.select("")
         Mods.tab = scene.tab
@@ -245,8 +256,11 @@ Item {
             if (checks.settled < 3 || (checks.busy() && checks.settled < 60))
                 return
             const scene = checks.scenes[checks.at]
-            if (scene.find === "results" && !Hub.find.preview) {
+            if ((scene.find === "results" || scene.find === "with the filters") && !Hub.find.preview) {
                 Hub.find.select(2)
+                Hub.find.insideText = "Fixture"
+                if (scene.find === "with the filters")
+                    Hub.find.fileTypes = "xml, a/b/c"
                 checks.settled = 0
                 return
             }

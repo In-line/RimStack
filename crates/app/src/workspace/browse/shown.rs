@@ -1,10 +1,12 @@
+use super::sidebar::Sidebar;
+use rimstack_core::base::markup::{Piece, pieces};
 use rimstack_core::base::{elapsed::ago, sentence::Sentence, sizes};
 use rimstack_core::rimworld::workshop::{Details, Votes};
 use rimstack_core::rimworld::workshopindex::Entry;
 use rimstack_core::sources::browse::Browse;
 use rimstack_core::{say, say_n};
 use serde::Serialize;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Asked once per answer.
 pub struct Marks {
@@ -23,6 +25,17 @@ pub struct Row {
     pub on_list: bool,
     pub badge: Option<Sentence>,
     pub can_add: bool,
+    /// Five fill states from Steam's vote score, only when the item has votes.
+    pub stars: Vec<bool>,
+}
+
+/// Steam shows its score of 0 to 1 as 0 to 5 stars.
+pub fn stars_of(votes: Option<Votes>) -> Vec<bool> {
+    let Some(votes) = votes.filter(|v| v.up + v.down > 0) else {
+        return Vec::new();
+    };
+    let filled = (votes.score.clamp(0.0, 1.0) * 5.0).round() as usize;
+    (0..5).map(|at| at < filled).collect()
 }
 
 impl Marks {
@@ -47,6 +60,7 @@ impl Marks {
                 _ => None,
             },
             can_add: !installed && !on_list,
+            stars: Vec::new(),
         }
     }
 }
@@ -59,6 +73,9 @@ pub struct Results {
     pub more: bool,
     /// Said once, when the search went to the kept list because Steam would not answer.
     pub notice: Option<Sentence>,
+    /// Only for the first page of a search.
+    #[serde(skip)]
+    pub sidebar: Option<Sidebar>,
 }
 
 #[derive(Serialize, Debug)]
@@ -68,6 +85,26 @@ pub struct Dlc {
     pub name: Option<String>,
 }
 
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Stat {
+    pub label: Sentence,
+    pub value: Sentence,
+}
+
+/// One block of a description: Qt's rich text, or a picture's file, or a note that the picture is
+/// still on its way.
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Part {
+    pub html: String,
+    pub image: String,
+    pub note: Option<Sentence>,
+}
+
+/// Pictures a description may show.
+pub const PICTURES: usize = 12;
+
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Shown {
@@ -76,8 +113,14 @@ pub struct Shown {
     /// False when Steam could not be asked: only what the database holds is filled.
     pub loaded: bool,
     pub problem: Option<Sentence>,
-    /// Qt's rich text.
-    pub description: String,
+    /// The description cut at its pictures; the bridge puts each picture's file in.
+    #[serde(skip)]
+    pub pieces: Vec<Piece>,
+    /// Said "by {}" in the details: the author the database names, else none.
+    pub created_by: Option<Sentence>,
+    /// Steam's counts, only once it was asked.
+    pub stats: Vec<Stat>,
+    pub created_said: Option<Sentence>,
     pub size: u64,
     pub size_said: Option<Sentence>,
     pub updated: u64,
@@ -104,8 +147,38 @@ fn votes_said(votes: Votes) -> Option<Sentence> {
 }
 
 impl Shown {
+    /// The addresses of the pictures in the description.
+    pub fn picture_urls(&self) -> Vec<String> {
+        self.pieces
+            .iter()
+            .filter_map(|piece| match piece {
+                Piece::Image(url) => Some(url.clone()),
+                Piece::Html(_) => None,
+            })
+            .collect()
+    }
+
+    /// The description as it can be shown now: a picture not yet fetched is a note.
+    pub fn description(&self, files: &HashMap<String, String>) -> Vec<Part> {
+        self.pieces
+            .iter()
+            .map(|piece| match piece {
+                Piece::Html(html) => Part {
+                    html: html.clone(),
+                    image: String::new(),
+                    note: None,
+                },
+                Piece::Image(url) => Part {
+                    html: String::new(),
+                    image: files.get(url).cloned().unwrap_or_default(),
+                    note: (!files.contains_key(url)).then(|| say!("A picture is on its way…")),
+                },
+            })
+            .collect()
+    }
+
     pub fn of(
-        row: Row,
+        mut row: Row,
         entry: &Entry,
         source: &dyn Browse,
         details: Option<&Details>,
@@ -128,15 +201,39 @@ impl Shown {
                 unknown_requirements.len()
             )
         });
+        row.stars = stars_of(details.and_then(|d| d.votes));
         let size = details.map_or(0, |d| d.size);
         let updated = details.map_or(0, |d| d.updated);
+        let created = details.map_or(0, |d| d.created);
+        let count = |n: u64| Sentence::Number(i64::try_from(n).unwrap_or(i64::MAX));
+        let stats = details.map_or_else(Vec::new, |d| {
+            vec![
+                Stat {
+                    label: say!("Unique visitors"),
+                    value: count(d.views),
+                },
+                Stat {
+                    label: say!("Current subscribers"),
+                    value: count(d.subscriptions),
+                },
+                Stat {
+                    label: say!("Current favourites"),
+                    value: count(d.favorited),
+                },
+            ]
+        });
         Shown {
             row,
             loaded: details.is_some(),
             problem,
-            description: details.map_or_else(String::new, |d| {
-                rimstack_core::base::markup::rich(&d.description)
-            }),
+            pieces: details.map_or_else(Vec::new, |d| pieces(&d.description, PICTURES)),
+            created_by: entry
+                .author
+                .as_ref()
+                .map(|author| say!("Created by {}", author)),
+            stats,
+            created_said: (created > 0)
+                .then(|| say!("Created {}", ago(now.saturating_sub(created)).inside())),
             size,
             size_said: (size > 0).then(|| sizes::of_bytes(size)),
             updated,
@@ -166,6 +263,15 @@ impl Shown {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stars_are_five_fill_states_from_the_score_and_none_without_votes() {
+        let stars = |up, down, score| stars_of(Some(Votes { up, down, score }));
+        assert_eq!(stars(9, 1, 0.9), [true, true, true, true, true]);
+        assert_eq!(stars(5, 5, 0.5), [true, true, true, false, false]);
+        assert_eq!(stars(1, 9, 0.0), [false; 5]);
+        assert!(stars(0, 0, 0.0).is_empty() && stars_of(None).is_empty());
+    }
 
     #[test]
     fn votes_are_said_with_their_count_and_the_share_that_liked() {

@@ -28,6 +28,27 @@ pub fn is_steam_image(url: &str) -> bool {
             || shared)
 }
 
+const LARGEST_IN_TEXT: u64 = 8 << 20;
+
+/// `https` on any named host: no login, port, address in numbers or odd characters.
+pub fn is_https_image(url: &str) -> bool {
+    let Some(rest) = url.strip_prefix("https://") else {
+        return false;
+    };
+    if rest.chars().any(|c| c.is_whitespace() || c.is_control()) {
+        return false;
+    }
+    let host = rest.split(['/', '?', '#']).next().unwrap_or_default();
+    let named = host.contains('.')
+        && host
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.')
+        && host.chars().any(|c| c.is_ascii_alphabetic())
+        && !host.ends_with(".local")
+        && !host.ends_with(".internal");
+    named && !host.starts_with(['.', '-']) && !host.ends_with(['.', '-'])
+}
+
 /// FNV-1a over the whole URL, so two URLs differing in a query keep two files.
 pub fn file_name(url: &str) -> String {
     let hash = url.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
@@ -41,6 +62,18 @@ pub fn fetch(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     if !is_steam_image(url) {
         return Err(Error::refused(said!("a preview is only taken from Steam")));
     }
+    get(url, folder, LARGEST)
+}
+
+/// A picture of a description, which may be on any host.
+pub fn fetch_in_text(url: &str, folder: &Path) -> Result<PathBuf, Error> {
+    if !is_https_image(url) {
+        return Err(Error::refused(said!("a picture is only taken over https")));
+    }
+    get(url, folder, LARGEST_IN_TEXT)
+}
+
+fn get(url: &str, folder: &Path, largest: u64) -> Result<PathBuf, Error> {
     let path = folder.join(file_name(url));
     if path.is_file() {
         if let Ok(file) = std::fs::File::options().write(true).open(&path) {
@@ -56,7 +89,7 @@ pub fn fetch(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     let bytes = response
         .body_mut()
         .with_config()
-        .limit(LARGEST)
+        .limit(largest)
         .read_to_vec()
         .map_err(failed)?;
     crate::base::atomic_file::write(&path, bytes)?;
@@ -69,6 +102,18 @@ pub fn made_up(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     if !is_steam_image(url) {
         return Err(Error::refused(said!("a preview is only taken from Steam")));
     }
+    painted(url, folder)
+}
+
+/// `made_up` for a picture of a description.
+pub fn made_up_in_text(url: &str, folder: &Path) -> Result<PathBuf, Error> {
+    if !is_https_image(url) {
+        return Err(Error::refused(said!("a picture is only taken over https")));
+    }
+    painted(url, folder)
+}
+
+fn painted(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     let path = folder.join(file_name(url));
     if !path.is_file() {
         let hash = file_name(url).into_bytes();
@@ -108,6 +153,26 @@ pub fn trim(folder: &Path, cap: u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_picture_of_a_description_may_be_on_any_named_https_host() {
+        assert!(is_https_image("https://i.imgur.com/a.png"));
+        assert!(is_https_image(
+            "https://images.steamusercontent.com/ugc/1/2/"
+        ));
+        for no in [
+            "http://i.imgur.com/a.png",
+            "https://127.0.0.1/a.png",
+            "https://localhost/a.png",
+            "https://[::1]/a.png",
+            "https://user@i.imgur.com/a.png",
+            "https://i.imgur.com:8080/a.png",
+            "https://printer.local/a.png",
+            "https://a b.example/a.png",
+        ] {
+            assert!(!is_https_image(no), "{no}");
+        }
+    }
 
     #[test]
     fn only_https_urls_on_steams_image_hosts_are_taken() {

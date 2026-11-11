@@ -381,7 +381,7 @@ fn textures(app: &App, shapes: &mut Shapes) {
 }
 
 fn find(app: &App, shapes: &mut Shapes) {
-    use crate::workspace::find::{Place, Request};
+    use crate::workspace::find::{Look, Place, Request};
     let a = by_folder(app, "a");
     let gone = app
         .library()
@@ -399,11 +399,14 @@ fn find(app: &App, shapes: &mut Shapes) {
         place: Place::Installed,
         ..Request::default()
     };
-    app.find_remember(&request);
+    app.find_remember(&request, false);
     shapes.add("find.recent", &app.find_recent());
     shapes.add("find.options", &app.find_options(&request));
     request.selected = Some(a);
     shapes.add("find.options", &app.find_options(&request));
+    request.types = "xml, a/b".into();
+    shapes.add("find.options", &app.find_options(&request));
+    request.types = "xml".into();
     let started = app.find_start(&request).unwrap();
     let summary = app.find_search(&started, |batch| {
         app.find_add(started.generation, batch);
@@ -415,11 +418,16 @@ fn find(app: &App, shapes: &mut Shapes) {
             .rfind(|at| !at.is_mod() && !at.is_file())
     });
     let hit = hit.unwrap();
-    shapes.add("find.preview", &app.find_preview(hit));
+    let previewed = |at| {
+        let (file, line) = app.find_located(at).unwrap();
+        app.find_preview(&file, line, Look::default()).shown
+    };
+    shapes.add("find.preview", &previewed(hit));
+    shapes.add("find.mods", &app.find_results(|r| r.found_mods()));
     std::fs::remove_file(&gone).unwrap();
     for at in app.find_results(|r| r.refs()) {
         if app.find_file(at).is_some_and(|f| f == gone) {
-            shapes.add("find.preview", &app.find_preview(at));
+            shapes.add("find.preview", &previewed(at));
         }
     }
 }
@@ -551,10 +559,31 @@ fn workshop(shapes: &mut Shapes) {
     const ROYAL: &str = "3100000004";
     let (_tmp, app) = made_up();
     let app = app.browsing_fixture(true);
-    shapes.add("workshop.versions", &app.browse_defaults().versions);
-    shapes.add("workshop.sorts", &app.browse_defaults().sorts);
+    use crate::workspace::browse::{Asked, chosen, offers};
+    let sorts = |app: &crate::App, words: bool| {
+        let defaults = app.browse_defaults();
+        chosen(&offers(&defaults.sorts, words, defaults.key_mode), "recent")
+    };
+    shapes.add("workshop.sorts", &sorts(&app, false));
+    let mut asked = Asked::default();
+    asked.picked.tag("Mod", true);
+    asked.picked.tag("1.5", false);
+    asked.picked.dlc("1149640", true);
+    asked.picked.hide_unowned = true;
+    shapes.add(
+        "workshop.sidebar",
+        &app.browse_search(&asked, 0, 10).unwrap().sidebar,
+    );
+    shapes.add(
+        "workshop.sidebar",
+        &app.browse_search(&Asked::default(), 0, 10).unwrap().sidebar,
+    );
     app.check_and_keep("fixture").unwrap();
-    shapes.add("workshop.sorts", &app.browse_defaults().sorts);
+    shapes.add("workshop.sorts", &sorts(&app, true));
+    shapes.add(
+        "workshop.sidebar",
+        &app.browse_search(&asked, 0, 10).unwrap().sidebar,
+    );
     shapes.add("workshop.related", &RelatedShown::none());
     shapes.add(
         "workshop.related",
@@ -563,11 +592,20 @@ fn workshop(shapes: &mut Shapes) {
     app.add_to_list(EXTRAS, true);
     let mut shown = app.browse_details(EXTRAS).unwrap();
     shown.problem = Some(rimstack_core::said!("refused"));
+    const PICTURE: &str = "https://images.steamusercontent.com/ugc/1/A/";
+    shown.pieces = vec![
+        rimstack_core::base::markup::Piece::Html("<b>Text</b>".into()),
+        rimstack_core::base::markup::Piece::Image(PICTURE.into()),
+        rimstack_core::base::markup::Piece::Image("https://x.example/b.png".into()),
+    ];
+    shown.created_said = Some(rimstack_core::said!("Created 2 days ago"));
+    shown.requires[0].stars = vec![true, true, true, false, false];
     fn details<'a>(shown: &'a Shown, preview_path: &'a str) -> DetailsShown<'a> {
         const SHOTS: &[String] = &[];
         DetailsShown {
             shown,
             preview_path,
+            description: shown.description(&Default::default()),
             screenshots: SHOTS,
         }
     }
@@ -575,6 +613,10 @@ fn workshop(shapes: &mut Shapes) {
     let with_shots = DetailsShown {
         shown: &shown,
         preview_path: "/previews/a.img",
+        description: shown.description(&std::collections::HashMap::from([(
+            PICTURE.to_string(),
+            "/previews/c.img".to_string(),
+        )])),
         screenshots: &shots,
     };
     shapes.add("workshop.details", &with_shots);

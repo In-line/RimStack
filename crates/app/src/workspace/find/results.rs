@@ -1,6 +1,7 @@
 use rimstack_core::base::sentence::Sentence;
 use rimstack_core::mods::find::{FileHits, Hit, Line, lines_of};
 use rimstack_core::mods::library::ModId;
+use rimstack_core::say;
 use serde::Serialize;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
@@ -87,6 +88,8 @@ struct Group {
     name: Sentence,
     files: Vec<FileGroup>,
     collapsed: bool,
+    /// Left out of the rows by the mod the list on the side chose.
+    hidden: bool,
     rows: usize,
     matches: usize,
     shown_files: usize,
@@ -113,6 +116,7 @@ impl Group {
         self.shown_files = self.files.iter().filter(|f| !f.visible.is_empty()).count();
         self.rows = match (self.shown_files, self.collapsed) {
             (0, _) => 0,
+            _ if self.hidden => 0,
             (_, true) => 1,
             _ => 1 + self.files.iter().map(FileGroup::rows).sum::<usize>(),
         };
@@ -132,6 +136,30 @@ pub struct Results {
     capped: bool,
     files_found: usize,
     mods: HashSet<ModId>,
+    /// The index in `groups` of the only mod shown.
+    picked: Option<usize>,
+}
+
+#[derive(Serialize)]
+pub struct FoundMod {
+    pub index: usize,
+    pub name: Sentence,
+    #[serde(skip)]
+    pub count: usize,
+    pub counted: Sentence,
+    pub chosen: bool,
+}
+
+/// The list on the side: every mod with matches and how many, in the order they were found.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FoundMods {
+    pub all_label: Sentence,
+    #[serde(skip)]
+    pub all_count: usize,
+    pub all_counted: Sentence,
+    pub all_chosen: bool,
+    pub rows: Vec<FoundMod>,
 }
 
 pub enum Cell<'a> {
@@ -225,11 +253,15 @@ impl Results {
         let at = match self.by_key.get(&found.key) {
             Some(&at) => at,
             None => {
+                let hidden = self
+                    .picked
+                    .is_some_and(|picked| picked != self.groups.len());
                 self.groups.push(Group {
                     key: found.key,
                     name: name(),
                     files: Vec::new(),
                     collapsed: false,
+                    hidden,
                     rows: 0,
                     matches: 0,
                     shown_files: 0,
@@ -255,7 +287,7 @@ impl Results {
         let shown_lines = file.lines.len() as u32;
         group.files.push(file);
         group.recount();
-        if !shown_now {
+        if !shown_now || group.hidden {
             return Vec::new();
         }
         let mut rows = Vec::new();
@@ -316,6 +348,37 @@ impl Results {
             group.recount();
         }
         self.refs()
+    }
+
+    /// Shows only the mod of the list's row `group` (`None` for every mod); the rows now shown.
+    pub fn set_pick(&mut self, group: Option<usize>) -> Vec<RowRef> {
+        self.picked = group.filter(|&at| at < self.groups.len());
+        for (at, one) in self.groups.iter_mut().enumerate() {
+            one.hidden = self.picked.is_some_and(|picked| picked != at);
+            one.recount();
+        }
+        self.refs()
+    }
+
+    pub fn found_mods(&self) -> FoundMods {
+        let rows = (self.groups.iter().enumerate())
+            .filter(|(_, g)| g.matches > 0)
+            .map(|(index, g)| FoundMod {
+                index,
+                name: g.name.clone(),
+                count: g.matches,
+                counted: Sentence::Number(g.matches as i64),
+                chosen: self.picked == Some(index),
+            })
+            .collect();
+        let all: usize = self.groups.iter().map(|g| g.matches).sum();
+        FoundMods {
+            all_label: say!("All mods"),
+            all_count: all,
+            all_counted: Sentence::Number(all as i64),
+            all_chosen: self.picked.is_none(),
+            rows,
+        }
     }
 
     /// Whether the file `at` is in, or a line of it, is folded.
@@ -534,6 +597,39 @@ mod tests {
         assert!(results.set_filter("nothing").is_empty());
         assert!(results.is_empty());
         assert_eq!(results.set_filter("").len(), 8);
+    }
+
+    #[test]
+    fn picking_a_mod_shows_only_its_rows_and_the_list_keeps_every_count() {
+        let mut results = Results::default();
+        let mut shown = Vec::new();
+        for (n, name) in [(1, "a.xml"), (2, "b.xml")] {
+            let ops = put(&mut results, file(n, name, 2));
+            apply(&mut shown, ops);
+        }
+        let list = results.found_mods();
+        assert_eq!(
+            list.rows.iter().map(|m| m.count).collect::<Vec<_>>(),
+            [2, 2]
+        );
+        assert_eq!((list.all_count, list.all_chosen), (4, true));
+        let only = results.set_pick(Some(1));
+        assert_eq!(only.len(), 4);
+        assert!(only.iter().all(|r| r.same_mod(only[0])));
+        let ops = put(&mut results, file(1, "c.xml", 1));
+        assert!(ops.is_empty());
+        let ops = put(&mut results, file(2, "d.xml", 1));
+        assert!(!ops.is_empty());
+        let list = results.found_mods();
+        assert_eq!(
+            list.rows
+                .iter()
+                .map(|m| (m.count, m.chosen))
+                .collect::<Vec<_>>(),
+            [(3, false), (3, true)]
+        );
+        assert_eq!(results.set_pick(None).len(), results.refs().len());
+        assert_eq!(results.refs().len(), 12);
     }
 
     #[test]

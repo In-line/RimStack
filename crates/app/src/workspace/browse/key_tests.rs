@@ -5,6 +5,7 @@ use crate::workspace::secret::{Memory, Vault};
 use crate::workspace::tests::installed;
 use rimstack_core::kept::settings::Switch;
 use rimstack_core::rimworld::steamapi::{ApiKey, Call};
+use rimstack_core::rimworld::workshopsearch::Kind;
 use rimstack_core::say;
 use rimstack_core::sources::browse::COLLECTION;
 use rimstack_core::sources::browse::HARMONY;
@@ -229,7 +230,7 @@ fn nothing_shown_holds_the_key() {
     let mut shown = vec![
         format!("{:?}", app.key_state()),
         serde_json::to_string(&app.key_state()).unwrap(),
-        serde_json::to_string(&app.browse_defaults()).unwrap(),
+        format!("{:?}", app.browse_defaults()),
         serde_json::to_string(&app.settings_report()).unwrap(),
         serde_json::to_string(&app.list_shown()).unwrap(),
     ];

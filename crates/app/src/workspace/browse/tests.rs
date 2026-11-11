@@ -4,6 +4,7 @@ use crate::workspace::tests::installed;
 use rimstack_core::base::error::Error;
 use rimstack_core::rimworld::workshopdb::{self, Item};
 use rimstack_core::rimworld::workshopindex::Index;
+use rimstack_core::rimworld::workshopsearch::Kind;
 use rimstack_core::said;
 use rimstack_core::sources::browse::HARMONY;
 use std::fs;
@@ -25,10 +26,14 @@ fn about(folder: &std::path::Path, package_id: &str, needs: &[&str]) {
 }
 
 pub(super) fn asked(text: &str, kind: Kind, owned: bool) -> Asked {
+    let mut picked = Picked::default();
+    if let Some(tag) = kind.steam_tag() {
+        picked.tag(tag, true);
+    }
+    picked.hide_unowned = owned;
     Asked {
         text: text.into(),
-        kind,
-        owned,
+        picked,
         ..Asked::default()
     }
 }
@@ -161,7 +166,23 @@ fn only_what_needs_the_expansions_the_game_has_is_found_when_asked() {
 fn details_come_through_the_source_and_name_what_is_required() {
     let (_tmp, app) = made_up();
     let shown = app.browse_details(EXTRAS).unwrap();
-    assert!(shown.loaded && shown.size > 0 && shown.description.contains("<b>"));
+    assert!(shown.loaded && shown.size > 0);
+    let none = std::collections::HashMap::new();
+    let pending = shown.description(&none);
+    assert!(matches!(pending[0].html.as_str(), h if h.contains("<b>")));
+    assert!(pending[1].note.is_some() && pending[1].image.is_empty());
+    let urls = shown.picture_urls();
+    assert_eq!(urls.len(), 1);
+    let taken = app.browse_images(&urls);
+    assert!(taken[0].1.as_ref().is_some_and(|path| path.is_file()));
+    assert!(
+        app.browse_images(&["https://127.0.0.1/a.png".to_string()])[0]
+            .1
+            .is_none()
+    );
+    let files = std::collections::HashMap::from([(urls[0].clone(), "/p/a.img".to_string())]);
+    assert_eq!(shown.description(&files)[1].image, "/p/a.img");
+    assert_eq!(shown.stats.len(), 3);
     let required: Vec<&str> = shown.requires.iter().map(|r| r.id.as_str()).collect();
     assert_eq!(required, [STORAGE, HARMONY]);
     assert_eq!(shown.unknown_requirements, ["3199999999"]);
@@ -173,17 +194,25 @@ fn details_come_through_the_source_and_name_what_is_required() {
 }
 
 #[test]
-fn the_versions_offered_come_from_the_source() {
+fn the_sidebar_counts_the_results_and_every_version_is_listed() {
     let (_tmp, app) = installed();
     let app = app.browsing_fixture(true);
-    assert_eq!(app.browse_defaults().versions, ["1.6", "1.5"]);
+    let mut asked = asked("", Kind::Mod, false);
+    asked.picked.tag("1.5", false);
+    let found = app.browse_search(&asked, 0, 50).unwrap();
+    let side = found.sidebar.unwrap();
+    let versions: Vec<String> = side.versions.iter().map(|f| f.id.clone()).collect();
+    assert_eq!(versions, ["1.5", "1.6"]);
+    assert!(side.versions[0].exclude && side.filtered && side.counted);
+    assert_eq!(found.total, 2);
+    assert_eq!(side.found.to_string(), "2 results matching your filters");
+    assert!(app.browse_search(&asked, 30, 50).unwrap().sidebar.is_none());
 }
 
 #[test]
 fn the_source_follows_the_switch_and_the_database_file() {
     let (_tmp, app) = installed();
     assert!(!app.browse_defaults().ready);
-    assert_eq!(app.browse_defaults().version.as_deref(), Some("1.6"));
     let found = app
         .browse_search(&asked("harmony", Kind::Any, false), 0, 10)
         .unwrap();
@@ -360,7 +389,7 @@ fn previews_are_asked_for_every_id_once_and_a_mod_without_one_gives_none() {
     let (_tmp, app) = made_up();
     let heard = Mutex::new(Vec::new());
     let ids = [STORAGE.to_string(), EXTRAS.to_string()];
-    app.browse_previews(&ids, &|id, path| {
+    app.browse_previews(&ids, &|id, path, _| {
         heard.held().push((id.to_string(), path));
         true
     });

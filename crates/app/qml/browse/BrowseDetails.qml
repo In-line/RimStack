@@ -9,6 +9,8 @@ ColumnLayout {
     readonly property var needs: d.requires || []
     readonly property var expansions: d.dlc || []
     readonly property var shots: d.screenshots || []
+    readonly property var parts: d.description || []
+    readonly property var stats: d.stats || []
     property string enlarged
     spacing: Theme.gap
 
@@ -16,12 +18,7 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: Theme.gap
         Text { Layout.fillWidth: true; Layout.preferredWidth: 0; elide: Text.ElideRight; color: Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say("Details") }
-        Btn {
-            icon: "list"
-            text: Theme.fill("Download list ({})", Hub.workshop.list.count)
-            tip: Theme.say("Close the details and show the download list.")
-            onClicked: Hub.workshop.select("")
-        }
+        Btn { icon: "x"; compact: true; tip: Theme.say("Close the details"); onClicked: Hub.workshop.select("") }
     }
     Scrolled {
         Layout.fillWidth: true
@@ -31,7 +28,7 @@ ColumnLayout {
             width: parent.width
             active: !!pane.d.previewPath
             sourceComponent: Rectangle {
-                height: Theme.sized(130)
+                height: width * 9 / 16
                 radius: Theme.corner
                 color: Theme.ctl
                 clip: true
@@ -39,7 +36,7 @@ ColumnLayout {
                     anchors.fill: parent
                     asynchronous: true
                     fillMode: Image.PreserveAspectFit
-                    sourceSize.width: Theme.sized(640)
+                    sourceSize.width: width
                     source: Theme.fileUrl(pane.d.previewPath)
                 }
             }
@@ -48,7 +45,7 @@ ColumnLayout {
             width: parent.width
             spacing: Theme.gapThin
             Text { width: parent.width; wrapMode: Text.WordWrap; color: Theme.ink; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; text: pane.d.title || "" }
-            Text { visible: !!pane.d.author; width: parent.width; elide: Text.ElideRight; color: Theme.ink2; font.pixelSize: Theme.body; text: pane.d.author || "" }
+            Text { visible: !!pane.d.createdBy; width: parent.width; elide: Text.ElideRight; color: Theme.ink2; font.pixelSize: Theme.body; text: pane.d.createdBy || "" }
             Flow {
                 width: parent.width
                 topPadding: Theme.gapThin
@@ -68,6 +65,7 @@ ColumnLayout {
             Btn { visible: !!pane.d.canAdd; primary: pane.needs.length === 0; icon: "plus"; text: Theme.say("Add"); onClicked: Hub.workshop.add(pane.d.id, false) }
             Btn { visible: !!pane.d.canAdd && pane.needs.length > 0; primary: true; icon: "plus"; text: Theme.say("Add with what it requires"); onClicked: Hub.workshop.add(pane.d.id, true) }
             Btn { icon: "external-link"; text: Theme.say("Workshop page"); onClicked: Theme.openWorkshop(pane.d.id) }
+            Btn { icon: "history"; text: Theme.say("Change notes"); tip: Theme.say("The item's change notes on its Workshop page."); onClicked: Theme.openChangeNotes(pane.d.id) }
         }
         Flow {
             width: parent.width
@@ -77,16 +75,6 @@ ColumnLayout {
             Btn { visible: !!pane.d.author; text: Theme.say("Same author"); onClicked: Hub.workshop.showRelated(pane.d.id, "sameAuthor") }
         }
         Text { visible: !!pane.d.problem; width: parent.width; wrapMode: Text.WordWrap; color: Theme.err; font.pixelSize: Theme.body; text: pane.d.problem || "" }
-        Flow {
-            visible: !!pane.d.loaded
-            width: parent.width
-            spacing: Theme.gap
-            Text { visible: !!pane.d.sizeSaid; color: Theme.ink2; font.pixelSize: Theme.small; text: pane.d.sizeSaid || "" }
-            Text { visible: !!pane.d.updatedSaid; color: Theme.ink2; font.pixelSize: Theme.small; text: pane.d.updatedSaid || "" }
-            Text { color: Theme.ink2; font.pixelSize: Theme.small; text: Theme.plural(pane.d.subscribers || 0, "{} subscriber", "{} subscribers") }
-            Text { color: Theme.ink2; font.pixelSize: Theme.small; text: Theme.plural(pane.d.favorites || 0, "{} favourite", "{} favourites") }
-            Text { visible: !!pane.d.votesSaid; color: Theme.ink2; font.pixelSize: Theme.small; text: pane.d.votesSaid || "" }
-        }
         Flow {
             id: gallery
             visible: pane.shots.length > 0
@@ -109,23 +97,19 @@ ColumnLayout {
                         anchors.fill: parent
                         asynchronous: true
                         fillMode: Image.PreserveAspectCrop
-                        sourceSize.width: Theme.sized(240)
+                        sourceSize.width: width
                         source: Theme.fileUrl(shot.modelData)
                     }
                     TapHandler { onTapped: pane.enlarged = shot.modelData }
                 }
             }
         }
-        Text {
-            visible: !!pane.d.description
+        Column {
+            visible: !!pane.d.loaded && pane.parts.length > 0
             width: parent.width
-            wrapMode: Text.WordWrap
-            textFormat: Text.RichText
-            color: Theme.ink2
-            font.pixelSize: Theme.body
-            lineHeight: 1.2
-            text: pane.d.description || ""
-            onLinkActivated: link => Qt.openUrlExternally(Hub.workshop.followed(link))
+            spacing: Theme.gapSmall
+            Text { color: Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say("Description") }
+            DescriptionView { width: parent.width; inWorkshop: true; parts: pane.parts }
         }
         Column {
             visible: pane.needs.length > 0
@@ -147,6 +131,27 @@ ColumnLayout {
             }
         }
         Text { visible: !!pane.d.unknownSaid; width: parent.width; wrapMode: Text.WordWrap; color: Theme.warn; font.pixelSize: Theme.small; text: pane.d.unknownSaid || "" }
+        Column {
+            visible: !!pane.d.loaded
+            width: parent.width
+            spacing: Theme.gapTiny
+            Text { color: Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say("Details") }
+            Repeater {
+                model: pane.stats
+                RowLayout {
+                    id: stat
+                    required property var modelData
+                    width: parent.width
+                    spacing: Theme.gap
+                    Text { Layout.fillWidth: true; Layout.preferredWidth: 0; elide: Text.ElideRight; color: Theme.ink2; font.pixelSize: Theme.small; text: stat.modelData.label }
+                    Text { color: Theme.ink; font.pixelSize: Theme.small; text: stat.modelData.value }
+                }
+            }
+            Text { visible: !!pane.d.sizeSaid; width: parent.width; wrapMode: Text.WordWrap; color: Theme.ink2; font.pixelSize: Theme.small; text: pane.d.sizeSaid || "" }
+            Text { visible: !!pane.d.createdSaid; width: parent.width; wrapMode: Text.WordWrap; color: Theme.ink2; font.pixelSize: Theme.small; text: pane.d.createdSaid || "" }
+            Text { visible: !!pane.d.updatedSaid; width: parent.width; wrapMode: Text.WordWrap; color: Theme.ink2; font.pixelSize: Theme.small; text: pane.d.updatedSaid || "" }
+            Text { visible: !!pane.d.votesSaid; width: parent.width; wrapMode: Text.WordWrap; color: Theme.ink2; font.pixelSize: Theme.small; text: pane.d.votesSaid || "" }
+        }
         Column {
             visible: pane.expansions.length > 0
             width: parent.width

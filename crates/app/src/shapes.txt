@@ -104,13 +104,17 @@ downloads.updates: object
       name: text
       now: number
   problem: nothing or text
-find.options: object
-  files: list
+find.mods: object
+  allChosen: bool
+  allCounted: text
+  allLabel: text
+  rows: list
     []: object
-      available: bool
       chosen: bool
-      id: text
-      label: text
+      counted: text
+      index: number
+      name: text
+find.options: object
   leave: list
     []: object
       available: bool
@@ -123,6 +127,9 @@ find.options: object
       chosen: bool
       id: text
       label: text
+  types: object
+    problem: nothing or text
+    text: text
   where: list
     []: object
       available: bool
@@ -133,6 +140,8 @@ find.preview: object
   line: number
   lines: list
     []: object
+      found: bool
+      here: bool
       marked: bool
       number: number
       text: text
@@ -140,11 +149,11 @@ find.preview: object
   problem: nothing or text
 find.recent: list
   []: object
-    allText: bool
     case: bool
     place: text
     regex: bool
     text: text
+    types: text
     word: bool
 game.lastStart: object
   errors: number
@@ -938,7 +947,13 @@ workshop.details: object
   badge: nothing or text
   banned: bool
   canAdd: bool
-  description: text
+  createdBy: nothing or text
+  createdSaid: nothing or text
+  description: list
+    []: object
+      html: text
+      image: text
+      note: nothing or text
   dlc: list
     []: object
       id: text
@@ -959,6 +974,8 @@ workshop.details: object
       id: text
       installed: bool
       onList: bool
+      stars: list
+        []: bool
       title: text
       versions: list
         []: text
@@ -966,6 +983,12 @@ workshop.details: object
     []: text
   size: number
   sizeSaid: text
+  stars: list
+    []: bool
+  stats: list
+    []: object
+      label: text
+      value: text
   subscribers: number
   title: text
   unknownRequirements: list
@@ -1002,10 +1025,42 @@ workshop.related: object
   said: nothing or text
   title: text
   which: text
+workshop.sidebar: object
+  chips: list
+    []: object
+      exclude: bool
+      id: text
+      label: text
+      tone: text
+  counted: bool
+  dlc: list
+    []: object
+      count: nothing or text
+      exclude: bool
+      id: text
+      include: bool
+      label: text
+  filtered: bool
+  found: text
+  hideUnowned: bool
+  searched: bool
+  showIncompatible: bool
+  types: list
+    []: object
+      count: nothing or text
+      exclude: bool
+      id: text
+      include: bool
+      label: text
+  versions: list
+    []: object
+      count: nothing or text
+      exclude: bool
+      id: text
+      include: bool
+      label: text
 workshop.sorts: list
   []: object
     chosen: bool
     id: text
     label: text
-workshop.versions: list
-  []: text

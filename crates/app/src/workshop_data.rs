@@ -26,21 +26,17 @@ pub mod qobject {
         #[qproperty(QString, problem)]
         /// False until the Workshop database is downloaded.
         #[qproperty(bool, ready)]
-        /// A game version tag such as `1.6`, empty for any.
-        #[qproperty(QString, version)]
-        /// The versions to filter by, newest first.
-        #[qproperty(QVariant, versions)]
-        /// `any`, `mod`, `translation` or `scenario`.
-        #[qproperty(QString, kind)]
-        /// Whether only mods needing no expansion the game lacks are found; set before `search`.
-        #[qproperty(bool, owned)]
         /// Searches go through Steam with the player's key, which offers `sorts` and collections.
         #[qproperty(bool, key_mode, cxx_name = "keyMode")]
-        /// `[{ id, label }]`, empty without the key.
+        /// `[{ id, label, chosen }]` of the sorts offered for this search.
         #[qproperty(QVariant, sorts)]
-        /// A sort's `id`; set before `search`. Relevance without the key.
+        /// The id of the sort in use: the player's, or the newest, or the best match with words.
         #[qproperty(QString, sort)]
-        /// Whether collections are searched instead of mods; set before `search`.
+        /// The words of the sort in use.
+        #[qproperty(QString, sort_label, cxx_name = "sortLabel")]
+        /// What the sidebar shows and the top of the results says; see `Sidebar`.
+        #[qproperty(QVariant, sidebar)]
+        /// Whether collections are searched instead of mods.
         #[qproperty(bool, collections)]
         /// Said once when a search went to the kept list because Steam would not answer; empty
         /// for none, cleared by the next `search`.
@@ -63,24 +59,51 @@ pub mod qobject {
         #[qsignal]
         fn told(self: Pin<&mut WorkshopData>, said: QString, tone: QString);
 
-        /// `version`, `kind` and `sort` as the properties are; the first page of the answer.
+        /// The first page of the answer, with the filters and the sort as they stand.
         #[qinvokable]
-        fn search(
-            self: Pin<&mut WorkshopData>,
-            text: &QString,
-            version: &QString,
-            kind: &QString,
-            sort: &QString,
-        );
+        fn search(self: Pin<&mut WorkshopData>, text: &QString);
+
+        /// Ticks a tag (a type or a game version) to include, or to exclude; ticking it again
+        /// clears it. Searches again.
+        #[qinvokable]
+        #[cxx_name = "toggleTag"]
+        fn toggle_tag(self: Pin<&mut WorkshopData>, id: &QString, include: bool);
+
+        #[qinvokable]
+        #[cxx_name = "toggleDlc"]
+        fn toggle_dlc(self: Pin<&mut WorkshopData>, id: &QString, include: bool);
+
+        /// A chip's `id` from the sidebar.
+        #[qinvokable]
+        #[cxx_name = "clearFilter"]
+        fn clear_filter(self: Pin<&mut WorkshopData>, id: &QString);
+
+        #[qinvokable]
+        #[cxx_name = "clearAll"]
+        fn clear_all(self: Pin<&mut WorkshopData>);
+
+        #[qinvokable]
+        #[cxx_name = "chooseSort"]
+        fn choose_sort(self: Pin<&mut WorkshopData>, id: &QString);
+
+        #[qinvokable]
+        #[cxx_name = "showIncompatible"]
+        fn show_incompatible(self: Pin<&mut WorkshopData>, on: bool);
+
+        /// Leaves out the mods that need an expansion the game lacks.
+        #[qinvokable]
+        #[cxx_name = "hideUnowned"]
+        fn hide_unowned(self: Pin<&mut WorkshopData>, on: bool);
 
         /// Searches collections instead of mods, or mods again; the last search is asked again.
         #[qinvokable]
         #[cxx_name = "showCollections"]
         fn show_collections(self: Pin<&mut WorkshopData>, on: bool);
 
+        /// The next page of the last search, when `near` the end of the shown ones, none is on its way and more remain.
         #[qinvokable]
-        #[cxx_name = "showMore"]
-        fn show_more(self: Pin<&mut WorkshopData>);
+        #[cxx_name = "wantMore"]
+        fn want_more(self: Pin<&mut WorkshopData>, near: bool);
 
         #[qinvokable]
         #[cxx_name = "showRelated"]
@@ -93,10 +116,11 @@ pub mod qobject {
         #[qinvokable]
         fn select(self: Pin<&mut WorkshopData>, id: &QString);
 
-        /// An item link selects that item and gives back nothing; another web link is given back
-        /// to be opened; anything else gives back nothing.
+        /// In Browse (`in_workshop`) an item link selects that item and gives back nothing, another
+        /// web link is given back to be opened, anything else gives back nothing; elsewhere every
+        /// link is given back.
         #[qinvokable]
-        fn followed(self: Pin<&mut WorkshopData>, link: &QString) -> QString;
+        fn followed(self: Pin<&mut WorkshopData>, link: &QString, in_workshop: bool) -> QString;
 
         #[qinvokable]
         fn add(self: Pin<&mut WorkshopData>, id: &QString, with_requirements: bool);
@@ -131,7 +155,7 @@ use crate::changes::Changes;
 use crate::qml::values::to_qml;
 use crate::workshop_rows::Item;
 use crate::workspace::browse::{
-    Asked, Followed, Results, Row, Shown, SortOffer, chosen, follow, sort_of,
+    Asked, Followed, Results, Row, Shown, Sidebar, Sort, chosen, effective, follow, offers, sort_of,
 };
 use crate::workspace::download_list::ListShown;
 use core::pin::Pin;
@@ -141,11 +165,12 @@ use cxx_qt_lib::{QString, QVariant};
 use qobject::WorkshopRows;
 use rimstack_core::base::error::Error;
 use rimstack_core::base::locks::Held;
+use rimstack_core::rimworld::workshopsearch::Query;
+
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
-use view::{DetailsShown, RelatedShown, View, kind_of, related_of};
+use view::{DetailsShown, RelatedShown, View, related_of};
 
-const PAGE: usize = 30;
 const SCREENSHOTS: usize = 8;
 
 pub struct WorkshopDataRust {
@@ -156,14 +181,13 @@ pub struct WorkshopDataRust {
     searching: bool,
     problem: QString,
     ready: bool,
-    version: QString,
-    versions: QVariant,
-    kind: QString,
-    owned: bool,
     key_mode: bool,
     sorts: QVariant,
-    offered: Vec<SortOffer>,
+    offered: Vec<Sort>,
+    wanted_sort: String,
     sort: QString,
+    sort_label: QString,
+    sidebar: QVariant,
     collections: bool,
     notice: QString,
     related: QVariant,
@@ -177,6 +201,7 @@ pub struct WorkshopDataRust {
     search_loaded: usize,
     current: Vec<Row>,
     previews: HashMap<String, String>,
+    stars: HashMap<String, Vec<bool>>,
     settled: HashSet<String>,
     selected: String,
     shown: Option<Shown>,
@@ -184,11 +209,14 @@ pub struct WorkshopDataRust {
     detail_preview: (String, String),
     /// The screenshots' addresses and the files they were put in, empty until then.
     detail_shots: (Vec<String>, Vec<String>),
+    /// The description's pictures by address, once they are files.
+    detail_images: HashMap<String, String>,
     seeking: crate::jobs::Lane,
     previewing: crate::jobs::Lane,
     opening: crate::jobs::Lane,
     detail_previewing: crate::jobs::Lane,
     shooting: crate::jobs::Lane,
+    imaging: crate::jobs::Lane,
     listing: crate::jobs::Lane,
     defaulting: crate::jobs::Lane,
 }
@@ -203,14 +231,13 @@ impl Default for WorkshopDataRust {
             searching: false,
             problem: QString::default(),
             ready: false,
-            version: QString::default(),
-            versions: QVariant::default(),
-            kind: QString::from("mod"),
-            owned: false,
             key_mode: false,
             sorts: QVariant::default(),
             offered: Vec::new(),
-            sort: QString::from("relevance"),
+            wanted_sort: String::new(),
+            sort: QString::from("recent"),
+            sort_label: QString::default(),
+            sidebar: QVariant::default(),
             collections: false,
             notice: QString::default(),
             related: QVariant::default(),
@@ -224,16 +251,19 @@ impl Default for WorkshopDataRust {
             search_loaded: 0,
             current: Vec::new(),
             previews: HashMap::new(),
+            stars: HashMap::new(),
             settled: HashSet::new(),
             selected: String::new(),
             shown: None,
             detail_preview: (String::new(), String::new()),
             detail_shots: (Vec::new(), Vec::new()),
+            detail_images: HashMap::new(),
             seeking: crate::jobs::Lane::default(),
             previewing: crate::jobs::Lane::default(),
             opening: crate::jobs::Lane::default(),
             detail_previewing: crate::jobs::Lane::default(),
             shooting: crate::jobs::Lane::default(),
+            imaging: crate::jobs::Lane::default(),
             listing: crate::jobs::Lane::default(),
             defaulting: crate::jobs::Lane::default(),
         }
@@ -262,6 +292,7 @@ impl qobject::WorkshopData {
         }
         self.as_mut().set_list(to_qml(&ListShown::empty()));
         self.as_mut().set_related(to_qml(&RelatedShown::none()));
+        self.as_mut().set_sidebar(to_qml(&Sidebar::empty()));
         if demo {
             return;
         }
@@ -276,17 +307,19 @@ impl qobject::WorkshopData {
         if changes.contains(Changes::KEY) {
             self.as_mut().note_refusal();
         }
-        if changes.contains(Changes::LANGUAGE)
-            && let Some(model) = self.as_mut().model()
-        {
-            model.reworded();
+        if changes.contains(Changes::LANGUAGE) {
+            if let Some(model) = self.as_mut().model() {
+                model.reworded();
+            }
+            self.as_mut().settle_sort();
         }
         if changes.contains(
             Changes::DOWNLOAD_LIST
                 | Changes::LIBRARY
                 | Changes::MOD_FILES
                 | Changes::COMMUNITY
-                | Changes::SOURCE,
+                | Changes::SOURCE
+                | Changes::LANGUAGE,
         ) {
             self.as_mut().reload();
         }
@@ -309,21 +342,19 @@ impl qobject::WorkshopData {
         self.defaulting.run(
             "workshop defaults",
             self.qt_thread(),
-            move |_| app.browse_defaults(),
+            move |_| {
+                let defaults = app.browse_defaults();
+                app.sweep_if_due();
+                defaults
+            },
             |mut me, defaults| {
                 me.as_mut().set_ready(defaults.ready);
-                me.as_mut().set_versions(to_qml(&defaults.versions));
                 me.as_mut().rust_mut().get_mut().offered = defaults.sorts;
-                me.as_mut().show_sorts();
                 me.as_mut().set_key_mode(defaults.key_mode);
                 if !defaults.key_mode {
-                    me.as_mut().no_key();
+                    me.as_mut().set_collections(false);
                 }
-                if me.version.is_empty()
-                    && let Some(version) = defaults.version
-                {
-                    me.set_version(QString::from(&version));
-                }
+                me.settle_sort();
             },
         );
     }
@@ -343,20 +374,27 @@ impl qobject::WorkshopData {
         );
     }
 
-    fn show_sorts(mut self: Pin<&mut Self>) {
-        let marked = chosen(&self.offered, &self.sort.to_string());
-        self.as_mut().set_sorts(to_qml(&marked));
+    /// Offers the sorts for the words last searched and chooses the one in use; the next search
+    /// asks for it.
+    fn settle_sort(mut self: Pin<&mut Self>) {
+        let words = self.words();
+        let offered = offers(&self.offered, words, self.key_mode);
+        let id = effective(&self.wanted_sort, &offered, words);
+        self.as_mut().set_sort(QString::from(id));
+        let label = offered.iter().find(|offer| offer.id == id);
+        let label = label.map_or_else(QString::default, |offer| crate::words::said(&offer.label));
+        self.as_mut().set_sort_label(label);
+        self.as_mut().set_sorts(to_qml(&chosen(&offered, id)));
+        let collections = self.collections;
+        if let Some(asked) = self.as_mut().rust_mut().get_mut().asked.as_mut() {
+            asked.sort = sort_of(id);
+            asked.collections = collections;
+        }
     }
 
-    /// Sorts and collections are Steam's with the key; the search stands as the cache answers it.
-    fn no_key(mut self: Pin<&mut Self>) {
-        self.as_mut().set_sort(QString::from("relevance"));
-        self.as_mut().show_sorts();
-        self.as_mut().set_collections(false);
-        if let Some(asked) = self.as_mut().rust_mut().get_mut().asked.as_mut() {
-            asked.sort = sort_of("relevance");
-            asked.collections = false;
-        }
+    fn words(&self) -> bool {
+        let text = self.asked.as_ref().map_or("", |asked| asked.text.as_str());
+        !Query::parse(text).words.is_empty()
     }
 
     fn read_list(self: Pin<&mut Self>) {
@@ -381,7 +419,7 @@ impl qobject::WorkshopData {
         let Some(view) = self.current_view() else {
             return;
         };
-        let count = self.current.len().max(PAGE);
+        let count = self.current.len().max(self.app().browse_page());
         self.load(view, 0, count, false);
     }
 
@@ -408,10 +446,12 @@ impl qobject::WorkshopData {
     }
 
     fn arrived(mut self: Pin<&mut Self>, found: Found, append: bool) {
-        self.as_mut().set_searching(false);
         match found {
-            Ok((results, title)) => {
+            Ok((mut results, title)) => {
                 self.as_mut().set_problem(QString::default());
+                if let Some(sidebar) = results.sidebar.take() {
+                    self.as_mut().set_sidebar(to_qml(&sidebar));
+                }
                 if let Some(notice) = &results.notice {
                     self.as_mut().set_notice(crate::words::said(notice));
                     self.as_mut().read_defaults();
@@ -445,6 +485,7 @@ impl qobject::WorkshopData {
             }
         }
         self.as_mut().show_rows();
+        self.as_mut().set_searching(false);
         self.fetch_previews();
     }
 
@@ -453,7 +494,10 @@ impl qobject::WorkshopData {
             .current
             .iter()
             .map(|row| Item {
-                row: row.clone(),
+                row: Row {
+                    stars: self.stars.get(&row.id).cloned().unwrap_or_default(),
+                    ..row.clone()
+                },
                 preview: self.previews.get(&row.id).cloned().unwrap_or_default(),
             })
             .collect();
@@ -478,13 +522,15 @@ impl qobject::WorkshopData {
             "workshop previews",
             self.qt_thread(),
             move |turn| {
-                app.browse_previews(&ids, &|id, path| {
+                app.browse_previews(&ids, &|id, path, stars| {
                     if !turn.current() {
                         return false;
                     }
                     let id = id.to_string();
                     let path = path.map(|path| path.to_string_lossy().into_owned());
-                    let told = landing.held().queue(move |me| me.preview_came(&id, path));
+                    let told = landing
+                        .held()
+                        .queue(move |me| me.preview_came(&id, path, stars));
                     told.is_ok()
                 });
             },
@@ -492,9 +538,16 @@ impl qobject::WorkshopData {
         );
     }
 
-    fn preview_came(mut self: Pin<&mut Self>, id: &str, path: Option<String>) {
+    fn preview_came(mut self: Pin<&mut Self>, id: &str, path: Option<String>, stars: Vec<bool>) {
         let me = self.as_mut().rust_mut().get_mut();
         me.settled.insert(id.to_string());
+        if !stars.is_empty() {
+            me.stars.insert(id.to_string(), stars.clone());
+            if let Some(model) = self.as_mut().model() {
+                model.set_stars(id, &stars);
+            }
+        }
+        let me = self.as_mut().rust_mut().get_mut();
         let Some(path) = path else {
             return;
         };
@@ -504,36 +557,60 @@ impl qobject::WorkshopData {
         }
     }
 
-    fn search(
-        mut self: Pin<&mut Self>,
-        text: &QString,
-        version: &QString,
-        kind: &QString,
-        sort: &QString,
-    ) {
-        self.as_mut().set_version(version.clone());
-        self.as_mut().set_kind(kind.clone());
-        self.as_mut().set_sort(sort.clone());
-        self.as_mut().show_sorts();
+    /// Asks again with `change` made to what was asked, and shows the first page.
+    fn ask(mut self: Pin<&mut Self>, change: impl FnOnce(&mut Asked)) {
+        let mut asked = self.asked.clone().unwrap_or_default();
+        change(&mut asked);
         self.as_mut().set_notice(QString::default());
-        let version = version.to_string();
-        let asked = Asked {
-            text: text.to_string(),
-            version: Some(version).filter(|v| !v.is_empty()),
-            kind: kind_of(&kind.to_string()),
-            owned: self.owned,
-            sort: sort_of(&sort.to_string()),
-            collections: self.collections,
-        };
         let me = self.as_mut().rust_mut().get_mut();
-        me.asked = Some(asked.clone());
+        me.asked = Some(asked);
         me.in_related = None;
         me.search_loaded = 0;
+        self.as_mut().settle_sort();
         self.as_mut().set_related(to_qml(&RelatedShown::none()));
         if self.app().browse_opened() {
             self.as_mut().read_defaults();
         }
-        self.load(View::Search(asked), 0, PAGE, false);
+        let asked = self.asked.clone().unwrap_or_default();
+        let page = self.app().browse_page();
+        self.load(View::Search(asked), 0, page, false);
+    }
+
+    fn search(self: Pin<&mut Self>, text: &QString) {
+        let text = text.to_string();
+        self.ask(|asked| asked.text = text);
+    }
+
+    fn toggle_tag(self: Pin<&mut Self>, id: &QString, include: bool) {
+        let id = id.to_string();
+        self.ask(|asked| asked.picked.tag(&id, include));
+    }
+
+    fn toggle_dlc(self: Pin<&mut Self>, id: &QString, include: bool) {
+        let id = id.to_string();
+        self.ask(|asked| asked.picked.dlc(&id, include));
+    }
+
+    fn clear_filter(self: Pin<&mut Self>, id: &QString) {
+        let id = id.to_string();
+        self.ask(|asked| asked.picked.clear(&id));
+    }
+
+    fn clear_all(self: Pin<&mut Self>) {
+        self.ask(|asked| asked.picked = Default::default());
+    }
+
+    fn choose_sort(mut self: Pin<&mut Self>, id: &QString) {
+        self.as_mut().rust_mut().get_mut().wanted_sort = id.to_string();
+        self.ask(|_| {});
+    }
+
+    fn show_incompatible(self: Pin<&mut Self>, on: bool) {
+        self.ask(|asked| asked.picked.show_incompatible = on);
+    }
+
+    fn hide_unowned(self: Pin<&mut Self>, on: bool) {
+        self.ask(|asked| asked.picked.hide_unowned = on);
     }
 
     fn show_collections(mut self: Pin<&mut Self>, on: bool) {
@@ -547,19 +624,21 @@ impl qobject::WorkshopData {
         me.in_related = None;
         me.search_loaded = 0;
         self.as_mut().set_related(to_qml(&RelatedShown::none()));
-        self.load(View::Search(asked), 0, PAGE, false);
+        let page = self.app().browse_page();
+        self.load(View::Search(asked), 0, page, false);
     }
 
-    fn show_more(self: Pin<&mut Self>) {
+    fn want_more(self: Pin<&mut Self>, near: bool) {
         let Some(asked) = self
             .asked
             .clone()
-            .filter(|_| self.more && self.in_related.is_none())
+            .filter(|_| near && self.more && !self.searching && self.in_related.is_none())
         else {
             return;
         };
         let offset = self.current.len();
-        self.load(View::Search(asked), offset, PAGE, true);
+        let page = self.app().browse_page();
+        self.load(View::Search(asked), offset, page, true);
     }
 
     fn show_related(mut self: Pin<&mut Self>, id: &QString, which: &QString) {
@@ -574,26 +653,19 @@ impl qobject::WorkshopData {
         me.in_related = Some((which, id.clone()));
         self.as_mut()
             .set_related(to_qml(&RelatedShown::of(which, &id, "")));
-        self.load(View::Related(which, id), 0, PAGE, false);
+        let page = self.app().browse_page();
+        self.load(View::Related(which, id), 0, page, false);
     }
 
     fn back(mut self: Pin<&mut Self>) {
         if self.in_related.is_none() {
             return;
         }
-        let version = self.version.to_string();
-        let kind = self.kind.to_string();
-        let owned = self.owned;
+        let page = self.app().browse_page();
         let me = self.as_mut().rust_mut().get_mut();
         me.in_related = None;
-        let count = me.search_loaded.max(PAGE);
-        let asked = me.asked.get_or_insert_with(|| Asked {
-            version: Some(version).filter(|v| !v.is_empty()),
-            kind: kind_of(&kind),
-            owned,
-            ..Asked::default()
-        });
-        let view = View::Search(asked.clone());
+        let count = me.search_loaded.max(page);
+        let view = View::Search(me.asked.get_or_insert_with(Asked::default).clone());
         self.as_mut().set_related(to_qml(&RelatedShown::none()));
         self.load(view, 0, count, false);
     }
@@ -605,6 +677,7 @@ impl qobject::WorkshopData {
         if id.is_empty() {
             me.shown = None;
             self.opening.cancel();
+            self.imaging.cancel();
             self.detail_previewing.cancel();
             self.as_mut().set_details_busy(false);
             self.set_details(QVariant::default());
@@ -614,7 +687,10 @@ impl qobject::WorkshopData {
         self.open_details(id);
     }
 
-    fn followed(mut self: Pin<&mut Self>, link: &QString) -> QString {
+    fn followed(mut self: Pin<&mut Self>, link: &QString, in_workshop: bool) -> QString {
+        if !in_workshop {
+            return link.clone();
+        }
         match follow(&link.to_string()) {
             Followed::Item(id) => {
                 self.as_mut().select(&QString::from(id));
@@ -648,11 +724,17 @@ impl qobject::WorkshopData {
     fn show_details(mut self: Pin<&mut Self>, shown: Option<Shown>) {
         let url = shown.as_ref().map(|s| s.preview_url.clone());
         let shots = shown.as_ref().map(|s| s.screenshot_urls.clone());
+        let pictures = shown.as_ref().map(Shown::picture_urls);
         let me = self.as_mut().rust_mut().get_mut();
         me.shown = shown;
         if let Some(url) = url.filter(|url| *url != me.detail_preview.0) {
             me.detail_preview = (url.clone(), String::new());
             self.as_mut().fetch_detail_preview(url);
+        }
+        let unfetched =
+            |urls: &Vec<String>| !urls.iter().all(|u| self.detail_images.contains_key(u));
+        if let Some(urls) = pictures.filter(unfetched) {
+            self.as_mut().fetch_images(urls);
         }
         if let Some(urls) = shots.filter(|urls| *urls != self.detail_shots.0) {
             self.as_mut().rust_mut().get_mut().detail_shots = (urls.clone(), Vec::new());
@@ -676,6 +758,28 @@ impl qobject::WorkshopData {
                 }
                 Ok(_) => {}
                 Err(problem) => rimstack_core::problem!("{problem}"),
+            },
+        );
+    }
+
+    fn fetch_images(self: Pin<&mut Self>, urls: Vec<String>) {
+        let app = self.app();
+        let asked = urls.clone();
+        self.imaging.run(
+            "workshop description pictures",
+            self.qt_thread(),
+            move |_| app.browse_images(&asked),
+            move |mut me, taken| {
+                let current = me.shown.as_ref().map(Shown::picture_urls);
+                if current.as_ref() == Some(&urls) {
+                    let kept = &mut me.as_mut().rust_mut().get_mut().detail_images;
+                    for (url, path) in taken {
+                        if let Some(path) = path {
+                            kept.insert(url, path.to_string_lossy().into_owned());
+                        }
+                    }
+                    me.render_details();
+                }
             },
         );
     }
@@ -729,6 +833,7 @@ impl qobject::WorkshopData {
                 to_qml(&DetailsShown {
                     shown,
                     preview_path,
+                    description: shown.description(&self.detail_images),
                     screenshots,
                 })
             }

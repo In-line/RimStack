@@ -28,8 +28,8 @@ Item {
         }
         if (Hub.given("--find-regex"))
             Hub.find.flip("regex")
-        Hub.find.choose("where", Hub.argument("--find-where") || "installed")
-        Hub.find.choose("files", Hub.given("--find-all") ? "text" : "xml")
+        Hub.find.choose(Hub.argument("--find-where") || "installed")
+        Hub.find.fileTypes = Hub.given("--find-all") ? "." : "xml"
         Hub.find.text = text
         begin.start()
     }

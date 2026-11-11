@@ -73,14 +73,19 @@ Item {
         return !!item && item.isFile && item.collapsed === wanted
     }
 
+    function searchFor(text) {
+        Hub.find.text = text
+        Hub.find.search()
+    }
+
     readonly property var steps: [
         {
             what: "a search of the made-up mods lists matches",
             ready: () => {
                 if (!checks.acted) {
                     checks.acted = true
-                    Hub.find.choose("where", "active")
-                    Hub.find.choose("files", "xml")
+                    Hub.find.choose("active")
+                    Hub.find.fileTypes = "xml"
                     Hub.find.text = "Fixture"
                     Hub.find.search()
                 }
@@ -169,6 +174,83 @@ Item {
             what: "and that left it folded",
             ready: () => checks.folded(true),
             ok: () => true
+        },
+        {
+            what: "every file of the mods is searched, version folders included",
+            ready: () => {
+                if (!checks.acted) {
+                    checks.acted = true
+                    Hub.find.choose("installed")
+                    checks.searchFor("FixtureOldVersion")
+                }
+                return !Hub.find.running
+            },
+            ok: () => Hub.find.count === 1
+        },
+        {
+            what: "typed file types choose the files and a bad entry is said",
+            ready: () => {
+                if (!checks.acted) {
+                    checks.acted = true
+                    Hub.find.fileTypes = "cs; json"
+                    checks.searchFor("FixtureProbe")
+                }
+                return !Hub.find.running
+            },
+            ok: () => {
+                const found = Hub.find.count === 1
+                Hub.find.fileTypes = "xml, a/b"
+                const said = !!Hub.find.options.types.problem
+                Hub.find.fileTypes = "xml"
+                return found && said && !Hub.find.options.types.problem
+            }
+        },
+        {
+            what: "a mod picked in the list on the side shows only its results and all mods shows them again",
+            ready: () => {
+                if (!checks.acted) {
+                    checks.acted = true
+                    Hub.find.choose("active")
+                    checks.searchFor("Fixture")
+                    checks.waited = -20
+                }
+                return !Hub.find.running && Hub.find.mods.rows.length > 1
+            },
+            ok: () => {
+                const before = checks.list.count
+                const rows = Hub.find.mods.rows
+                Hub.find.pickMod(rows[1].index)
+                const picked = checks.list.count < before && Hub.find.mods.rows[1].chosen && !Hub.find.mods.allChosen
+                Hub.find.pickMod(-1)
+                return picked && checks.list.count === before && Hub.find.mods.allChosen
+            }
+        },
+        {
+            what: "searching inside the file marks the lines, next goes to a match and wrap lines is kept",
+            ready: () => {
+                if (!checks.acted) {
+                    checks.acted = true
+                    Hub.find.select(checks.matchRow())
+                    Hub.find.insideText = "Fixture"
+                    Hub.find.wrap = true
+                }
+                return Hub.find.insideFound > 0 && Array.from(Hub.find.preview?.lines || []).some(line => line.found)
+            },
+            ok: () => Hub.find.insideSaid !== "" && Hub.find.wrap
+        },
+        {
+            what: "the next match is centred and marked as the one the box is at",
+            ready: () => {
+                if (!checks.acted) {
+                    checks.acted = true
+                    Hub.find.insideStep(1)
+                }
+                return Array.from(Hub.find.preview?.lines || []).some(line => line.here)
+            },
+            ok: () => {
+                const here = Array.from(Hub.find.preview.lines).find(line => line.here)
+                return here.number === Hub.find.preview.line
+            }
         },
         {
             what: "Ctrl+C copies the line chosen",

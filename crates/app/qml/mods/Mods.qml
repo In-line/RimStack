@@ -128,6 +128,9 @@ Item {
 
     property bool browsing: false
     property string browseText: ""
+    property bool browseFilters: false
+    property bool findFilters: false
+    property bool browseList: false
     // Toggled so a Browse left open in Downloads starts again with `browseText`.
     function browse() {
         browsing = false

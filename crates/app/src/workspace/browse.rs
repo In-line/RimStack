@@ -1,4 +1,5 @@
 mod shown;
+mod sidebar;
 mod sorts;
 
 use super::{App, now_secs, written};
@@ -8,18 +9,23 @@ use rimstack_core::mods::library::Library;
 use rimstack_core::rimworld::paths::Source;
 use rimstack_core::rimworld::workshop::{self, Details};
 use rimstack_core::rimworld::workshopindex::{self, Entry, Index};
-use rimstack_core::rimworld::workshopsearch::{Filters, Kind, Query};
-use rimstack_core::sources::browse::{Browse, Cache, Canned, Fixture, Request, Sort};
+use rimstack_core::rimworld::workshopsearch::Query;
+use rimstack_core::rimworld::workshopsweep::{self, Sweep};
+pub use rimstack_core::sources::browse::Sort;
+use rimstack_core::sources::browse::{Browse, Cache, Canned, Fixture, Request};
 use rimstack_core::sources::previews;
-use serde::Serialize;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Instant;
 
-pub use shown::{Marks, Results, Row, Shown};
-pub use sorts::{SortOffer, chosen, id_of, offers, sort_of};
+pub use shown::{Marks, Part, Results, Row, Shown};
+pub use sidebar::{Chip, Facet, Picked, Sidebar};
+pub use sorts::{SortOffer, chosen, effective, offers, sort_of};
+
+/// Hears a result's preview file and its stars.
+pub type Each<'a> = dyn Fn(&str, Option<PathBuf>, Vec<bool>) -> bool + Sync + 'a;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Related {
@@ -29,28 +35,21 @@ pub enum Related {
     Collection,
 }
 
-#[derive(Serialize, Debug, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Defaults {
-    /// The installed game's, as a tag such as `1.6`; type defaults to `Kind::Mod`.
-    pub version: Option<String>,
     /// False until the database is downloaded: Browse offers the download.
     pub ready: bool,
-    /// The game versions the filter offers, newest first.
-    pub versions: Vec<String>,
     /// Searches go through Steam with the player's key.
     pub key_mode: bool,
-    /// The sorts Steam offers; none without the key.
-    pub sorts: Vec<SortOffer>,
+    /// The sorts the source offers now; none until Browse is opened.
+    pub sorts: Vec<Sort>,
 }
 
 /// What a search asks.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Asked {
     pub text: String,
-    pub version: Option<String>,
-    pub kind: Kind,
-    pub owned: bool,
+    pub picked: Picked,
     pub sort: Sort,
     pub collections: bool,
 }
@@ -59,10 +58,8 @@ impl Default for Asked {
     fn default() -> Self {
         Asked {
             text: String::new(),
-            version: None,
-            kind: Kind::Mod,
-            owned: false,
-            sort: Sort::Relevance,
+            picked: Picked::default(),
+            sort: Sort::MostRecent,
             collections: false,
         }
     }
@@ -111,6 +108,14 @@ fn installed_in(library: &Library) -> impl Iterator<Item = String> + '_ {
 }
 
 impl App {
+    /// Results fetched at a time; the made-up database gives small pages so a second one is seen.
+    pub fn browse_page(&self) -> usize {
+        match self.fixture {
+            true => 3,
+            false => 30,
+        }
+    }
+
     /// The made-up database and Steam: nothing reaches the network.
     pub fn browsing_fixture(self, on: bool) -> Self {
         let app = Self {
@@ -125,8 +130,10 @@ impl App {
 
     pub fn workshop_index(&self) -> Arc<Index> {
         let file = workshopindex::file_in(&self.data_dir);
+        let swept = workshopsweep::file_in(&self.data_dir);
+        let key = (written(file.clone()), written(swept.clone()));
         self.workshop_index
-            .get(written(file.clone()), || Index::read(&file))
+            .get(key, || Index::read(&file).with_sweep(&Sweep::read(&swept)))
     }
 
     pub fn browse_source(&self) -> Arc<dyn Browse> {
@@ -150,20 +157,16 @@ impl App {
     }
 
     pub fn browse_defaults(&self) -> Defaults {
-        let version = self.paths().game_version.clone();
         let opened = self.fixture || self.browse_open.load(Ordering::Relaxed);
         let key_mode = self.key_mode();
-        let versions = match opened {
-            true => self.browse_source().versions(version.as_deref()),
-            false => Vec::new(),
-        };
         let stored = std::fs::metadata(workshopindex::file_in(&self.data_dir));
         Defaults {
-            versions,
-            version,
             ready: self.fixture || key_mode || stored.is_ok_and(|file| file.len() > 0),
             key_mode,
-            sorts: if key_mode { offers() } else { Vec::new() },
+            sorts: match opened || key_mode {
+                true => self.browse_source().sorts(),
+                false => Vec::new(),
+            },
         }
     }
 
@@ -236,23 +239,34 @@ impl App {
         offset: usize,
         count: usize,
     ) -> Result<Results, Error> {
-        let page = source.search(&Request {
+        let owned = asked.picked.hide_unowned.then(|| self.owned_dlc());
+        let request = Request {
             query: Query::parse(&asked.text),
-            filters: Filters {
-                version: asked.version.clone(),
-                kind: asked.kind,
-                owned_dlc: asked.owned.then(|| self.owned_dlc()),
-            },
+            filters: asked.picked.filters(owned),
             sort: asked.sort,
             collections: asked.collections,
             offset,
             count,
-        })?;
+        };
+        let page = source.search(&request)?;
+        let sidebar = (offset == 0).then(|| {
+            let counts = source.counts(&request);
+            let searched = !asked.text.trim().is_empty();
+            Sidebar::of(
+                counts.as_ref(),
+                &source.catalog(),
+                &asked.picked,
+                self.paths().game_version.as_deref(),
+                searched,
+                page.total,
+            )
+        });
         Ok(Results {
             more: offset + page.ids.len() < page.total,
             total: page.total,
             rows: self.rows_of(source, &page.ids),
             notice: None,
+            sidebar,
         })
     }
 
@@ -270,6 +284,7 @@ impl App {
             more: false,
             rows,
             notice: None,
+            sidebar: None,
         })
     }
 
@@ -345,30 +360,51 @@ impl App {
     /// Asks Steam about the ids not yet known in one batch, then takes their previews side by side.
     /// `each` hears every id once, with `None` when it has no preview; it stops the rest by
     /// answering false.
-    pub fn browse_previews(
-        &self,
-        ids: &[String],
-        each: &(dyn Fn(&str, Option<PathBuf>) -> bool + Sync),
-    ) {
+    pub fn browse_previews(&self, ids: &[String], each: &Each<'_>) {
         let source = self.browse_source();
         self.remember_details(&*source, ids);
-        let urls: Vec<(&String, String)> = {
+        let urls: Vec<(&String, String, Vec<bool>)> = {
             let kept = self.browse_details.held();
-            let url = |id: &String| kept.get(id).map(|d| d.preview_url.clone());
             ids.iter()
-                .map(|id| (id, url(id).unwrap_or_default()))
+                .map(|id| {
+                    let found = kept.get(id);
+                    let url = found.as_ref().map(|d| d.preview_url.clone());
+                    let stars = shown::stars_of(found.and_then(|d| d.votes));
+                    (id, url.unwrap_or_default(), stars)
+                })
                 .collect()
         };
         use rayon::prelude::*;
-        let _ = urls.par_iter().try_for_each(|(id, url)| {
+        let _ = urls.par_iter().try_for_each(|(id, url, stars)| {
             let path = self.browse_preview(url).unwrap_or_else(|problem| {
                 rimstack_core::problem!("{problem}");
                 None
             });
-            each(id, path).then_some(())
+            each(id, path, stars.clone()).then_some(())
         });
         self.previews_trimmed
             .call_once(|| previews::trim(&self.previews_dir(), previews::CACHE_CAP));
+    }
+
+    /// The pictures of a description, side by side; each is `None` when it could not be taken.
+    /// Blocks on the network.
+    pub fn browse_images(&self, urls: &[String]) -> Vec<(String, Option<PathBuf>)> {
+        use rayon::prelude::*;
+        let taken: Vec<(String, Option<PathBuf>)> = urls
+            .par_iter()
+            .map(|url| {
+                let folder = self.previews_dir();
+                let path = match self.fixture {
+                    true => previews::made_up_in_text(url, &folder),
+                    false => previews::fetch_in_text(url, &folder),
+                };
+                let path = path.map_err(|problem| rimstack_core::problem!("{problem}"));
+                (url.clone(), path.ok())
+            })
+            .collect();
+        self.previews_trimmed
+            .call_once(|| previews::trim(&self.previews_dir(), previews::CACHE_CAP));
+        taken
     }
 
     pub fn previews_dir(&self) -> PathBuf {

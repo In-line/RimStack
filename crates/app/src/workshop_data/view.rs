@@ -1,17 +1,7 @@
-use crate::workspace::browse::{Asked, Related, Shown};
+use crate::workspace::browse::{Asked, Part, Related, Shown};
 use rimstack_core::base::sentence::Sentence;
-use rimstack_core::rimworld::workshopsearch::Kind;
 use rimstack_core::say;
 use serde::Serialize;
-
-pub fn kind_of(name: &str) -> Kind {
-    match name {
-        "mod" => Kind::Mod,
-        "translation" => Kind::Translation,
-        "scenario" => Kind::Scenario,
-        _ => Kind::Any,
-    }
-}
 
 const RELATED: [(&str, Related); 4] = [
     ("requires", Related::Requires),
@@ -89,6 +79,7 @@ pub struct DetailsShown<'a> {
     #[serde(flatten)]
     pub shown: &'a Shown,
     pub preview_path: &'a str,
+    pub description: Vec<Part>,
     /// The files the screenshots were fetched into, in Steam's order; empty until then.
     pub screenshots: &'a [String],
 }
@@ -98,11 +89,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_kind_and_a_related_list_are_read_from_their_names() {
-        assert_eq!(kind_of("mod"), Kind::Mod);
-        assert_eq!(kind_of("scenario"), Kind::Scenario);
-        assert_eq!(kind_of(""), Kind::Any);
-        assert_eq!(kind_of("anything"), Kind::Any);
+    fn a_related_list_is_read_from_its_name() {
         for (name, which) in RELATED {
             assert_eq!(related_of(name), Some(which));
             assert_eq!(RelatedShown::of(which, "1", "T").which, name);

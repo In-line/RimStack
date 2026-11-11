@@ -6,6 +6,18 @@ Rectangle {
     id: card
     required property var model
     readonly property bool current: (Hub.workshop.details || ({})).id === model.id
+    component Mark: Rectangle {
+        property string icon
+        property color tone
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: Theme.gapSmall
+        width: Theme.control
+        height: width
+        radius: width / 2
+        color: tone
+        Icon { anchors.centerIn: parent; name: parent.icon; color: Theme.accentInk }
+    }
     implicitHeight: body.implicitHeight + 2 * Theme.gapMedium
     radius: Theme.cornerLarge
     color: Theme.panel
@@ -17,6 +29,7 @@ Rectangle {
     FocusRing { corner: card.radius }
     Accessible.role: Accessible.Button
     Accessible.name: model.title
+    Accessible.description: model.badge
     Accessible.onPressAction: Hub.workshop.select(card.model.id)
 
     FontMetrics { id: titleFont; font.pixelSize: Theme.body; font.weight: Font.DemiBold }
@@ -34,7 +47,7 @@ Rectangle {
         spacing: Theme.gapSmall
         Rectangle {
             width: parent.width
-            height: Theme.sized(60)
+            height: width * 9 / 16
             radius: Theme.corner
             color: Theme.ctl
             clip: true
@@ -45,36 +58,20 @@ Rectangle {
                 sourceComponent: Image {
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
-                    sourceSize.width: Theme.sized(400)
+                    sourceSize.width: width
                     source: Theme.fileUrl(card.model.preview)
                 }
             }
+            Mark { visible: card.model.installed; tone: Theme.ok; icon: "check" }
+            Mark { visible: card.model.onList && !card.model.installed; tone: Theme.moved; icon: "list" }
         }
-        Text {
+        Text { width: parent.width; height: titleFont.lineSpacing; elide: Text.ElideRight; color: Theme.ink; font: titleFont.font; text: card.model.title }
+        Text { opacity: Number(card.model.author !== ""); width: parent.width; height: titleFont.lineSpacing; elide: Text.ElideRight; color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.fill("by {}", card.model.author) }
+        Stars { visible: card.model.stars.length > 0; filled: card.model.stars }
+        Item {
             width: parent.width
-            height: 2 * titleFont.lineSpacing
-            wrapMode: Text.Wrap
-            maximumLineCount: 2
-            elide: Text.ElideRight
-            color: Theme.ink
-            font: titleFont.font
-            text: card.model.title
-        }
-        Text { width: parent.width; height: titleFont.lineSpacing; elide: Text.ElideRight; color: Theme.ink3; font.pixelSize: Theme.small; text: card.model.author }
-        Row {
-            height: Theme.tag
-            spacing: Theme.gapTiny
-            Repeater {
-                model: card.model.versions.slice(0, 3)
-                Chip { required property string modelData; text: modelData }
-            }
-        }
-        Row {
             height: Theme.control
-            spacing: Theme.gapSmall
             Btn { visible: card.model.canAdd; icon: "plus"; text: Theme.say("Add"); onClicked: Hub.workshop.add(card.model.id, false) }
-            Chip { visible: card.model.installed; anchors.verticalCenter: parent.verticalCenter; tone: Theme.ok; icon: "check"; text: card.model.badge }
-            Chip { visible: card.model.onList && !card.model.installed; anchors.verticalCenter: parent.verticalCenter; tone: Theme.moved; icon: "list"; text: card.model.badge }
         }
     }
 }

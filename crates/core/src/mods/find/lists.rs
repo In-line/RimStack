@@ -1,3 +1,4 @@
+use super::types::FileTypes;
 use crate::base::stamp::FolderStamp;
 use std::collections::HashMap;
 use std::ffi::OsStr;
@@ -6,9 +7,9 @@ use std::sync::{Arc, Mutex};
 
 /// Which files of a mod folder are searched. A folder is left out by its name
 /// at any depth.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FolderSettings {
-    pub all_text: bool,
+    pub types: FileTypes,
     pub languages: bool,
     pub source: bool,
     pub textures: bool,
@@ -18,7 +19,7 @@ pub struct FolderSettings {
 impl Default for FolderSettings {
     fn default() -> Self {
         Self {
-            all_text: false,
+            types: FileTypes::default(),
             languages: true,
             source: true,
             textures: true,
@@ -37,10 +38,7 @@ impl FolderSettings {
     }
 
     fn takes(&self, file: &Path) -> bool {
-        self.all_text
-            || file
-                .extension()
-                .is_some_and(|x| x.eq_ignore_ascii_case("xml"))
+        self.types.takes(file)
     }
 
     fn walk(&self, root: &Path) -> Vec<PathBuf> {
@@ -65,6 +63,7 @@ impl FolderSettings {
             }
         }
         found.sort_unstable();
+        found.dedup();
         found
     }
 }
@@ -79,9 +78,9 @@ pub struct FileLists {
 }
 
 impl FileLists {
-    pub fn get(&self, folder: &Path, settings: FolderSettings) -> Arc<Vec<PathBuf>> {
+    pub fn get(&self, folder: &Path, settings: &FolderSettings) -> Arc<Vec<PathBuf>> {
         let stamp = FolderStamp::of(folder, |name| settings.leaves_out(name));
-        let key = (folder.to_path_buf(), settings);
+        let key = (folder.to_path_buf(), settings.clone());
         if let Some((kept, list)) = self.kept.lock().unwrap().get(&key)
             && *kept == stamp
         {

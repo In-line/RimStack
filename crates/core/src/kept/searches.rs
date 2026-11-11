@@ -14,7 +14,7 @@ pub struct Search {
     pub regex: bool,
     pub whole_word: bool,
     pub place: String,
-    pub all_text: bool,
+    pub types: String,
     pub languages: bool,
     pub source: bool,
     pub textures: bool,
@@ -29,7 +29,7 @@ impl Default for Search {
             regex: false,
             whole_word: false,
             place: String::new(),
-            all_text: false,
+            types: "xml".into(),
             languages: true,
             source: true,
             textures: true,
@@ -69,6 +69,18 @@ impl Searches {
         self.0.truncate(MOST_KEPT);
         self
     }
+
+    /// The newest search run again with other options takes its place instead of adding one.
+    pub fn revised(mut self, search: Search) -> Self {
+        if self
+            .0
+            .first()
+            .is_some_and(|first| first.text == search.text)
+        {
+            self.0.remove(0);
+        }
+        self.with(search)
+    }
 }
 
 #[cfg(test)]
@@ -96,6 +108,20 @@ mod tests {
         let read = Searches::read(&file);
         let texts: Vec<&str> = read.all().iter().map(|s| s.text.as_str()).collect();
         assert_eq!(texts, ["5", "11", "10", "9", "8", "7", "6", "4", "3", "2"]);
+    }
+
+    #[test]
+    fn a_search_revised_replaces_the_newest_of_the_same_text_only() {
+        let kept = Searches::default().with(asked("Steel")).with(asked("Rock"));
+        let cased = Search {
+            case: true,
+            ..asked("Rock")
+        };
+        let kept = kept.revised(cased.clone());
+        assert_eq!(kept.all(), [cased, asked("Steel")]);
+        let kept = kept.revised(asked("Wood"));
+        let texts: Vec<&str> = kept.all().iter().map(|s| s.text.as_str()).collect();
+        assert_eq!(texts, ["Wood", "Rock", "Steel"]);
     }
 
     #[test]

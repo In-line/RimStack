@@ -4,14 +4,14 @@ mod web;
 pub use canned::Canned;
 pub use web::Web;
 
-use super::{Browse, Memory, Request, Sort};
+use super::{Browse, Catalog, Memory, Request, Sort};
 use crate::base::error::Error;
 use crate::rimworld::steamapi::{
     self, ApiKey, Call, Found, SEXUAL_DESCRIPTORS, Search, query_type,
 };
 use crate::rimworld::workshop::Details;
 use crate::rimworld::workshopindex::{self, Entry, Index};
-use crate::rimworld::workshopsearch::Page;
+use crate::rimworld::workshopsearch::{Counts, Order, Page};
 use serde_json::Value;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
@@ -183,8 +183,7 @@ impl Steam {
         words.extend(query.authors.iter().cloned());
         let mut tags = Vec::new();
         if !collections {
-            tags.extend(filters.version.clone());
-            tags.extend(filters.kind.steam_tag().map(String::from));
+            tags.extend(filters.include_tags.iter().map(|t| capitalised(t)));
         }
         tags.extend(query.tags.iter().map(|t| capitalised(t)));
         Shape {
@@ -309,10 +308,15 @@ impl Browse for Steam {
         }
         if !request.query.requires.is_empty() {
             let (query, filters) = (&request.query, &request.filters);
-            let page = self
-                .index
-                .as_ref()
-                .map(|i| i.search(query, filters, request.offset, request.count));
+            let page = self.index.as_ref().map(|i| {
+                i.search(
+                    query,
+                    filters,
+                    Order::Relevance,
+                    request.offset,
+                    request.count,
+                )
+            });
             return Ok(page.unwrap_or(Page {
                 ids: Vec::new(),
                 total: 0,
@@ -357,6 +361,27 @@ impl Browse for Steam {
             }
         }
         Ok(found)
+    }
+
+    fn sorts(&self) -> Vec<Sort> {
+        vec![
+            Sort::Relevance,
+            Sort::Trending { days: 1 },
+            Sort::Trending { days: 7 },
+            Sort::MostSubscribed,
+            Sort::MostRecent,
+            Sort::LastUpdated,
+        ]
+    }
+
+    fn counts(&self, _: &Request) -> Option<Counts> {
+        None
+    }
+
+    fn catalog(&self) -> Catalog {
+        self.index
+            .as_ref()
+            .map_or_else(Catalog::default, |index| Catalog::of(index))
     }
 
     fn entry(&self, id: &str) -> Option<Entry> {
@@ -441,7 +466,7 @@ impl Browse for Steam {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rimworld::workshopsearch::{Filters, Kind, Query};
+    use crate::rimworld::workshopsearch::{Filters, Query};
     use crate::sources::browse::fixture::{COLLECTION, Fixture, HARMONY};
 
     const SECRET: &str = "ABCDEF0123456789SECRET";
@@ -554,8 +579,7 @@ mod tests {
         );
         let mut scenario = request("", Sort::Relevance);
         scenario.filters = Filters {
-            kind: Kind::Scenario,
-            version: Some("1.6".into()),
+            include_tags: vec!["Scenario".into(), "1.6".into()],
             ..Filters::default()
         };
         assert_eq!(ids(&steam, &scenario), ["3100000006"]);
@@ -665,10 +689,11 @@ mod tests {
     }
 
     #[test]
-    fn the_cache_and_the_fixture_ignore_sorts() {
+    fn the_cache_and_the_fixture_do_not_trend() {
         let fixture = Fixture::new();
         let by = |sort| fixture.search(&request("", sort)).unwrap().ids;
-        assert_eq!(by(Sort::Relevance), by(Sort::MostSubscribed));
+        assert_eq!(by(Sort::Relevance), by(Sort::MostRecent));
         assert_eq!(by(Sort::Relevance), by(Sort::Trending { days: 7 }));
+        assert_ne!(by(Sort::Relevance), by(Sort::MostSubscribed));
     }
 }

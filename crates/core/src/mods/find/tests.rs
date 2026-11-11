@@ -51,7 +51,7 @@ fn run_with(
     let summary = search(
         targets,
         pattern,
-        settings,
+        &settings,
         lists,
         cancel,
         usize::MAX,
@@ -89,7 +89,7 @@ fn xml_only_leaves_out_named_folders_at_any_depth_and_all_text_takes_the_rest() 
     let (found, _) = run(&targets, &plain("steel"), FolderSettings::default());
     assert_eq!(names(&found, t), ["m/Defs/a.xml"]);
     let all = FolderSettings {
-        all_text: true,
+        types: FileTypes::Any,
         ..Default::default()
     };
     let (found, _) = run(&targets, &plain("steel"), all);
@@ -99,7 +99,7 @@ fn xml_only_leaves_out_named_folders_at_any_depth_and_all_text_takes_the_rest() 
         source: false,
         textures: false,
         git: false,
-        all_text: false,
+        ..Default::default()
     };
     let (found, _) = run(&targets, &plain("steel"), none);
     assert_eq!(found.len(), 5);
@@ -114,7 +114,7 @@ fn binary_and_large_files_are_skipped_and_counted_in_all_text_mode() {
     let big = fs::File::create(t.join("m/big.txt")).unwrap();
     big.set_len((16 << 20) + 1).unwrap();
     let all = FolderSettings {
-        all_text: true,
+        types: FileTypes::Any,
         ..Default::default()
     };
     let (found, summary) = run(&mods(t, &["m"]), &plain("steel"), all);
@@ -218,7 +218,7 @@ fn cancel_stops_before_the_next_file() {
     let summary = search(
         &mods(t, &names),
         &plain("steel"),
-        FolderSettings::default(),
+        &FolderSettings::default(),
         &FileLists::default(),
         &stopper,
         usize::MAX,
@@ -240,7 +240,7 @@ fn progress_counts_targets_done_of_total() {
     search(
         &mods(t, &["a", "b"]),
         &plain("steel"),
-        FolderSettings::default(),
+        &FolderSettings::default(),
         &FileLists::default(),
         &AtomicBool::new(false),
         usize::MAX,
@@ -265,20 +265,20 @@ fn a_file_list_is_reused_until_a_folder_inside_changes() {
     write(t, "m/a/b/one.xml", "");
     let lists = FileLists::default();
     let settings = FolderSettings::default();
-    let first = lists.get(&t.join("m"), settings);
+    let first = lists.get(&t.join("m"), &settings);
     assert!(std::sync::Arc::ptr_eq(
         &first,
-        &lists.get(&t.join("m"), settings)
+        &lists.get(&t.join("m"), &settings)
     ));
     write(t, "m/a/b/two.xml", "");
     touch_dir(&t.join("m/a/b"), 100);
-    let again = lists.get(&t.join("m"), settings);
+    let again = lists.get(&t.join("m"), &settings);
     assert!(!std::sync::Arc::ptr_eq(&first, &again));
     assert_eq!(again.len(), 2);
     let other = lists.get(
         &t.join("m"),
-        FolderSettings {
-            all_text: true,
+        &FolderSettings {
+            types: FileTypes::Any,
             ..settings
         },
     );
@@ -360,7 +360,7 @@ fn past_the_most_hits_matches_are_counted_and_files_still_named() {
     let summary = search(
         &mods(t, &["a", "b"]),
         &plain("steel"),
-        FolderSettings::default(),
+        &FolderSettings::default(),
         &FileLists::default(),
         &AtomicBool::new(false),
         4,
@@ -371,4 +371,31 @@ fn past_the_most_hits_matches_are_counted_and_files_still_named() {
     assert_eq!(got.len(), 2);
     assert_eq!(got.iter().map(|f| f.hits.len()).sum::<usize>(), 4);
     assert_eq!(got.iter().map(|f| f.unkept).sum::<usize>(), 1);
+}
+
+#[test]
+fn typed_file_types_choose_the_files() {
+    let tmp = tempfile::tempdir().unwrap();
+    let t = tmp.path();
+    write(t, "m/a.xml", "steel");
+    write(t, "m/b.cs", "steel");
+    write(t, "m/c.json", "steel");
+    let types = |text: &str| FolderSettings {
+        types: FileTypes::parse(text).unwrap(),
+        ..Default::default()
+    };
+    let (found, _) = run(&mods(t, &["m"]), &plain("steel"), types("cs; JSON"));
+    assert_eq!(names(&found, t), ["m/b.cs", "m/c.json"]);
+}
+
+#[test]
+fn the_lines_with_a_match_inside_a_file_are_listed_once_each() {
+    let tmp = tempfile::tempdir().unwrap();
+    let t = tmp.path();
+    write(t, "a.xml", "one\r\nSteel steel\nthree\nSTEEL\n");
+    let found = inside(&t.join("a.xml"), "steel").unwrap();
+    assert_eq!(found, [2, 4]);
+    assert!(inside(&t.join("a.xml"), "zinc").unwrap().is_empty());
+    assert!(inside(&t.join("a.xml"), "").unwrap().is_empty());
+    assert!(inside(&t.join("missing.xml"), "a").is_err());
 }

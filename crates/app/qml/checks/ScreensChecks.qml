@@ -9,6 +9,23 @@ Item {
     property int at: 0
     property int waited: 0
 
+    function named(item, name) {
+        if (item.objectName === name)
+            return item
+        for (const child of item.children) {
+            const found = named(child, name)
+            if (found)
+                return found
+        }
+        return null
+    }
+
+    function scrollToEnd() {
+        const grid = named(window.contentItem, "resultGrid")
+        if (grid)
+            grid.contentY = Math.max(0, grid.contentHeight - grid.height)
+    }
+
     function listed(value) {
         return Array.from(value || [])
     }
@@ -84,15 +101,90 @@ Item {
         },
         {
             section: 1,
+            what: "the sidebar counts the matches of the search and lists every game version beside them",
+            ready: () => true,
+            ok: () => {
+                const side = Hub.workshop.sidebar
+                return side.counted && side.versions.length === 2 && side.types[0].count === "1" && side.found === "1 result matching your filters" && !side.filtered
+            }
+        },
+        {
+            section: 1,
+            what: "a search of nothing lists every made-up mod, the pages of three loading as the grid is scrolled near its end",
+            ready: () => {
+                if (!checks.faceted) {
+                    checks.faceted = true
+                    Hub.workshop.search("")
+                }
+                checks.scrollToEnd()
+                return !Hub.workshop.searching && Hub.workshop.total === 7 && !Hub.workshop.more
+            },
+            ok: () => checks.ids().length === 7
+        },
+        {
+            section: 1,
+            what: "ticking Mod and then crossing out 1.5 leaves the two mods for 1.6 only",
+            ready: () => {
+                if (!checks.crossed) {
+                    checks.crossed = true
+                    Hub.workshop.toggleTag("Mod", true)
+                    Hub.workshop.toggleTag("1.5", false)
+                }
+                return !Hub.workshop.searching && Hub.workshop.total === 2
+            },
+            ok: () => {
+                const side = Hub.workshop.sidebar
+                const old = side.versions[0]
+                return side.chips.length === 2 && side.types[0].include && old.id === "1.5" && old.exclude && old.count === "3" && side.found === "2 results matching your filters"
+            }
+        },
+        {
+            section: 1,
+            what: "clearing the filters brings back every result",
+            ready: () => {
+                if (!checks.cleared) {
+                    checks.cleared = true
+                    Hub.workshop.clearAll()
+                }
+                return !Hub.workshop.searching && Hub.workshop.total === 7
+            },
+            ok: () => Hub.workshop.sidebar.chips.length === 0
+        },
+        {
+            section: 1,
+            what: "choosing Most subscribed reorders every result by the sweep's subscriber counts",
+            ready: () => {
+                if (!checks.swept) {
+                    checks.swept = true
+                    checks.firstIds = checks.ids()
+                    Hub.workshop.chooseSort("subscribed")
+                }
+                return !Hub.workshop.searching && Hub.workshop.sort === "subscribed" && Hub.workshop.total === 7
+            },
+            ok: () => {
+                const reordered = checks.ids().join() !== checks.firstIds.join() && Hub.workshop.sortLabel !== ""
+                Hub.workshop.chooseSort("recent")
+                return reordered
+            }
+        },
+        {
+            section: 1,
             what: "a card selected shows its details, with the requirement the database does not know",
             ready: () => {
-                if (!checks.picked) {
+                if (!checks.picked && !Hub.workshop.searching) {
                     checks.picked = true
+                    checks.placed = checks.cardPlace("3100000002")
                     Hub.workshop.select("3100000002")
                 }
-                return !Hub.workshop.detailsBusy && !!Hub.workshop.details
+                return checks.picked && !Hub.workshop.detailsBusy && !!Hub.workshop.details
             },
             ok: () => Hub.workshop.details.id === "3100000002" && Hub.workshop.details.requires.length === 2 && Hub.workshop.details.unknownRequirements.length === 1
+        },
+        {
+            section: 1,
+            what: "and the grid keeps its columns and the card its place",
+            ready: () => true,
+            ok: () => checks.placed !== "" && checks.cardPlace("3100000002") === checks.placed
         },
         {
             section: 1,
@@ -136,7 +228,7 @@ Item {
             ok: () => {
                 const sorts = checks.listed(Hub.workshop.sorts)
                 checks.firstIds = checks.ids()
-                return sorts.length === 6 && sorts.filter(sort => sort.chosen).length === 1 && sorts[0].chosen && checks.listed(Hub.workshop.versions).length > 0
+                return sorts.length === 6 && sorts.filter(sort => sort.chosen).length === 1 && Hub.workshop.sort === "recent" && !Hub.workshop.sidebar.counted
             }
         },
         {
@@ -145,7 +237,7 @@ Item {
             ready: () => {
                 if (!checks.keySorted) {
                     checks.keySorted = true
-                    Hub.workshop.search("", Hub.workshop.version, Hub.workshop.kind, "subscribed")
+                    Hub.workshop.chooseSort("subscribed")
                 }
                 return !Hub.workshop.searching && Hub.workshop.total > 1
             },
@@ -314,15 +406,38 @@ Item {
         },
         {
             section: 5,
+            what: "ticking Match case searches again at once, without Search pressed",
+            ready: () => {
+                if (!checks.recased) {
+                    checks.recased = true
+                    Hub.find.text = "fixture"
+                    Hub.find.search()
+                }
+                if (checks.uncased === "" && !Hub.find.running && Hub.find.summary !== "") {
+                    checks.uncased = Hub.find.summary
+                    Hub.find.flip("case")
+                }
+                return checks.uncased !== "" && !Hub.find.running && Hub.find.summary !== "" && Hub.find.summary !== checks.uncased
+            },
+            ok: () => {
+                const changed = Hub.find.summary !== checks.uncased && Hub.find.options.switches[0].chosen
+                checks.uncased = ""
+                Hub.find.text = "Fixture"
+                Hub.find.flip("case")
+                return changed
+            }
+        },
+        {
+            section: 5,
             what: "a bad regular expression is said at once, before any search",
             ready: () => checks.flipped(() => {
-                Hub.find.flip("regex")
                 Hub.find.text = "(Fixture"
+                Hub.find.flip("regex")
             }),
             ok: () => {
                 const said = Hub.find.problem !== "" && !Hub.find.running
-                Hub.find.flip("regex")
                 Hub.find.text = "Fixture"
+                Hub.find.flip("regex")
                 return said
             }
         },
@@ -332,8 +447,8 @@ Item {
             ready: () => {
                 if (!checks.stopped) {
                     checks.stopped = true
-                    Hub.find.choose("where", "installed")
-                    Hub.find.choose("files", "text")
+                    Hub.find.choose("installed")
+                    Hub.find.fileTypes = "."
                     Hub.find.text = "e"
                     Hub.find.search()
                     Hub.find.stop()
@@ -348,8 +463,8 @@ Item {
             ready: () => {
                 if (!checks.shown) {
                     checks.shown = true
-                    Hub.find.choose("where", "active")
-                    Hub.find.choose("files", "xml")
+                    Hub.find.choose("active")
+                    Hub.find.fileTypes = "xml"
                     Hub.find.text = "Fixture"
                     Hub.find.search()
                 }
@@ -374,10 +489,16 @@ Item {
     ]
     property bool searched: false
     property bool hitPicked: false
+    property bool recased: false
+    property string uncased
     property bool stopped: false
     property bool shown: false
     property bool typed: false
     property bool browsed: false
+    property bool faceted: false
+    property bool crossed: false
+    property bool swept: false
+    property bool cleared: false
     property bool keyTyped: false
     property bool keyBrowsed: false
     property bool keySorted: false
@@ -397,6 +518,15 @@ Item {
         return found
     }
     property bool picked: false
+    property string placed
+    function cardPlace(id) {
+        const cards = named(window.contentItem, "resultCards")
+        const card = cards ? Array.from(cards.children).find(child => !!child.model && child.model.id === id) : null
+        if (!card)
+            return ""
+        const at = card.mapToItem(null, 0, 0)
+        return cards.across + " across, at " + Math.round(at.x) + "," + Math.round(at.y) + ", " + Math.round(card.width) + " wide"
+    }
     property bool added: false
     property bool changed: false
     property string before

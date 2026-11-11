@@ -18,3 +18,4 @@ pub mod workshop;
 pub mod workshopdb;
 pub mod workshopindex;
 pub mod workshopsearch;
+pub mod workshopsweep;

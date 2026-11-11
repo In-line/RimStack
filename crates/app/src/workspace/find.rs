@@ -5,7 +5,7 @@ use rimstack_core::base::pattern::{Pattern, Switches};
 use rimstack_core::base::sentence::Sentence;
 use rimstack_core::kept::searches::{Search, Searches};
 use rimstack_core::mods::find::{
-    Batch, FileLists, FolderSettings, Progress, Summary, Target, preview, search,
+    Batch, FileLists, FileTypes, FolderSettings, Progress, Summary, Target, inside, preview, search,
 };
 use rimstack_core::mods::library::{Library, ModId};
 use rimstack_core::rimworld::paths::Source;
@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 mod results;
-pub use results::{Cell, Folded, MOST_HITS, Op, Part, ROLES, Results, RowRef};
+pub use results::{Cell, Folded, FoundMods, MOST_HITS, Op, Part, ROLES, Results, RowRef};
 
 /// Where a search looks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,7 +77,10 @@ pub struct Request {
     pub switches: Switches,
     pub place: Place,
     pub selected: Option<ModId>,
+    /// Which folders are left out; the types are set by `settings`.
     pub folders: FolderSettings,
+    /// As typed: `xml, cs; json`.
+    pub types: String,
 }
 
 impl Default for Request {
@@ -88,11 +91,23 @@ impl Default for Request {
             place: Place::Active,
             selected: None,
             folders: FolderSettings::default(),
+            types: "xml".into(),
         }
     }
 }
 
 impl Request {
+    fn types_parsed(&self) -> Result<FileTypes, Error> {
+        FileTypes::parse(&self.types)
+    }
+
+    fn settings(&self) -> Result<FolderSettings, Error> {
+        Ok(FolderSettings {
+            types: self.types_parsed()?,
+            ..self.folders.clone()
+        })
+    }
+
     fn kept(&self) -> Search {
         Search {
             text: self.text.clone(),
@@ -100,7 +115,7 @@ impl Request {
             regex: self.switches.regex,
             whole_word: self.switches.whole_word,
             place: self.place.id().to_string(),
-            all_text: self.folders.all_text,
+            types: self.types.clone(),
             languages: self.folders.languages,
             source: self.folders.source,
             textures: self.folders.textures,
@@ -124,12 +139,13 @@ impl Request {
             },
             place,
             selected,
+            types: search.types.clone(),
             folders: FolderSettings {
-                all_text: search.all_text,
                 languages: search.languages,
                 source: search.source,
                 textures: search.textures,
                 git: search.git,
+                ..FolderSettings::default()
             },
         }
     }
@@ -148,16 +164,9 @@ impl Request {
         }
     }
 
-    /// `group` is "where" or "files".
-    pub fn choose(&mut self, group: &str, id: &str) {
-        match group {
-            "where" => {
-                if let Some(place) = Place::of(id) {
-                    self.place = place;
-                }
-            }
-            "files" => self.folders.all_text = id == "text",
-            _ => {}
+    pub fn choose(&mut self, id: &str) {
+        if let Some(place) = Place::of(id) {
+            self.place = place;
         }
     }
 }
@@ -175,8 +184,14 @@ pub struct Options {
     pub switches: Vec<Choice>,
     #[serde(rename = "where")]
     pub places: Vec<Choice>,
-    pub files: Vec<Choice>,
+    pub types: TypesField,
     pub leave: Vec<Choice>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TypesField {
+    pub text: String,
+    pub problem: Option<Sentence>,
 }
 
 #[derive(Debug, Serialize)]
@@ -187,7 +202,7 @@ pub struct Recent {
     pub case: bool,
     pub regex: bool,
     pub word: bool,
-    pub all_text: bool,
+    pub types: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -195,16 +210,38 @@ pub struct Recent {
 pub struct PreviewLine {
     pub number: usize,
     pub text: String,
+    /// The line the results chose.
     pub marked: bool,
+    /// A line the search inside the file found.
+    pub found: bool,
+    /// The one of those the box is at.
+    pub here: bool,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreviewShown {
     pub path: String,
+    /// The line the window is around.
     pub line: usize,
     pub lines: Vec<PreviewLine>,
     pub problem: Option<Sentence>,
+}
+
+/// What the box inside the previewed file asks: the lines it found when they are known, the match
+/// it is at, and a step to the next (1) or the one before (-1).
+#[derive(Debug, Clone, Default)]
+pub struct Look {
+    pub text: String,
+    pub found: Option<Vec<usize>>,
+    pub at: Option<usize>,
+    pub step: i32,
+}
+
+pub struct Looked {
+    pub shown: PreviewShown,
+    pub found: Vec<usize>,
+    pub at: Option<usize>,
 }
 
 /// Valid for the search that started it; a newer search makes it stale.
@@ -315,11 +352,19 @@ impl App {
         }
     }
 
+    /// Whether a search may start unasked: the box holds a valid pattern and the file types are valid.
+    pub fn find_ready(&self, request: &Request) -> bool {
+        !request.text.trim().is_empty()
+            && matching(request).is_ok()
+            && request.types_parsed().is_ok()
+    }
+
     /// Ends the search before, forgets its results, and takes the places to look.
     pub fn find_start(&self, request: &Request) -> Result<Started, Error> {
         let pattern = matching(request)?;
         let loaded = self.library();
         let (library, _) = loaded.as_ref().as_ref().map_err(Clone::clone)?;
+        let folders = request.settings()?;
         let active = self.active_now(library);
         let config = self.paths().config.as_ref().map(|c| c.join("Config"));
         let targets = targets_of(library, &active, request, config);
@@ -335,7 +380,7 @@ impl App {
             cancel,
             pattern,
             targets,
-            folders: request.folders,
+            folders,
         })
     }
 
@@ -348,7 +393,7 @@ impl App {
         search(
             &started.targets,
             &started.pattern,
-            started.folders,
+            &started.folders,
             &self.find.lists,
             &started.cancel,
             MOST_HITS,
@@ -470,33 +515,66 @@ impl App {
         self.find_results(|r| r.locate(at)).map(|l| l.text)
     }
 
-    /// Reads the file: off the window's thread.
-    pub fn find_preview(&self, at: RowRef) -> Option<PreviewShown> {
+    /// The file and line a results row stands for.
+    pub fn find_located(&self, at: RowRef) -> Option<(PathBuf, usize)> {
         let located = self.find_results(|r| r.locate(at))?;
-        let path = located.file.to_string_lossy().into_owned();
-        Some(match preview(&located.file, located.line) {
-            Ok(read) => PreviewShown {
-                path,
-                line: located.line,
-                lines: read
-                    .lines
-                    .into_iter()
-                    .enumerate()
-                    .map(|(at, text)| PreviewLine {
-                        number: read.first_line + at,
-                        marked: read.marked == Some(at),
+        Some((located.file, located.line))
+    }
+
+    /// Reads the file: off the window's thread. `hit` is the line the results chose; the window
+    /// is around it, or around the line of the match `look` steps to.
+    pub fn find_preview(&self, file: &std::path::Path, hit: usize, look: Look) -> Looked {
+        let path = file.to_string_lossy().into_owned();
+        let found = match look.found {
+            Some(found) => Ok(found),
+            None => inside(file, &look.text),
+        };
+        let (found, mut problem) = match found {
+            Ok(found) => (found, None),
+            Err(problem) => (Vec::new(), Some(problem.sentence().clone())),
+        };
+        let at = match (look.at, found.len()) {
+            (_, 0) => None,
+            (Some(at), n) if look.step != 0 => {
+                Some((at as isize + look.step.signum() as isize).rem_euclid(n as isize) as usize)
+            }
+            (None, _) if look.step > 0 => Some(0),
+            (None, n) if look.step < 0 => Some(n - 1),
+            (at, n) => at.filter(|&at| at < n),
+        };
+        let here = at.map(|at| found[at]);
+        let centre = here.unwrap_or(hit);
+        let lines = match preview(file, centre) {
+            Ok(read) => read
+                .lines
+                .into_iter()
+                .enumerate()
+                .map(|(at, text)| {
+                    let number = read.first_line + at;
+                    PreviewLine {
+                        number,
+                        marked: number == hit,
+                        found: found.binary_search(&number).is_ok(),
+                        here: here == Some(number),
                         text,
-                    })
-                    .collect(),
-                problem: None,
-            },
-            Err(problem) => PreviewShown {
+                    }
+                })
+                .collect(),
+            Err(read_problem) => {
+                problem = Some(read_problem.sentence().clone());
+                Vec::new()
+            }
+        };
+        Looked {
+            shown: PreviewShown {
                 path,
-                line: located.line,
-                lines: Vec::new(),
-                problem: Some(problem.sentence().clone()),
+                line: centre,
+                lines,
+                problem,
             },
-        })
+            found,
+            at,
+        }
     }
 
     pub fn find_options(&self, request: &Request) -> Options {
@@ -506,7 +584,7 @@ impl App {
             chosen,
             available: true,
         };
-        let (s, f) = (request.switches, request.folders);
+        let (s, f) = (request.switches, &request.folders);
         let selected = request.selected.and_then(|id| {
             let loaded = self.library();
             let (library, _) = loaded.as_ref().as_ref().ok()?;
@@ -529,10 +607,10 @@ impl App {
                 choice("regex", say!("Regular expression"), s.regex),
             ],
             places: places.into(),
-            files: vec![
-                choice("xml", say!("XML files"), !f.all_text),
-                choice("text", say!("All text files"), f.all_text),
-            ],
+            types: TypesField {
+                text: request.types.clone(),
+                problem: request.types_parsed().err().map(|e| e.sentence().clone()),
+            },
             leave: vec![
                 choice("languages", say!("Languages"), f.languages),
                 choice("source", say!("Source"), f.source),
@@ -542,9 +620,14 @@ impl App {
         }
     }
 
-    pub fn find_remember(&self, request: &Request) {
+    /// `revised`: only the options changed since the search before, which this one replaces.
+    pub fn find_remember(&self, request: &Request, revised: bool) {
         let file = self.searches_file();
-        let kept = Searches::read(&file).with(request.kept());
+        let kept = Searches::read(&file);
+        let kept = match revised {
+            true => kept.revised(request.kept()),
+            false => kept.with(request.kept()),
+        };
         if let Err(problem) = kept.write(&file) {
             rimstack_core::problem!("{problem}");
         }
@@ -560,7 +643,7 @@ impl App {
                 case: s.case,
                 regex: s.regex,
                 word: s.whole_word,
-                all_text: s.all_text,
+                types: s.types.clone(),
             })
             .collect()
     }

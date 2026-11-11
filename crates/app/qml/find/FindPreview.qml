@@ -12,6 +12,7 @@ Rectangle {
     readonly property int first: (lines[0] || ({ number: 0 })).number
     color: Theme.panel
 
+    Binding { target: inside; property: "text"; value: Hub.find.insideText }
     TextMetrics { id: digits; font.family: "monospace"; font.pixelSize: Theme.small; text: "00000" }
 
     ColumnLayout {
@@ -38,6 +39,32 @@ Rectangle {
             Btn { icon: "folder-open"; text: Theme.say("Open folder"); onClicked: Qt.openUrlExternally(Theme.fileUrl(Hub.find.openFolder(panel.row))) }
             Btn { icon: "copy"; text: Theme.say("Copy path"); onClicked: Theme.copy(Hub.find.copyPath(panel.row)) }
             Btn { icon: "copy"; text: Theme.say("Copy line"); onClicked: Theme.copy(Hub.find.copyLine(panel.row)) }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.gapLarge
+            Layout.rightMargin: Theme.gapLarge
+            spacing: Theme.gapSmall
+            FilterField {
+                id: inside
+                Layout.fillWidth: true
+                Layout.preferredWidth: 0
+                icon: "search"
+                placeholder: Theme.say("Search in this file")
+                found: Hub.find.insideSaid
+                onTextChanged: Hub.find.insideText = text
+                onAccepted: Hub.find.insideStep(1)
+            }
+            Btn { compact: true; icon: "chevron-up"; enabled: Hub.find.insideFound > 0; tip: Theme.say("Previous match"); onClicked: Hub.find.insideStep(-1) }
+            Btn { compact: true; icon: "chevron-down"; enabled: Hub.find.insideFound > 0; tip: Theme.say("Next match"); onClicked: Hub.find.insideStep(1) }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.gapLarge
+            Layout.rightMargin: Theme.gapLarge
+            spacing: Theme.gap
+            Toggle { silent: true; on: Hub.find.wrap; onFlipped: Hub.find.wrap = !Hub.find.wrap }
+            Text { Layout.fillWidth: true; Layout.preferredWidth: 0; elide: Text.ElideRight; color: Theme.ink2; font.pixelSize: Theme.small; text: Theme.say("Wrap lines") }
         }
         Text {
             visible: !!panel.shown.problem
@@ -68,6 +95,8 @@ Rectangle {
                 required property var modelData
                 width: view.width
                 height: code.implicitHeight + Theme.gapHair
+                Rectangle { visible: line.modelData.found; anchors.fill: parent; color: Theme.warn; opacity: 0.18 }
+                Rectangle { visible: line.modelData.here; anchors.fill: parent; color: Theme.warn; opacity: 0.4 }
                 Rectangle { visible: line.modelData.marked; anchors.fill: parent; color: Theme.accent; opacity: 0.25 }
                 Text {
                     id: number
@@ -83,6 +112,7 @@ Rectangle {
                     id: code
                     x: number.x + number.width + Theme.gap
                     width: parent.width - x - Theme.gapLarge
+                    wrapMode: Text.NoWrap + Number(Hub.find.wrap) * Text.WrapAnywhere
                     elide: Text.ElideRight
                     textFormat: Text.PlainText
                     color: Theme.ink

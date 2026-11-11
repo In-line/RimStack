@@ -87,7 +87,7 @@ struct Counts {
 pub fn search<K: Clone + Send + Sync>(
     targets: &[Target<K>],
     pattern: &Pattern,
-    settings: FolderSettings,
+    settings: &FolderSettings,
     lists: &FileLists,
     cancel: &AtomicBool,
     most_hits: usize,
@@ -117,9 +117,13 @@ pub fn search<K: Clone + Send + Sync>(
             if cancel.load(Relaxed) {
                 return;
             }
-            let Some((hits, unkept)) =
-                search_file(file, pattern, settings.all_text, &counts, &room)
-            else {
+            let Some((hits, unkept)) = search_file(
+                file,
+                pattern,
+                settings.types.reads_any_text(),
+                &counts,
+                &room,
+            ) else {
                 return;
             };
             let mut held = held.lock().unwrap();
@@ -152,7 +156,7 @@ pub fn search<K: Clone + Send + Sync>(
 
 fn jobs_of<K: Clone>(
     target: &Target<K>,
-    settings: FolderSettings,
+    settings: &FolderSettings,
     lists: &FileLists,
 ) -> Vec<(K, PathBuf)> {
     match target {

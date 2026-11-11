@@ -178,7 +178,7 @@ mod tests {
         let (_, index) = parse(SAMPLE.as_bytes()).unwrap();
         assert_eq!(index.len(), 3);
         assert!(index.get("294100").is_none() && index.get("444").is_none());
-        assert_eq!(index.app_name("1826140"), Some("RimWorld - Biotech"));
+        assert_eq!(index.app_name("1826140"), Some("Biotech"));
         assert_eq!(index.app_name("294100"), None);
         let big = index.get("111").unwrap();
         assert_eq!(big.title, "Big Mod (Continued)");
@@ -233,7 +233,7 @@ mod tests {
         for words in ["harmony", "a"] {
             let query = super::super::workshopsearch::Query::parse(words);
             let started = std::time::Instant::now();
-            let page = back.search(&query, &Default::default(), 0, 30);
+            let page = back.search(&query, &Default::default(), Default::default(), 0, 30);
             println!("{words:?}: {} hits in {:?}", page.total, started.elapsed());
         }
         let _ = std::fs::remove_file(&file);

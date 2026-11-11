@@ -31,6 +31,7 @@ pub mod saves;
 pub mod search;
 pub mod secret;
 mod settings;
+pub mod sweep;
 pub mod textures;
 mod upkeep;
 mod window;
@@ -86,7 +87,8 @@ pub struct App {
     works_on: Derived<Written, HashSet<String>>,
     replacements: Derived<Written, Replacements>,
     workshop_names: Derived<Written, rimstack_core::rimworld::workshopdb::Names>,
-    workshop_index: Derived<Written, rimstack_core::rimworld::workshopindex::Index>,
+    workshop_index: Derived<(Written, Written), rimstack_core::rimworld::workshopindex::Index>,
+    sweeper: sweep::Sweeper,
     browse_open: AtomicBool,
     fixture: bool,
     vault: Arc<dyn secret::Vault>,
@@ -165,6 +167,7 @@ impl App {
             replacements: Derived::default(),
             workshop_names: Derived::default(),
             workshop_index: Derived::default(),
+            sweeper: sweep::Sweeper::default(),
             browse_open: AtomicBool::new(false),
             fixture: false,
             vault: Arc::new(secret::Memory::default()),

@@ -128,7 +128,7 @@ pub struct WorkshopRowsRust {
     shown: Vec<Item>,
 }
 
-pub const ROLES: [&str; 9] = [
+pub const ROLES: [&str; 10] = [
     "id",
     "title",
     "author",
@@ -138,6 +138,7 @@ pub const ROLES: [&str; 9] = [
     "badge",
     "canAdd",
     "preview",
+    "stars",
 ];
 const FIRST_ROLE: i32 = 257;
 
@@ -158,6 +159,7 @@ fn cell(item: &Item, field: usize) -> Option<QVariant> {
         ),
         7 => QVariant::from(&row.can_add),
         8 => text(&item.preview),
+        9 => to_qml(&row.stars),
         _ => return None,
     })
 }
@@ -206,6 +208,18 @@ impl qobject::WorkshopRows {
             return;
         }
         self.as_mut().rust_mut().shown[at].preview = preview.to_string();
+        let index = self.index(at as i32, 0, &QModelIndex::default());
+        self.data_changed(&index, &index, &QVector::default());
+    }
+
+    pub(crate) fn set_stars(mut self: Pin<&mut Self>, id: &str, stars: &[bool]) {
+        let Some(at) = self.shown.iter().position(|i| i.row.id == id) else {
+            return;
+        };
+        if self.shown[at].row.stars == stars {
+            return;
+        }
+        self.as_mut().rust_mut().shown[at].row.stars = stars.to_vec();
         let index = self.index(at as i32, 0, &QModelIndex::default());
         self.data_changed(&index, &index, &QVector::default());
     }

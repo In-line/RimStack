@@ -1,8 +1,9 @@
-use super::{Browse, Request};
+use super::{Browse, Catalog, Request, Sort};
 use crate::base::error::Error;
 use crate::rimworld::workshop::Details;
 use crate::rimworld::workshopindex::{Entry, Index};
-use crate::rimworld::workshopsearch::Page;
+use crate::rimworld::workshopsearch::{Counts, Page};
+use crate::rimworld::workshopsweep::{Record, Sweep};
 use std::collections::BTreeMap;
 
 pub const HARMONY: &str = "2009463077";
@@ -81,11 +82,34 @@ pub(super) fn entries() -> Vec<Entry> {
     ]
 }
 
+/// Subscriptions and dates that do not follow the ids, so each sort puts the items in its own order.
+fn made_up_sweep() -> Sweep {
+    let records = entries().into_iter().enumerate().map(|(i, e)| {
+        let record = Record {
+            title: e.title,
+            tags: e.tags,
+            subscriptions: ((i as u64 * 7) % 11 + 1) * 1000,
+            created: 1_700_000_000 + i as u64 * 1000,
+            updated: 1_760_000_000 + ((i as u64 * 5) % 7) * 100_000,
+            app_id: 294_100,
+            ..Record::default()
+        };
+        (e.id.parse().unwrap_or(0), record)
+    });
+    Sweep {
+        completed: 1_760_000_000,
+        resume_after: 0,
+        records: records.collect(),
+    }
+}
+
 pub(super) fn index() -> Index {
-    Index::new(entries()).with_apps(BTreeMap::from([
-        ("1149640".to_string(), "Fixture Expansion One".to_string()),
-        ("1826140".to_string(), "Fixture Expansion Two".to_string()),
-    ]))
+    Index::new(entries())
+        .with_sweep(&made_up_sweep())
+        .with_apps(BTreeMap::from([
+            ("1149640".to_string(), "Fixture Expansion One".to_string()),
+            ("1826140".to_string(), "Fixture Expansion Two".to_string()),
+        ]))
 }
 
 impl Default for Fixture {
@@ -105,11 +129,25 @@ impl Browse for Fixture {
         let Request {
             query,
             filters,
+            sort,
             offset,
             count,
             ..
         } = request;
-        Ok(self.index.search(query, filters, *offset, *count))
+        let order = super::order_of(*sort);
+        Ok(self.index.search(query, filters, order, *offset, *count))
+    }
+
+    fn sorts(&self) -> Vec<Sort> {
+        super::cache_sorts(&self.index)
+    }
+
+    fn counts(&self, request: &Request) -> Option<Counts> {
+        Some(self.index.counts(&request.query, &request.filters))
+    }
+
+    fn catalog(&self) -> Catalog {
+        Catalog::of_versions_with(&self.index, 1)
     }
 
     fn details(&self, ids: &[String]) -> Result<Vec<Details>, Error> {
@@ -120,9 +158,14 @@ impl Browse for Fixture {
                 id: id.clone(),
                 title: entry.title.clone(),
                 updated: 1_760_000_000 + number % 1000,
+                created: 1_700_000_000 + number % 1000,
                 size: 1_048_576 + number % 4096,
                 preview_url: String::new(),
-                description: format!("[b]{}[/b]\nA made-up item.", entry.title),
+                description: format!(
+                    "[b]{}[/b]\nA made-up item.\n[img]https://images.steamusercontent.com/ugc/{id}/A/[/img]\nAnd a second paragraph.",
+                    entry.title
+                ),
+                views: 5000 + number % 7000,
                 subscriptions: 1000 + number % 5000,
                 favorited: 100 + number % 500,
                 banned: false,
@@ -197,14 +240,14 @@ mod tests {
 
     #[test]
     fn it_finds_each_kind_of_item_it_makes_up() {
-        let kind = |kind| Filters {
-            kind,
+        let kind = |kind: Kind| Filters {
+            include_tags: vec![kind.steam_tag().unwrap().into()],
             ..Filters::default()
         };
         assert_eq!(ask("", kind(Kind::Translation)), ["3100000005"]);
         assert_eq!(ask("", kind(Kind::Scenario)), ["3100000006"]);
         let version = Filters {
-            version: Some("1.5".into()),
+            include_tags: vec!["1.5".into()],
             ..Filters::default()
         };
         assert_eq!(ask("tidy", version), ["3100000003"]);
