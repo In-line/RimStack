@@ -30,7 +30,7 @@ Column {
         visible: !Theme.demo && !Hub.search.active
         icon: "search"
         text: Theme.say("Find the broken mod")
-        tip: Theme.say("Switches half of the mods off, you play and say whether it still breaks, until one mod is left. Your list is kept and comes back at the end.")
+        tip: Theme.say("Deactivates half of the mods; you play and say whether it still breaks. This repeats until one mod is left. Your list is kept and comes back at the end.")
         onClicked: Mods.findBrokenRequested()
     }
     Repeater {
@@ -56,7 +56,7 @@ Column {
                 color: Theme.ink2
                 font.pixelSize: Theme.body
                 lineHeight: 1.25
-                text: Theme.fill("Each lists other game versions than RimWorld {}. Many such mods still work.", (Mods.overview.gameVersion || ""))
+                text: Theme.fill("None of these lists RimWorld {} among its game versions. Many such mods still work.", (Mods.overview.gameVersion || ""))
             }
             Repeater {
                 model: group.modelData.shared ? group.modelData.lines : []
@@ -88,5 +88,5 @@ Column {
             }
         }
     }
-    EmptyState { visible: Mods.troubles.length === 0; width: parent.width; title: Theme.say("Nothing stands in the way") }
+    EmptyState { visible: Mods.troubles.length === 0; width: parent.width; title: Theme.say("No problems") }
 }

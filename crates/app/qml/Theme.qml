@@ -191,17 +191,17 @@ QtObject {
     readonly property var terms: ({
         "Load order": "The order in which the game loads the active mods. A mod that changes another has to load after it.",
         "Own rules": "Rules you added: this mod loads after, or before, that one. Sort follows them before anything else.",
-        "Community rules": "Load-order rules kept by players (RimSort's Community Rules Database), for mods whose own files do not say enough.",
+        "Community rules": "Load-order rules written by players (RimSort's Community Rules Database), for mods whose own files do not say enough.",
         "Detected from files": "What a mod's files point at in another mod. A hint for Sort, not something the game requires.",
         "Texture conflicts": "Two active mods provide a picture under the same name. The game uses the one from the mod that loads later.",
-        "Patched methods": "The methods of the game this mod's code changes, through the Harmony library. Two mods patching one method may clash.",
+        "Patched methods": "The game's methods that this mod's code changes with the Harmony library. Two mods that patch the same method may conflict.",
         "Group": "A mod's first tag. Inside a category, mods with the same first tag are kept side by side under its name.",
         "Textures set aside": "Files RimStack renamed inside this mod so the game skips them. Nothing is deleted.",
         "Folders the game loads from": "A mod can ship a folder per game version or per other mod; the game reads only those that apply.",
         "Requires": "Mods this one needs active, as its About.xml says.",
         "Filed under": "The category Sort keeps this mod in. Categories load in a fixed order: loaders, the game, libraries, content, patches, textures.",
         "DDS": "A texture format the game loads faster than PNG. RimStack writes DDS copies beside the PNG files.",
-        "To review": "Not problems: things worth a look when you have a moment.",
+        "To review": "Not problems: things to look at when you have time.",
     })
     function meaning(term) {
         // `term` may come in the chosen language or in English.

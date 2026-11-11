@@ -47,7 +47,7 @@ impl App {
         let (library, _) = loaded.as_ref().as_ref().map_err(Clone::clone)?;
         let m = library.get(id).ok_or_else(|| {
             Error::refused(said!(
-                "That mod is no longer where it was read; read the folders again"
+                "That mod has moved since it was read; read the folders again"
             ))
         })?;
         Ok((m.path.clone(), m.display_name().to_string()))
@@ -184,7 +184,7 @@ impl App {
 
     fn nothing_to_ask() -> Error {
         Error::refused(said!(
-            "Nothing on the list can be asked of Steam; the rows say why"
+            "Steam cannot be asked about anything on the list; each row says why"
         ))
     }
 

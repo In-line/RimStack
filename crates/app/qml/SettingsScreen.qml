@@ -231,7 +231,7 @@ Item {
                     title: Theme.say("Play starts the game")
                     changed: !!screen.info.launchDirectly
                     onReset: screen.keep("launch", "steam")
-                    tip: Theme.say("Directly runs the game's own program from its folder, for a copy that is not Steam's.")
+                    tip: Theme.say("Directly runs the game's own program from its folder, for a copy not from Steam.")
                     Choice {
                         title: Theme.say("Play starts the game")
                         options: ["Through Steam", "Directly"]
@@ -262,7 +262,7 @@ Item {
                 }
                 Line {
                     title: Theme.say("Copies")
-                    tip: Theme.say("Before each Save the file as it was is copied beside itself to .rimstack-backup, and the first time also to .rimstack-original.")
+                    tip: Theme.say("Before each Save, the old file is copied next to it as .rimstack-backup, and the first time also as .rimstack-original.")
                     Text { Layout.fillWidth: true; color: screen.info.backup ? Theme.ink : Theme.ink3; font.pixelSize: Theme.body; text: screen.info.backup ? ".rimstack-backup, .rimstack-original" : Theme.say("None yet") }
                 }
 
@@ -274,7 +274,7 @@ Item {
                 }
                 Line {
                     title: Theme.say("Git for Workshop mods")
-                    tip: Theme.say("Check now asks Steam about a Workshop mod, and Git about a checkout in the game's Mods folder. On: a Workshop mod that is a Git checkout is asked through Git as well, which fetches into its folder.")
+                    tip: Theme.say("Check now asks Steam about Workshop mods, and Git about checkouts in the game's Mods folder. On: a Workshop mod that is also a Git checkout is checked with Git too, which fetches into its folder.")
                     changed: !!screen.info.gitForWorkshop
                     onReset: screen.keep("gitForWorkshop", "off")
                     Toggle {
@@ -313,7 +313,7 @@ Item {
                             Hub.mods.rescan()
                     }
                     title: Theme.say("Language")
-                    tip: Theme.say("A file of the same name beside the settings stands over a language, text by text; one left empty there stays as it is.")
+                    tip: Theme.say("A language file with the same name in the settings folder replaces this language's texts one by one. A text left empty there keeps the original.")
                     readonly property int translated: Object.keys(Theme.words).filter(text => Theme.words[text] !== "").length
                     function file(name) {
                         const made = Hub.settings.startLanguage(name)
@@ -367,13 +367,13 @@ Item {
                         visible: Theme.ownInUse && short.length > 0
                         tone: Theme.warn
                         icon: "triangle-alert"
-                        text: Theme.plural(short.length, "{} pair under its contrast", "{} pairs under their contrast")
+                        text: Theme.plural(short.length, "{} colour pair has too little contrast", "{} colour pairs have too little contrast")
                         tip: short.map(pair => Theme.fill("{} {}, needs {}", Theme.say(pair.what), pair.found.toFixed(1), pair.needed)).join("\n")
                     }
                     Btn {
                         icon: "external-link"
                         text: Theme.say("Edit theme.json")
-                        tip: Theme.say("Opens the file, written with this theme's colours when it has none for it; what is saved there shows at once")
+                        tip: Theme.say("Opens the file, first adding this theme's colours if it has none. A change saved there shows at once")
                         onClicked: {
                             const now = {}
                             for (const name of Theme.colourNames)
@@ -474,7 +474,7 @@ Item {
                 }
                 Line {
                     title: Theme.say("A list the filter leaves out")
-                    tip: Theme.say("A list in which the filter matches no mod. Dimmed: it shows every mod, faint, and still takes a drop.")
+                    tip: Theme.say("A list where the filter matches no mod. Dimmed: it shows all its mods faded, and mods can still be dropped on it.")
                     changed: !screen.info.dimLeftOut
                     onReset: screen.keep("dimLeftOut", "on")
                     Choice {
@@ -621,7 +621,7 @@ Item {
                     function version(choice) {
                         Hub.settings.versionWarnings(choice)
                     }
-                    tip: Theme.say("A mod that does not list the installed game version. For this version: the warnings return when the game is updated. One mod can be excused from its menu.")
+                    tip: Theme.say("A mod that does not list the installed game version. For this version: the warnings come back when the game is updated. A single mod can be ignored from its menu.")
                     Choice {
                         title: Theme.say("Game version mismatch")
                         options: ["Warn", "Ignore for this version", "Ignore"]
@@ -648,7 +648,7 @@ Item {
                 visible: screen.part === 3 || screen.finding !== ""
                 Line {
                     title: Theme.say("What a key adds")
-                    Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.ink; font.pixelSize: Theme.body; text: Theme.say("Browse then searches Steam itself, with Steam's sorts, and shows mods newer than the downloaded database, collections, more by the same author, votes and screenshots. Without a key, Browse searches the downloaded database.") }
+                    Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.ink; font.pixelSize: Theme.body; text: Theme.say("With a key, Browse searches Steam itself, with Steam's sort orders. It also shows mods newer than the downloaded database, collections, more by the same author, votes and screenshots. Without a key, Browse searches the downloaded database.") }
                 }
                 Line {
                     title: Theme.say("Keep it private")
@@ -706,7 +706,7 @@ Item {
                     title: Theme.say("Show mods Steam marks as mature")
                     changed: !!screen.info.showMature
                     onReset: screen.keep("showMature", "off")
-                    tip: Theme.say("Applies with a key only; the database has no such mark.")
+                    tip: Theme.say("Works only with a key; the database does not mark mature mods.")
                     Toggle { title: Theme.say("Show mods Steam marks as mature"); on: !!screen.info.showMature; onFlipped: screen.keep("showMature", ["on", "off"][Number(!!screen.info.showMature)]) }
                     Item { Layout.fillWidth: true }
                 }
@@ -727,7 +727,7 @@ Item {
                     id: modSettings
                     property string said
                     title: Theme.say("Mod settings")
-                    tip: Theme.say("Moves every Mod_*.xml of the game's Config folder into a dated folder of RimStack's. Mods start from their defaults.")
+                    tip: Theme.say("Moves every Mod_*.xml from the game's Config folder into a dated folder in RimStack's data folder. Mods start from their default settings.")
                     Btn {
                         danger: true
                         text: Theme.say("Set aside…")
@@ -761,7 +761,7 @@ Item {
                     title: Theme.say("Logs kept")
                     changed: screen.info.logsKept !== 10
                     onReset: screen.keep("logsKept", "10")
-                    tip: Theme.say("The game keeps the logs of its last two launches. RimStack copies each log once the game has stopped, so an older launch can still be read in Logs; the oldest give way.")
+                    tip: Theme.say("The game keeps the logs of its last two launches. RimStack copies each log after the game stops, so older launches can still be read in Logs; the oldest copies are deleted first.")
                     Choice {
                         readonly property var limits: [0, 5, 10, 25, 50]
                         title: Theme.say("Logs kept")
@@ -806,7 +806,7 @@ Item {
                     title: Theme.say("Versions to look for")
                     changed: !!screen.info.nightlyUpdates
                     onReset: screen.keep("updates", "stable")
-                    tip: Theme.say("Stable: a numbered release. Nightly: the newest build of the main branch, which is made often and may break. Nightly compares the commit this program was built from.")
+                    tip: Theme.say("Stable: a numbered release. Nightly: the newest build of the main branch, which is made often and may break. Nightly compares against the commit this program was built from.")
                     Choice {
                         title: Theme.say("Versions to look for")
                         options: ["Stable", "Nightly"]

@@ -59,14 +59,14 @@ pub fn file_name(url: &str) -> String {
 /// An existing file is returned as it is. Blocks on the network otherwise.
 pub fn fetch(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     if !is_steam_image(url) {
-        return Err(Error::refused(said!("a preview is only taken from Steam")));
+        return Err(Error::refused(said!("previews are only loaded from Steam")));
     }
     get(url, folder, LARGEST)
 }
 
 pub fn fetch_in_text(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     if !is_https_image(url) {
-        return Err(Error::refused(said!("a picture is only taken over https")));
+        return Err(Error::refused(said!("pictures are only loaded over https")));
     }
     get(url, folder, LARGEST_IN_TEXT)
 }
@@ -95,14 +95,14 @@ fn get(url: &str, folder: &Path, largest: u64) -> Result<PathBuf, Error> {
 /// address gives, written as a binary PPM, which Qt reads.
 pub fn made_up(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     if !is_steam_image(url) {
-        return Err(Error::refused(said!("a preview is only taken from Steam")));
+        return Err(Error::refused(said!("previews are only loaded from Steam")));
     }
     painted(url, folder)
 }
 
 pub fn made_up_in_text(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     if !is_https_image(url) {
-        return Err(Error::refused(said!("a picture is only taken over https")));
+        return Err(Error::refused(said!("pictures are only loaded over https")));
     }
     painted(url, folder)
 }

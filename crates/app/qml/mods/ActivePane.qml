@@ -85,7 +85,7 @@ Item {
                 border.color: activeFocus ? Theme.focus : tone
                 onClicked: activePane.toggleTerm(term)
             }
-            Count { id: warningsChip; visible: activePane.warningsShown > 0 && !activePane.tight; term: "is:warning"; tone: Theme.warn; icon: "triangle-alert"; text: activePane.versionLine ? Theme.plural(activePane.warningsShown, "{} more warning", "{} more warnings") : Theme.plural(activePane.warningsShown, "{} warning", "{} warnings"); tip: Theme.say("Mods with a warning: the game runs, something about them may not. Click to show only these.") }
+            Count { id: warningsChip; visible: activePane.warningsShown > 0 && !activePane.tight; term: "is:warning"; tone: Theme.warn; icon: "triangle-alert"; text: activePane.versionLine ? Theme.plural(activePane.warningsShown, "{} more warning", "{} more warnings") : Theme.plural(activePane.warningsShown, "{} warning", "{} warnings"); tip: Theme.say("Mods with a warning: the game runs, but parts of these mods may not work. Click to show only these.") }
             Row {
                 id: problemsRow
                 visible: Mods.problemCount > 0 && !activePane.tight
@@ -202,7 +202,7 @@ Item {
                     Layout.preferredWidth: fullWidth
                     spacing: Theme.gap
                     Btn { id: showWarnings; text: Theme.say("Show"); tip: Theme.say("Only the mods with a warning"); onClicked: activePane.toggleTerm("is:warning") }
-                    Btn { id: ignoreVersion; text: Theme.fill("Ignore for {}", (Mods.overview.gameVersion || "")); tip: Theme.say("No warning about the game version while RimWorld stays on this version. Settings, Sorting has the switch."); onClicked: Mods.setVersionAside(Mods.overview.gameVersion || "") }
+                    Btn { id: ignoreVersion; text: Theme.fill("Ignore for {}", (Mods.overview.gameVersion || "")); tip: Theme.say("No warning about the game version while RimWorld stays on this version. The switch is in Settings, Sorting."); onClicked: Mods.setVersionAside(Mods.overview.gameVersion || "") }
                 }
             }
         }
@@ -222,8 +222,8 @@ Item {
             Layout.leftMargin: Theme.gapCard
             Layout.bottomMargin: Theme.gap
             spacing: Theme.gap
-            Btn { text: Theme.say("Use the file's"); tip: Theme.say("Takes the list ModsConfig.xml holds now in place of the one here"); onClicked: Hub.mods.keepFile(true) }
-            Btn { text: Theme.say("Keep mine"); tip: Theme.say("Keeps the list here; the next Save replaces what ModsConfig.xml holds now"); onClicked: Hub.mods.keepFile(false) }
+            Btn { text: Theme.say("Use the file's"); tip: Theme.say("Replaces the list here with the one now in ModsConfig.xml"); onClicked: Hub.mods.keepFile(true) }
+            Btn { text: Theme.say("Keep mine"); tip: Theme.say("Keeps the list here; the next Save overwrites ModsConfig.xml"); onClicked: Hub.mods.keepFile(false) }
         }
         Rectangle {
             visible: Hub.mods.sortNote !== ""
@@ -303,7 +303,7 @@ Item {
                         event.accepted = true
                     }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    Tip { text: heading.column === "" ? Theme.say("The load order itself") : Theme.say("Click to show the list by this column; again to turn it round. Right-click to choose the columns. Drag it, or Ctrl + Alt + Left or Right, to move it.") }
+                    Tip { text: heading.column === "" ? Theme.say("The load order itself") : Theme.say("Click to order the list by this column; click again to reverse it. Right-click to choose the columns. Drag it, or press Ctrl + Alt + Left or Right, to move it.") }
                     TapHandler { onTapped: Mods.columns.order = heading.order.then }
                     TapHandler { acceptedButtons: Qt.RightButton; onTapped: point => Mods.menuRequested(heading, point.position.x, heading.height + 2, Mods.columns.entries) }
                 }

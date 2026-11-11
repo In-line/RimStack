@@ -44,7 +44,7 @@ Rectangle {
             color: Theme.ink
             font.pixelSize: Theme.body
             text: !bar.search.active ? ""
-                : bar.search.found !== "" ? Theme.fill("{} is the mod the game breaks with.", "<b>" + Theme.plain(bar.search.found) + "</b>")
+                : bar.search.found !== "" ? Theme.fill("{} is the mod that breaks the game.", "<b>" + Theme.plain(bar.search.found) + "</b>")
                 : bar.search.stuck !== "" ? Theme.fill("One of these, which need each other: {}", "<b>" + Theme.plain(bar.search.stuck) + "</b>")
                 : "<b>" + Theme.say("Finding the broken mod.") + "</b> " + Theme.plural(bar.search.rounds, "About {} round left, {} suspects.", "About {} rounds left, {} suspects.", bar.search.suspects)
                     + " " + Theme.say("Save, play, then say how it went.")
@@ -54,7 +54,7 @@ Rectangle {
             name: "info"
             color: Theme.ink2
             HoverHandler { id: how }
-            Tip { over: how.hovered; text: Theme.say("Half of the suspects are switched off in the list now. Do not load or save a colony during a round; the main menu or a new test colony shows whether it breaks.") }
+            Tip { over: how.hovered; text: Theme.say("Half of the suspects are deactivated in the list now. Do not load or save a colony during a round; the main menu or a new test colony shows whether the game breaks.") }
         }
         Btn { visible: bar.asking; primary: Mods.dirty; icon: "play"; text: Theme.say("Save and play"); tip: Theme.say("Writes this round's list to ModsConfig.xml and starts the game. The newest save was copied to RimStack's data folder, save-before-search, when the search began."); onClicked: bar.saveAndPlay() }
         Btn { visible: bar.asking; text: Theme.say("Still broken"); onClicked: bar.answer(true) }

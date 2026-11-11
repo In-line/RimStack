@@ -93,7 +93,7 @@ Item {
                         Btn {
                             Layout.alignment: Qt.AlignTop
                             text: Theme.say("Check all mods")
-                            tip: Theme.say("Reads the header of every DDS file of the installed mods: not a DDS, cut short, a format the game has no reader for, or compressed with a size that is not a multiple of four.")
+                            tip: Theme.say("Reads the header of every DDS file in the installed mods and finds those that are not DDS, are cut short, use a format the game cannot read, or are compressed with a size that is not a multiple of four.")
                             enabled: !screen.tools.auditing
                             onClicked: screen.tools.audit()
                         }
@@ -125,7 +125,7 @@ Item {
                                 font.pixelSize: Theme.small
                                 text: screen.tools.busy ? (screen.tools.progress || Theme.say("Counting textures…")) : screen.tools.progress
                             }
-                            Btn { visible: screen.tools.busy; text: Theme.say("Cancel"); tip: Theme.say("Stops after the mod it is on; what is done stays done"); onClicked: screen.tools.cancel() }
+                            Btn { visible: screen.tools.busy; text: Theme.say("Cancel"); tip: Theme.say("Stops after the current mod; what is already done is kept"); onClicked: screen.tools.cancel() }
                             Btn {
                                 primary: screen.remaining.length > 0
                                 enabled: !screen.tools.busy && screen.remaining.length > 0

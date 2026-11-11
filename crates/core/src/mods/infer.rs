@@ -271,7 +271,7 @@ pub fn infer(
                 add(
                     other,
                     me,
-                    say!("{} builds on its {}", shown(file, me), parent),
+                    say!("{} uses its {} as a parent", shown(file, me), parent),
                     true,
                 );
             }
@@ -402,7 +402,7 @@ mod tests {
         assert_eq!(pairs, [(0, 1), (0, 2)]);
         assert_eq!(
             found[0].why.to_string(),
-            "Patches/p.xml builds on its BedBase"
+            "Patches/p.xml uses its BedBase as a parent"
         );
         assert_eq!(found[1].why.to_string(), "Patches/p.xml has patches for it");
         assert!(found[0].code && !found[1].code);

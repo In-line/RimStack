@@ -70,7 +70,7 @@ Popup {
                     compact: Mods.prefs.listName !== saved.modelData.name
                     icon: "save"
                     text: Theme.say("Update")
-                    tip: Theme.fill("Keeps the load order as it is now under {}, in place of what it held", saved.modelData.name)
+                    tip: Theme.fill("Saves the current load order as {}, replacing what it held", saved.modelData.name)
                     onClicked: {
                         listsMenu.problem = Hub.lists.keep(saved.modelData.name)
                         if (listsMenu.problem === "")
@@ -164,7 +164,7 @@ Popup {
                 tip: Theme.say("Publishes the load order as a page at Rentry.co and copies its link")
                 onClicked: Notices.ask({
                     title: Theme.say("Share on Rentry.co"),
-                    lines: [Theme.say("The load order is published at a public link on Rentry.co that anyone who has it can open. RimStack does not keep the code that edits the page; the toast that follows shows it.")],
+                    lines: [Theme.say("The load order is published at a public link on Rentry.co that anyone who has it can open. RimStack does not keep the code that edits the page; the message that follows shows it.")],
                     label: Theme.say("Publish"), run: () => Hub.lists.share(Hub.mods.listing()) })
             }
         }

@@ -177,7 +177,7 @@ Rectangle {
                 topPadding: Theme.gapHair
                 color: Theme.ink2
                 font.pixelSize: Theme.body
-                text: [Theme.say("Found automatically; changeable in Settings"), Theme.say("Fetched from GitHub on Start, and again only on request"), Theme.say("What Sort follows beside each mod's own rules"), Theme.say("Changeable in Settings at any time"), Theme.say("Nothing is written to the game before Save")][page.step]
+                text: [Theme.say("Found automatically; changeable in Settings"), Theme.say("Fetched from GitHub on Start, and again only on request"), Theme.say("What Sort follows besides each mod's own rules"), Theme.say("Changeable in Settings at any time"), Theme.say("Nothing is written to the game before Save")][page.step]
             }
 
             Block {
@@ -226,7 +226,7 @@ Rectangle {
             Block {
                 visible: page.step === 1 && !!page.info.rimsortRules
                 title: Theme.say("Import from RimSort")
-                Tick { last: true; text: Theme.say("Own load order rules"); detail: Theme.say("(RimSort's file is only read)"); on: page.withRimSort; onToggled: page.withRimSort = !page.withRimSort }
+                Tick { last: true; text: Theme.say("Your load order rules"); detail: Theme.say("(RimSort's file is only read)"); on: page.withRimSort; onToggled: page.withRimSort = !page.withRimSort }
             }
             Block {
                 visible: page.step === 1
@@ -252,7 +252,7 @@ Rectangle {
                 Found { note: true; sentence: true; what: Theme.say("Each mod's own rules, and the code it uses or patches in another mod: always") }
                 Tick {
                     text: Theme.say("Community rules")
-                    detail: Theme.say("load-order rules kept by players, for mods whose files do not say enough")
+                    detail: Theme.say("load-order rules written by players, for mods whose files do not say enough")
                     on: !!page.info.communityRules
                     onToggled: Hub.settings.keep("communityRules", page.info.communityRules ? "off" : "on")
                 }
@@ -268,7 +268,7 @@ Rectangle {
                 visible: page.step === 2
                 title: Theme.say("Either way")
                 Found { note: true; sentence: true; what: Theme.say("Sort shows every move and the rule behind it before anything changes") }
-                Found { note: true; sentence: true; last: true; what: Theme.say("Hints left out of Sort still show in a mod's Load order tab") }
+                Found { note: true; sentence: true; last: true; what: Theme.say("Hints that Sort does not use still show in a mod's Load order tab") }
             }
             Block {
                 visible: page.step === 3 && page.info.official.length > 0

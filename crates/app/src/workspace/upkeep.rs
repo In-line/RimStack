@@ -16,7 +16,7 @@ impl App {
         let (library, _) = loaded.as_ref().as_ref().map_err(Clone::clone)?;
         let found = library.get(id).ok_or_else(|| {
             Error::refused(said!(
-                "That mod is no longer where it was read; read the folders again"
+                "That mod has moved since it was read; read the folders again"
             ))
         })?;
         Ok(with(found))

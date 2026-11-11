@@ -229,7 +229,7 @@ Item {
         const mod = about(modId)
         Notices.ask({
             title: Theme.fill("Unsubscribe from {}", mod.name || ""),
-            lines: [Theme.say("Steam, which must be running, unsubscribes and then deletes the mod's folder:"), { path: mod.path || "" }],
+            lines: [Theme.say("Steam must be running. It unsubscribes and then deletes the mod's folder:"), { path: mod.path || "" }],
             label: Theme.say("Unsubscribe"), danger: true, run: () => Hub.downloads.unsubscribe(modId) })
     }
 

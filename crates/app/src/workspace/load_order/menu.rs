@@ -386,7 +386,7 @@ impl LoadOrder {
                     title: say!("Download {} again", subject.name),
                     lines: vec![
                         Line::Said(say!(
-                            "SteamCMD downloads the mod anew, and the fresh copy replaces this folder:"
+                            "SteamCMD downloads the mod again, and the new copy replaces this folder:"
                         )),
                         Line::Path {
                             path: subject.path.clone(),
@@ -507,7 +507,7 @@ impl LoadOrder {
         let fold = if *collapsed {
             say!("Show its mods")
         } else {
-            say!("Fold its mods away")
+            say!("Hide its mods")
         };
         vec![
             Entry::item(fold, "", Action::ToggleSub { active, row }),
@@ -669,7 +669,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             shown(&order.sub_menu(false, row)),
-            ["Fold its mods away", "Take this tag off these mods"]
+            ["Hide its mods", "Take this tag off these mods"]
         );
         order.toggle_sub(&app, Side::Inactive, row);
         assert_eq!(shown(&order.sub_menu(false, row))[0], "Show its mods");

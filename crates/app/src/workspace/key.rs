@@ -77,11 +77,11 @@ pub struct KeyState {
 }
 
 pub fn refusal() -> Sentence {
-    say!("The Steam key was refused; searching the kept list instead")
+    say!("The Steam key was refused; searching the downloaded database instead")
 }
 
 pub fn unreachable() -> Sentence {
-    say!("Steam could not be reached; searching the kept list instead")
+    say!("Steam could not be reached; searching the downloaded database instead")
 }
 
 impl App {

@@ -27,7 +27,7 @@ ApplicationWindow {
         || (!Theme.demo && shotPath === "" && Mods.checkMode === "" && !Hub.settings.report.setupDone)
 
     readonly property var inTheWay: [
-        Mods.errors > 0 ? Theme.plural(Mods.errors, "{} mod has a problem the game will trip on", "{} mods have problems the game will trip on") : "",
+        Mods.errors > 0 ? Theme.plural(Mods.errors, "{} mod has a problem that will cause errors in the game", "{} mods have problems that will cause errors in the game") : "",
         Mods.sortPending > 0 && Theme.plural(Mods.sortPending, "Sorting would move {} mod", "Sorting would move {} mods"),
         Mods.dirty ? Theme.say("The list has unsaved changes; the game would start with the saved one") : "",
     ].filter(line => line)
@@ -77,7 +77,7 @@ ApplicationWindow {
         function onNotesStateChanged() {
             const state = Hub.downloads.notesState || {}
             if (state.refused)
-                Notices.say(Theme.plural(state.asked, "Steam's site still refuses: {} mod asked, change notes of {} read", "Steam's site still refuses: {} mods asked, change notes of {} read", state.done), "err")
+                Notices.say(Theme.plural(state.asked, "Steam's site keeps refusing: asked about {} mod, got the change notes of {}", "Steam's site keeps refusing: asked about {} mods, got the change notes of {}", state.done), "err")
         }
     }
     Connections {

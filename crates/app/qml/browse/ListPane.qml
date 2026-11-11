@@ -65,7 +65,7 @@ ColumnLayout {
             enabled: pane.list.action.subscribeEnabled
             icon: "plus"
             text: Theme.say("Subscribe in Steam")
-            tip: Theme.say("Steam, which must be running, subscribes to each and downloads it; it keeps them up to date afterwards.")
+            tip: Theme.say("Steam must be running. It subscribes to each and downloads it, then keeps them up to date.")
             onClicked: Hub.downloads.subscribeWanted()
         }
         Btn {

@@ -66,7 +66,7 @@ Column {
             color: Theme.ink
             font.pixelSize: Theme.body
             lineHeight: 1.3
-            text: Theme.plural(hiddenHere.count, "{} texture set aside: renamed with .rimstack-hidden, so the game skips them.", "{} textures set aside: renamed with .rimstack-hidden, so the game skips them.")
+            text: Theme.plural(hiddenHere.count, "{} texture set aside: renamed with .rimstack-hidden, so the game skips it.", "{} textures set aside: renamed with .rimstack-hidden, so the game skips them.")
         }
         Btn {
             icon: "eye-off"

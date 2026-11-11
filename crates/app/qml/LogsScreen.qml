@@ -260,7 +260,7 @@ Item {
                     icon: "search"
                     compact: head.tight
                     text: Theme.say("Find the broken mod")
-                    tip: Theme.say("Find the broken mod") + ". " + Theme.say("Switches half of the mods off, you play and say whether it still breaks, until one mod is left. Your list is kept and comes back at the end.")
+                    tip: Theme.say("Find the broken mod") + ". " + Theme.say("Deactivates half of the mods; you play and say whether it still breaks. This repeats until one mod is left. Your list is kept and comes back at the end.")
                     onClicked: screen.findBroken()
                 }
                 Choice { id: viewChoice; title: Theme.say("View"); options: ["Errors", "Mods", "Log"]; current: screen.view; onPicked: (index) => screen.view = index }
@@ -295,7 +295,7 @@ Item {
                         Text { visible: !since.same && since.info.removed !== ""; Layout.fillWidth: true; wrapMode: Text.WordWrap; textFormat: Text.PlainText; color: Theme.ink; font.pixelSize: Theme.body; text: Theme.say("Removed") + " " + since.info.removed }
                         Text { visible: !since.same && since.info.reordered; color: Theme.ink2; font.pixelSize: Theme.body; text: Theme.say("Order changed") }
                     }
-                    Btn { visible: !since.same; text: Theme.say("Use"); tip: Theme.say("Makes the load order of the last clean launch the list on the Mods screen. Save writes it."); onClicked: screen.useList(since.info.ids) }
+                    Btn { visible: !since.same; text: Theme.say("Use"); tip: Theme.say("Uses the load order of the last clean launch as the list on the Mods screen. Save writes it."); onClicked: screen.useList(since.info.ids) }
                 }
             }
 
@@ -509,8 +509,8 @@ Item {
                             onAccent: row.current
                             pressable: true
                             icon: row.modelData.opened ? "chevron-down" : "chevron-right"
-                            text: Theme.fill("{} more alike", row.modelData.more)
-                            tip: Theme.say("The errors after this one that differ from it only in their last word")
+                            text: Theme.fill("{} more like it", row.modelData.more)
+                            tip: Theme.say("Later errors that differ from this one only in their last word")
                             onClicked: screen.reader.toggleRun(row.modelData.run)
                         }
                         Chip {

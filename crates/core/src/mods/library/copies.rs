@@ -50,7 +50,7 @@ impl Library {
             .collect();
         let judged = |id: ModId| match self.get(id) {
             None => Err(Error::refused(said!(
-                "That mod is no longer where it was read; read the folders again"
+                "That mod has moved since it was read; read the folders again"
             ))),
             Some(m) if m.source != Source::Workshop => {
                 Err(Error::refused(said!("Not a Workshop mod")))

@@ -59,7 +59,7 @@ Rectangle {
             width: parent.width
             spacing: Theme.gap
             Toggle { silent: true; on: side.facets.hideUnowned; onFlipped: Hub.workshop.hideUnowned(!side.facets.hideUnowned) }
-            Text { Layout.fillWidth: true; Layout.preferredWidth: 0; wrapMode: Text.WordWrap; color: Theme.ink2; font.pixelSize: Theme.small; text: Theme.say("Hide mods that need DLC I don't own") }
+            Text { Layout.fillWidth: true; Layout.preferredWidth: 0; wrapMode: Text.WordWrap; color: Theme.ink2; font.pixelSize: Theme.small; text: Theme.say("Hide mods that need an expansion I don't own") }
         }
         RowLayout {
             width: parent.width

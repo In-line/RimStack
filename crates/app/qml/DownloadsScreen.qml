@@ -49,7 +49,7 @@ Item {
         height: Theme.sized(30)
         spacing: Theme.gapLarge
         Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.ink; font.pixelSize: Theme.body; text: row.modelData.name }
-        Chip { visible: row.modelData.asked; tone: Theme.ok; icon: "check"; text: Theme.say("Asked of Steam") }
+        Chip { visible: row.modelData.asked; tone: Theme.ok; icon: "check"; text: Theme.say("Sent to Steam") }
         Chip { tone: Theme.moved; text: screen.day(row.modelData.have) + " → " + screen.day(row.modelData.now); tip: Theme.fill("Published {}", Theme.ago(row.modelData.now)) }
         Btn { text: Theme.say("Show"); spoken: Theme.fill("Show {}", row.modelData.name); onClicked: screen.showMod(row.modelData.modId) }
         Btn { text: Theme.say("What changed"); spoken: Theme.fill("What changed in {}", row.modelData.name); tip: Theme.say("The mod's change notes on the Workshop."); onClicked: Theme.openChangeNotes(row.modelData.id) }
@@ -270,7 +270,7 @@ Item {
                         enabled: !screen.downloads.taskRunning
                         icon: "download"
                         text: Theme.say("Update in Steam")
-                        tip: Theme.say("Steam, which must be running, downloads the newer version of each now. Left alone it does so the next time it starts.")
+                        tip: Theme.say("Steam must be running. It downloads the newer version of each now; otherwise it does so the next time it starts.")
                         onClicked: screen.downloads.updateInSteam()
                     }
                 ]
@@ -341,7 +341,7 @@ Item {
                             primary: !checkout.updating
                             text: checkout.updating ? Theme.say("Updating…") : Theme.say("Update")
                             spoken: Theme.fill("Update {}", checkout.modelData.name)
-                            tip: Theme.say("Moves forward to the remote; stops if the folder has changes of its own.")
+                            tip: Theme.say("Updates to the newest commit; stops if the folder has local changes.")
                             onClicked: screen.downloads.updateFromGit(checkout.modelData.modId)
                         }
                     }
@@ -530,7 +530,7 @@ Item {
                             danger: true
                             text: Theme.say("Unsubscribe…")
                             spoken: Theme.fill("Unsubscribe from {}", old.modelData.name)
-                            tip: Theme.say("Lets the replaced mod go: Steam unsubscribes and deletes its folder")
+                            tip: Theme.say("Removes the replaced mod: Steam unsubscribes from it and deletes its folder")
                             onClicked: Mods.unsubscribe(old.modelData.modId)
                         }
                     }

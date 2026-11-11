@@ -130,7 +130,7 @@ Item {
                 x: Theme.gapWide + row.listView.numberWidth
                 spacing: Theme.gapSmall
                 Text { width: Theme.sized(10); color: Theme.ink3; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
-                Text { color: Theme.ink2; font.pixelSize: Theme.small; text: row.name; Tip { text: row.collapsed ? Theme.say("Click to show its mods") : Theme.say("The mods whose first tag this is. Click to fold them away.") } }
+                Text { color: Theme.ink2; font.pixelSize: Theme.small; text: row.name; Tip { text: row.collapsed ? Theme.say("Click to show its mods") : Theme.say("The mods whose first tag this is. Click to hide them.") } }
                 Text { color: Theme.ink3; font.pixelSize: Theme.small; text: row.groupSize > row.count ? Theme.fill("{} of {}", Theme.count(row.count), Theme.count(row.groupSize)) : Theme.count(row.count) }
                 Text {
                     visible: row.again
@@ -171,7 +171,7 @@ Item {
             spacing: Theme.gapSmall
             Text { width: Theme.sized(10); color: Theme.ink2; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
             Icon { name: Theme.categoryIcons[row.category] || ""; color: row.categoryColour; anchors.verticalCenter: parent.verticalCenter }
-            Text { color: Theme.ink; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say(row.name); Tip { text: row.collapsed ? Theme.say("Click to show its mods") : Theme.say("Click to fold its mods away") } }
+            Text { color: Theme.ink; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say(row.name); Tip { text: row.collapsed ? Theme.say("Click to show its mods") : Theme.say("Click to hide its mods") } }
             Text { color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.count(row.count) }
         }
     }
