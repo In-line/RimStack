@@ -2,12 +2,9 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import RimStack.Ui
 
-// A description as Rust cut it: each part is `{ html, image, note }`, Qt's rich text, a picture's
-// file, or a note standing in for a picture still on its way.
 Column {
     id: view
     property var parts: []
-    // Links to Workshop items select that item in Browse instead of opening the page.
     property bool inWorkshop: false
     readonly property string linkColour: "<style>a { color: " + Theme.focus + "; }</style>"
     spacing: Theme.gap

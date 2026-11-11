@@ -1,6 +1,3 @@
-//! Browse: results as a model, the details of one, and the download list; the window never
-//! waits for the index or for Steam.
-
 #[cxx_qt::bridge]
 pub mod qobject {
     unsafe extern "C++" {
@@ -18,33 +15,25 @@ pub mod qobject {
         #[qml_element]
         #[qml_uncreatable]
         #[qproperty(*mut WorkshopRows, rows, READ, CONSTANT)]
-        /// All the results there are, of which `rows` holds some.
         #[qproperty(i32, total)]
         #[qproperty(bool, more)]
         #[qproperty(bool, searching)]
         /// Empty for none.
         #[qproperty(QString, problem)]
-        /// False until the Workshop database is downloaded.
         #[qproperty(bool, ready)]
-        /// Only then are `sorts` and collections offered.
         #[qproperty(bool, key_mode, cxx_name = "keyMode")]
-        /// `[{ id, label, chosen }]` of the sorts offered for this search.
+        /// `[{ id, label, chosen }]`
         #[qproperty(QVariant, sorts)]
-        /// The id of the sort in use: the player's, or the newest, or the best match with words.
         #[qproperty(QString, sort)]
         #[qproperty(QString, sort_label, cxx_name = "sortLabel")]
-        /// What the sidebar shows and the top of the results says; see `Sidebar`.
         #[qproperty(QVariant, sidebar)]
         #[qproperty(bool, collections)]
-        /// Said once when a search went to the kept list because Steam would not answer; empty
-        /// for none, cleared by the next `search`.
+        /// Empty for none; cleared by the next `search`.
         #[qproperty(QString, notice)]
-        /// The words of the search asked last.
         #[qproperty(QString, query)]
         /// `{ active, which, id, title }`; `which` is `requires`, `neededBy`, `sameAuthor` or
         /// `collection` while `active`.
         #[qproperty(QVariant, related)]
-        /// The selected mod's details, or null.
         #[qproperty(QVariant, details)]
         #[qproperty(bool, details_busy, cxx_name = "detailsBusy")]
         /// `{ rows, count, sizeSaid, failures, action }`.
@@ -59,20 +48,15 @@ pub mod qobject {
         #[qsignal]
         fn told(self: Pin<&mut WorkshopData>, said: QString, tone: QString);
 
-        /// The first page of the answer, with the filters and the sort as they stand.
         #[qinvokable]
         fn search(self: Pin<&mut WorkshopData>, text: &QString);
 
-        /// Searches `text` with the details closed, as a fix that points at the Workshop asks.
         #[qinvokable]
         fn browse(self: Pin<&mut WorkshopData>, text: &QString);
 
-        /// Searches once, when the Workshop section is first shown.
         #[qinvokable]
         fn open(self: Pin<&mut WorkshopData>);
 
-        /// Ticks a tag (a type or a game version) to include, or to exclude; ticking it again
-        /// clears it. Searches again.
         #[qinvokable]
         #[cxx_name = "toggleTag"]
         fn toggle_tag(self: Pin<&mut WorkshopData>, id: &QString, include: bool);
@@ -81,7 +65,6 @@ pub mod qobject {
         #[cxx_name = "toggleDlc"]
         fn toggle_dlc(self: Pin<&mut WorkshopData>, id: &QString, include: bool);
 
-        /// A chip's `id` from the sidebar.
         #[qinvokable]
         #[cxx_name = "clearFilter"]
         fn clear_filter(self: Pin<&mut WorkshopData>, id: &QString);
@@ -102,12 +85,10 @@ pub mod qobject {
         #[cxx_name = "hideUnowned"]
         fn hide_unowned(self: Pin<&mut WorkshopData>, on: bool);
 
-        /// The last search is asked again.
         #[qinvokable]
         #[cxx_name = "showCollections"]
         fn show_collections(self: Pin<&mut WorkshopData>, on: bool);
 
-        /// The next page of the last search, when `near` the end of the shown ones, none is on its way and more remain.
         #[qinvokable]
         #[cxx_name = "wantMore"]
         fn want_more(self: Pin<&mut WorkshopData>, near: bool);
@@ -123,9 +104,7 @@ pub mod qobject {
         #[qinvokable]
         fn select(self: Pin<&mut WorkshopData>, id: &QString);
 
-        /// In Browse (`in_workshop`) an item link selects that item and gives back nothing, another
-        /// web link is given back to be opened, anything else gives back nothing; elsewhere every
-        /// link is given back.
+        /// The link to open, or empty when Browse handles it itself or it is no web link.
         #[qinvokable]
         fn followed(self: Pin<&mut WorkshopData>, link: &QString, in_workshop: bool) -> QString;
 
@@ -207,7 +186,6 @@ pub struct WorkshopDataRust {
     asked: Option<Asked>,
     in_related: Option<(crate::workspace::browse::Related, String)>,
     search_loaded: usize,
-    /// Where the next page of the search starts: rows asked for, which the app may thin out.
     reached: usize,
     current: Vec<Row>,
     previews: HashMap<String, String>,
@@ -215,11 +193,8 @@ pub struct WorkshopDataRust {
     settled: HashSet<String>,
     selected: String,
     shown: Option<Shown>,
-    /// The preview's address and the file it was put in, empty until then.
     detail_preview: (String, String),
-    /// The screenshots' addresses and the files they were put in, empty until then.
     detail_shots: (Vec<String>, Vec<String>),
-    /// The description's pictures by address, once they are files.
     detail_images: HashMap<String, String>,
     seeking: crate::jobs::Lane,
     previewing: crate::jobs::Lane,
@@ -368,7 +343,6 @@ impl qobject::WorkshopData {
         );
     }
 
-    /// A refusal noticed by a call that is not a search is said here too.
     fn note_refusal(self: Pin<&mut Self>) {
         let app = self.app();
         crate::jobs::run(

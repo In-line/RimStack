@@ -5,7 +5,6 @@ use std::path::Path;
 /// Searches kept, newest first.
 pub const MOST_KEPT: usize = 10;
 
-/// What a Find search was asked, in plain values: `place` is the name of where it looked.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Search {
@@ -38,12 +37,10 @@ impl Default for Search {
     }
 }
 
-/// Read and written whole.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Searches(Vec<Search>);
 
 impl Searches {
-    /// A missing or damaged file is no searches.
     pub fn read(file: &Path) -> Self {
         let kept = crate::base::atomic_file::read_json(file).map(serde_json::from_value);
         let mut kept: Self = kept.and_then(Result::ok).unwrap_or_default();
@@ -60,7 +57,6 @@ impl Searches {
         &self.0
     }
 
-    /// Asked again, a search moves to the front instead of twice into the list.
     pub fn with(mut self, search: Search) -> Self {
         self.0.retain(|kept| *kept != search);
         self.0.insert(0, search);
@@ -68,7 +64,6 @@ impl Searches {
         self
     }
 
-    /// The newest search run again with other options takes its place instead of adding one.
     pub fn revised(mut self, search: Search) -> Self {
         if self
             .0

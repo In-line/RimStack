@@ -11,18 +11,15 @@ const NAME: &str = "Steam Web API key";
 /// never answers.
 const PATIENCE: Duration = Duration::from_secs(30);
 
-/// Where the one secret RimStack keeps is put: the Steam Web API key.
 pub trait Vault: Send + Sync {
     /// `Ok(None)` when the store works and holds no key.
     fn get(&self) -> Result<Option<String>, Sentence>;
 
     fn set(&self, secret: &str) -> Result<(), Sentence>;
 
-    /// Forgetting what is not there is not a failure.
     fn delete(&self) -> Result<(), Sentence>;
 }
 
-/// For tests and the checks, which never reach the system's store.
 #[derive(Default)]
 pub struct Memory {
     held: Mutex<Option<String>>,
@@ -37,7 +34,6 @@ impl Memory {
         }
     }
 
-    /// A store that answers every ask with `why`, as a desktop without a Secret Service does.
     pub fn broken(why: Sentence) -> Self {
         Memory {
             held: Mutex::default(),

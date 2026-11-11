@@ -16,8 +16,7 @@ pub struct FolderStamp {
 }
 
 impl FolderStamp {
-    /// Only folders are read, links to folders are not entered, and a folder
-    /// named by `skip` is left out. Whatever cannot be read counts as nothing.
+    /// Whatever cannot be read counts as nothing.
     pub fn of(root: &Path, skip: impl Fn(&OsStr) -> bool) -> Self {
         let mut stamp = Self { folders: 0, sum: 0 };
         walk::visit(root, skip, |seen| {

@@ -106,12 +106,11 @@ const PACKAGE: usize = 2;
 const HAS_AUTHOR: u8 = 1;
 const HAS_PACKAGE: u8 = 2;
 
-/// Rows sorted by Workshop id; texts, tags and lists are kept apart in arenas, not per entry.
+/// Rows sorted by Workshop id.
 #[derive(Default)]
 pub struct Index {
     ids: Vec<u64>,
     shown: Trio,
-    /// Lowercase, what the search looks in.
     folded: Trio,
     has: Vec<u8>,
     tag_names: Vec<String>,
@@ -121,10 +120,8 @@ pub struct Index {
     dlc: Flat<u64>,
     /// `(required id, entry)`, sorted: the mods that need an id are its range.
     needed_by: Vec<(u64, u32)>,
-    /// Entries with an author, by lowercase author then entry.
     by_author: Vec<u32>,
     apps: BTreeMap<String, String>,
-    /// Game-version tags (`1.6`) with the number of mods under each.
     version_counts: Vec<(String, usize)>,
     /// One per entry once a sweep is merged in; empty before.
     stats: Vec<Stat>,
@@ -159,7 +156,6 @@ fn numbers(texts: &[String]) -> impl Iterator<Item = u64> + '_ {
     texts.iter().filter_map(|t| t.parse().ok())
 }
 
-/// Builds an index one entry at a time, so a big file never exists as a list of entries.
 #[derive(Default)]
 struct Builder {
     index: Index,
@@ -261,8 +257,6 @@ impl Index {
         self.by_author = authored;
     }
 
-    /// The database's entries with what Steam last said laid over them: its title and tags replace
-    /// the database's, and an item it no longer returns is marked removed.
     pub fn with_sweep(mut self, sweep: &Sweep) -> Index {
         if sweep.is_empty() {
             return self;
@@ -307,7 +301,6 @@ impl Index {
         self.stats.get(at).copied().unwrap_or_default()
     }
 
-    /// Banned, or removed by its author or Steam.
     pub(super) fn incompatible(&self, at: usize) -> bool {
         self.stat(at).flags & (REMOVED | BANNED) != 0
     }
@@ -348,7 +341,6 @@ impl Index {
         self.dlc.get(at)
     }
 
-    /// The tags whose lowercase text is `key`.
     pub(super) fn tags_called(&self, key: &str) -> Vec<u32> {
         let named = |(_, k): &(usize, &String)| k.as_str() == key;
         let found = self.tag_keys.iter().enumerate().filter(named);
@@ -393,7 +385,6 @@ impl Index {
         self.apps.get(app_id).map(|name| expansion_name(name))
     }
 
-    /// Every app the database names, by id and name, by name.
     pub fn apps(&self) -> Vec<(String, String)> {
         let mut apps: Vec<(String, String)> = self
             .apps
@@ -454,7 +445,6 @@ impl Index {
         self.titled(group, None)
     }
 
-    /// Authors are free text, so this is partial.
     pub fn same_author(&self, id: &str) -> Vec<String> {
         let Some(at) = self.position(id) else {
             return Vec::new();

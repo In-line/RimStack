@@ -131,12 +131,10 @@ pub fn rich(text: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Piece {
     Html(String),
-    /// An `https` address from an `[img]` tag.
     Image(String),
 }
 
-/// The description in order: its text as `rich` makes it and its pictures, at most `most` of them
-/// (any further one, and one whose address is not `https`, is left out).
+/// Pictures past `most`, and any whose address is not `https`, are left out.
 pub fn pieces(text: &str, most: usize) -> Vec<Piece> {
     let lower = text.to_ascii_lowercase();
     let mut found = Vec::new();

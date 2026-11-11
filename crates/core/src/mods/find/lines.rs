@@ -2,7 +2,6 @@ use super::search::Hit;
 use std::collections::BTreeMap;
 use std::ops::Range;
 
-/// One row of a file's results: a line, or the gap between two blocks of lines.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Line {
     /// From 1; of a gap, the line that follows it.
@@ -18,7 +17,6 @@ impl Line {
         !self.marks.is_empty()
     }
 
-    /// `text` cut at the marks, each piece with whether it is marked.
     pub fn parts(&self) -> Vec<(&str, bool)> {
         let mut parts = Vec::new();
         let mut at = 0;
@@ -38,8 +36,6 @@ impl Line {
     }
 }
 
-/// The lines the hits show, each once, in order: every hit's line with its context,
-/// a gap between blocks that do not touch. Hits on one line cut differently keep the first cut.
 pub fn lines_of<'a>(hits: impl IntoIterator<Item = &'a Hit>) -> Vec<Line> {
     let mut by_number: BTreeMap<usize, Line> = BTreeMap::new();
     let context = |number: usize, text: &String| Line {

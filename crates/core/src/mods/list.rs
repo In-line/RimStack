@@ -256,7 +256,6 @@ pub struct GroupedList {
     grouped: bool,
     shown_by: Option<(SortKey, bool)>,
     rows: Vec<Row>,
-    /// What reading the files gave, of the mods read so far.
     facts: Arc<HashMap<ModId, Arc<Facts>>>,
 }
 
@@ -525,7 +524,6 @@ impl GroupedList {
         self.rebuild();
     }
 
-    /// The facts of the mods read so far, kept through any change of the order.
     pub fn set_facts(&mut self, facts: Arc<HashMap<ModId, Arc<Facts>>>) {
         self.facts = facts;
         if self.filter.needs_facts() {
@@ -537,7 +535,6 @@ impl GroupedList {
         self.filter.needs_facts() && !self.filter.shuts(self.side)
     }
 
-    /// Installed mods a word of the filter cannot judge yet; none while no word needs the files.
     pub fn unread(&self) -> usize {
         if !self.filter.needs_facts() || self.filter.shuts(self.side) {
             return 0;

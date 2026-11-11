@@ -87,7 +87,6 @@ fn is_name(s: &str) -> bool {
     !s.is_empty() && s.len() < 120 && s.chars().all(|c| c.is_alphanumeric() || "_-.".contains(c))
 }
 
-/// Defs and patches only: no assembly is opened.
 pub fn scan_xml(load_folders: &[PathBuf]) -> Scanned {
     let mut found = Scanned::default();
     for folder in load_folders {

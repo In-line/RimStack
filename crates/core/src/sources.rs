@@ -6,5 +6,6 @@ pub mod maintenance;
 pub mod previews;
 pub mod redownload;
 pub mod release;
+pub mod rentry;
 pub mod replacements;
 pub mod sweep;

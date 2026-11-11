@@ -105,7 +105,6 @@ pub struct Details {
 }
 
 impl Details {
-    /// Why RimStack does not take this item as a mod, or none when it does.
     pub fn refusal(&self) -> Option<Sentence> {
         if self.collection {
             Some(say!("A collection: add its mods instead"))

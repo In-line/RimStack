@@ -12,7 +12,6 @@ pub fn steamcmd(data_dir: &Path) -> Option<PathBuf> {
     steamcmd_among(data_dir, std::env::var_os("PATH"))
 }
 
-/// Why SteamCMD is not run on this system, if it is not.
 pub fn refusal() -> Option<Sentence> {
     on_this_system().err().map(|e| e.sentence().clone())
 }

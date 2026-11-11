@@ -273,7 +273,7 @@ ApplicationWindow {
                 { name: Theme.fill("Copy package id of {}", (mod ? mod.name : "")), group: Theme.say("Selected mod"), run: () => Theme.copy(mod.packageId), when: !!mod && !!mod.packageId },
                 { name: Theme.say("Clear selection"), group: Theme.say("Selected mod"), keys: Theme.say("Esc"), run: () => Mods.select(-1, false), when: Mods.selectedId >= 0 },
 
-                { name: Theme.say("Use the list on the clipboard"), group: Theme.say("Load order"), run: () => { const ids = Hub.lists.idsInText(Theme.pasted()); if (ids.length > 0) window.useList(ids) }, when: !Theme.demo },
+                { name: Theme.say("Use the list on the clipboard"), group: Theme.say("Load order"), run: () => Hub.lists.useCopied(Theme.pasted()), when: !Theme.demo },
                 { name: Theme.say("Copy the load order as text"), group: Theme.say("Load order"), run: () => Theme.copy(Hub.mods.listing()) },
                 { name: Theme.say("Mods with errors"), group: Theme.say("Filter"), run: () => filter("is:error"), when: Mods.errors > 0 },
                 { name: Theme.say("Mods with warnings"), group: Theme.say("Filter"), run: () => filter("is:warning"), when: Hub.mods.warnings > 0 },

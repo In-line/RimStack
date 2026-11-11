@@ -3,7 +3,7 @@ use rimstack_core::say;
 use rimstack_core::sources::browse::Sort;
 use serde::Serialize;
 
-/// Steam keeps Trending for a window of 1 to 7 days. The order is the one Browse lists.
+/// Steam keeps Trending for a window of 1 to 7 days.
 const SORTS: [(&str, Sort); 6] = [
     ("relevance", Sort::Relevance),
     ("trending1", Sort::Trending { days: 1 }),
@@ -48,8 +48,6 @@ fn label(sort: Sort, words: bool) -> Sentence {
     }
 }
 
-/// The offers for the sorts a source does, in the order Browse lists them. Without words the
-/// relevance is Steam's votes, which only the key can ask for; the cache has nothing to rank by.
 pub fn offers(offered: &[Sort], words: bool, key_mode: bool) -> Vec<SortOffer> {
     SORTS
         .iter()
@@ -63,8 +61,6 @@ pub fn offers(offered: &[Sort], words: bool, key_mode: bool) -> Vec<SortOffer> {
         .collect()
 }
 
-/// The sort in use: the player's, when the source offers it for this search, else the newest, or
-/// the best match when there are words.
 pub fn effective(wanted: &str, offers: &[SortOffer], words: bool) -> &'static str {
     let offered = |id: &str| offers.iter().find(|offer| offer.id == id).map(|o| o.id);
     let default = if words { "relevance" } else { "recent" };

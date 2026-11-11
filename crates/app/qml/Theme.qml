@@ -7,7 +7,6 @@ QtObject {
 
     readonly property AppPrefs stored: AppPrefs {}
 
-    // The top bar's order: each index is the place of its name.
     readonly property var sections: ({
         names: ["Mods", "Workshop", "Downloads", "Textures", "Saves", "Logs", "Find", "Settings"],
         mods: 0, workshop: 1, downloads: 2, textures: 3, saves: 4, logs: 5, find: 6, settings: 7

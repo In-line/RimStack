@@ -3,7 +3,6 @@ use crate::base::sentence::Sentence;
 use crate::said;
 use regex::{Regex, RegexBuilder};
 
-/// What a compiled pattern may weigh, so a hostile regex cannot eat memory.
 const SIZE_LIMIT: usize = 8 << 20;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -17,9 +16,6 @@ pub struct Switches {
 pub struct Pattern(Regex);
 
 impl Pattern {
-    /// Plain text is searched as an escaped regex, so there is one path. Whole
-    /// word uses Unicode `\b`, which asks nothing of a side that is not a word
-    /// character.
     pub fn new(text: &str, switches: Switches) -> Result<Self, Error> {
         if text.is_empty() {
             return Err(Error::refused(said!("there is nothing to search for")));

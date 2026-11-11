@@ -13,13 +13,10 @@ pub struct Entry {
 
 pub enum Seen<'a> {
     Folder(&'a Path),
-    /// Anything that is not a folder, links to folders included.
     Item(&'a Path, FileType),
 }
 
-/// Every folder under `root` (itself too) not named by `skip`, and what is in them, in no order.
-/// Links to folders are never entered. Whatever cannot be read counts as nothing.
-/// Returns whether `on` stopped it.
+/// In no order. Whatever cannot be read counts as nothing. Returns whether `on` stopped it.
 pub fn visit(
     root: &Path,
     skip: impl Fn(&OsStr) -> bool,

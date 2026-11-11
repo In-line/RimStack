@@ -37,9 +37,7 @@ impl std::fmt::Display for Failure {
     }
 }
 
-/// The network, so that a test hands canned answers instead.
 pub trait Transport: Send + Sync {
-    /// The answer's body.
     fn call(&self, call: Call, args: &Value, key: &ApiKey) -> Result<String, Failure>;
 }
 
@@ -55,7 +53,6 @@ pub enum KeyCheck {
     Unreachable,
 }
 
-/// One cheap call: a single item of the newest.
 pub fn check_key(transport: &dyn Transport, key: &ApiKey) -> KeyCheck {
     let args = steamapi::query_files(&Search {
         query_type: query_type::NEWEST,
@@ -82,7 +79,6 @@ struct Paging {
     cursors: Vec<String>,
 }
 
-/// What a search asks of Steam, apart from where it stands in the pages.
 struct Shape {
     text: String,
     tags: Vec<String>,
@@ -91,8 +87,6 @@ struct Shape {
     step: usize,
 }
 
-/// Search, details and lists through Steam's own service, with the player's key.
-///
 /// Server-side: words (title and description), authors as words, version, type and `t:` tags,
 /// sorts, collections, mature content. Taken from the cache index when there is one, and left
 /// alone when not: `d:` and owned expansions (post-filter, so a page may come up short), `m:`
@@ -139,7 +133,6 @@ impl Steam {
         }
     }
 
-    /// Made up and never asks the network: for the checks under `RIMSTACK_FIXTURE=1`.
     pub fn fixture() -> Steam {
         let key = ApiKey::new("fixture").expect("not blank");
         let index = Arc::new(canned::index());

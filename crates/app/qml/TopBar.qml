@@ -81,7 +81,7 @@ Rectangle {
             ListsMenu {
                 id: listsMenu
                 y: listsButton.height + 6
-                onUseList: ids => bar.useList(ids)
+                Component.onCompleted: useList.connect(bar.useList)
                 onNamed: name => Mods.prefs.listName = name
             }
         }

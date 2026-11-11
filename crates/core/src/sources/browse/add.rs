@@ -12,13 +12,10 @@ pub enum Refusal {
 pub struct Added {
     /// In the order they joined the list, the mod first.
     pub added: Vec<String>,
-    /// Why the mod itself was not added; its requirements were still looked at.
     pub refused: Option<Refusal>,
-    /// Requirements the source does not know: not added.
     pub unknown: Vec<String>,
 }
 
-/// A requirement that is installed or already on the list is left as it is.
 pub fn add_with_requirements(
     list: &mut DownloadList,
     source: &dyn Browse,

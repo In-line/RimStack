@@ -11,7 +11,6 @@ use std::fmt::Display;
 pub enum Sentence {
     /// Shown as it came, never looked up in a language.
     Plain(String),
-    /// Written for the language in use, with its digit grouping.
     Number(i64),
     Said {
         english: Cow<'static, str>,
@@ -58,8 +57,6 @@ pub struct Part(pub Sentence);
 
 pub struct Inside<'a>(&'a Sentence);
 
-/// Whole numbers become `Sentence::Number`, a sentence inside stays one, anything else is shown as it is. The macros
-/// pick by the part's type, which a blanket `From` could not.
 pub struct Pick<'a, T>(pub &'a T);
 
 pub trait Exact {

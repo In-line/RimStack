@@ -72,7 +72,6 @@ impl RelatedShown {
     }
 }
 
-/// The details with the file their preview is in, empty until it is fetched.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DetailsShown<'a> {
@@ -80,7 +79,6 @@ pub struct DetailsShown<'a> {
     pub shown: &'a Shown,
     pub preview_path: &'a str,
     pub description: Vec<Part>,
-    /// The files the screenshots were fetched into, in Steam's order; empty until then.
     pub screenshots: &'a [String],
 }
 

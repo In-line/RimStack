@@ -67,7 +67,6 @@ fn ask(text: &str, place: Place) -> Request {
     }
 }
 
-/// Which mods (by folder; `None` for settings of no mod) had a hit, with the files' names.
 fn run(app: &App, request: &Request) -> (Vec<(Option<String>, String)>, Summary) {
     let started = app.find_start(request).unwrap();
     let found = Mutex::new(Vec::new());

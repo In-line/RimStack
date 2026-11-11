@@ -1,5 +1,3 @@
-// `--check=findtaps`: taps and keys on the Find results, on the made-up install.
-// Opened by address only, so RimStack itself never loads QtTest.
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtTest

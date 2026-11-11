@@ -116,7 +116,6 @@ use cxx_qt_lib::{
     QByteArray, QHash, QHashPair_i32_QByteArray, QModelIndex, QString, QVariant, QVector,
 };
 
-/// A result and the file its preview is in, empty until it is fetched.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Item {
     pub row: Row,
@@ -189,7 +188,6 @@ impl qobject::WorkshopRows {
         names
     }
 
-    /// Reaches `items` by keyed steps on the Workshop id, so a badge changing moves nothing.
     pub(crate) fn show(mut self: Pin<&mut Self>, items: Vec<Item>) {
         let before: Vec<_> = self.shown.iter().map(|i| i.row.id.clone()).collect();
         let after: Vec<_> = items.iter().map(|i| i.row.id.clone()).collect();
@@ -226,7 +224,6 @@ impl qobject::WorkshopRows {
         self.data_changed(&index, &index, &QVector::default());
     }
 
-    /// For a change of language, which changes the badges' words and no row.
     pub(crate) fn reworded(self: Pin<&mut Self>) {
         let Some(last) = self.shown.len().checked_sub(1) else {
             return;

@@ -1,4 +1,3 @@
-//! The Web API calls that need a player's own key: the arguments they take and the answers they give.
 //! Nothing here sends anything, and the key is never formatted into anything.
 
 use super::workshop::{self, Details, number};
@@ -22,7 +21,6 @@ impl ApiKey {
         (!text.is_empty()).then(|| ApiKey(text.to_string()))
     }
 
-    /// For the one place that puts it on the wire, in a header.
     pub fn reveal(&self) -> &str {
         &self.0
     }

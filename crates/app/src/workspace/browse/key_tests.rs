@@ -15,7 +15,6 @@ use std::sync::Mutex;
 
 const SECRET: &str = "ABCDEF0123456789SECRETKEY";
 
-/// Steam's canned answers, unless told to fail; remembers what it was asked.
 struct Steamlike {
     fail: Mutex<Option<Failure>>,
     asked: Mutex<Vec<Value>>,

@@ -8,7 +8,6 @@ use rimstack_core::{say, say_n};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
-/// Asked once per answer.
 pub struct Marks {
     pub installed: HashSet<String>,
     pub listed: HashSet<String>,
@@ -25,7 +24,6 @@ pub struct Row {
     pub on_list: bool,
     pub badge: Option<Sentence>,
     pub can_add: bool,
-    /// Five fill states from Steam's vote score, only when the item has votes.
     pub stars: Vec<bool>,
 }
 
@@ -78,7 +76,6 @@ pub struct Results {
     pub rows: Vec<Row>,
     pub total: usize,
     pub more: bool,
-    /// Said once, when the search went to the kept list because Steam would not answer.
     pub notice: Option<Sentence>,
     /// Only for the first page of a search.
     #[serde(skip)]
@@ -99,8 +96,6 @@ pub struct Stat {
     pub value: Sentence,
 }
 
-/// One block of a description: Qt's rich text, or a picture's file, or a note that the picture is
-/// still on its way.
 #[derive(Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Part {
@@ -119,12 +114,9 @@ pub struct Shown {
     /// False when Steam could not be asked: only what the database holds is filled.
     pub loaded: bool,
     pub problem: Option<Sentence>,
-    /// The description cut at its pictures; the bridge puts each picture's file in.
     #[serde(skip)]
     pub pieces: Vec<Piece>,
-    /// Said "by {}" in the details: the author the database names, else none.
     pub created_by: Option<Sentence>,
-    /// Steam's counts, only once it was asked.
     pub stats: Vec<Stat>,
     pub created_said: Option<Sentence>,
     pub size: u64,
@@ -137,7 +129,7 @@ pub struct Shown {
     pub preview_url: String,
     /// Only with the key.
     pub votes_said: Option<Sentence>,
-    /// Only with the key; fetched into files by the bridge.
+    /// Only with the key.
     #[serde(skip)]
     pub screenshot_urls: Vec<String>,
     pub requires: Vec<Row>,
@@ -163,7 +155,6 @@ impl Shown {
             .collect()
     }
 
-    /// The description as it can be shown now: a picture not yet fetched is a note.
     pub fn description(&self, files: &HashMap<String, String>) -> Vec<Part> {
         self.pieces
             .iter()

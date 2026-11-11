@@ -77,9 +77,7 @@ pub struct Request {
     pub switches: Switches,
     pub place: Place,
     pub selected: Option<ModId>,
-    /// Which folders are left out; the types are set by `settings`.
     pub folders: FolderSettings,
-    /// As typed: `xml, cs; json`.
     pub types: String,
 }
 
@@ -123,7 +121,6 @@ impl Request {
         }
     }
 
-    /// Where it looked is the selected mod only while one is.
     fn from_kept(search: &Search, selected: Option<ModId>) -> Self {
         let place = Place::of(&search.place).unwrap_or(Place::Active);
         let place = match (place, selected) {
@@ -150,7 +147,6 @@ impl Request {
         }
     }
 
-    /// Whether the switch changed which folders are looked in.
     pub fn flip(&mut self, id: &str) -> bool {
         let (s, f) = (&mut self.switches, &mut self.folders);
         match id {
@@ -254,8 +250,7 @@ pub struct PreviewShown {
     pub problem: Option<Sentence>,
 }
 
-/// What the box inside the previewed file asks: the lines it found when they are known, the match
-/// it is at, and a step to the next (1) or the one before (-1).
+/// A step is 1 for the next match, -1 for the one before.
 #[derive(Debug, Clone, Default)]
 pub struct Look {
     pub text: String,
@@ -270,14 +265,12 @@ pub struct Looked {
     pub at: Option<usize>,
 }
 
-/// What a request compiles to, ready to start; made off the window's thread.
 pub struct Prepared {
     pattern: Pattern,
     targets: Vec<Target<Option<ModId>>>,
     folders: FolderSettings,
 }
 
-/// Valid for the search that started it; a newer search makes it stale.
 pub struct Started {
     pub generation: u64,
     cancel: Arc<AtomicBool>,
@@ -375,7 +368,6 @@ impl App {
         self.data_dir().join("searches.json")
     }
 
-    /// Nothing is wrong with a box left empty.
     pub fn find_check(&self, text: &str, switches: Switches) -> Result<(), Error> {
         match text.is_empty() {
             true => Ok(()),
@@ -399,7 +391,6 @@ impl App {
         })
     }
 
-    /// Ends the search before and forgets its results.
     pub fn find_launch(&self, prepared: Prepared) -> Started {
         let cancel = Arc::new(AtomicBool::new(false));
         let mut state = self.find.state.lock().unwrap();
@@ -436,7 +427,7 @@ impl App {
         )
     }
 
-    /// The extensions of the files in the places the request looks in, most common first.
+    /// Most common first.
     pub fn find_extensions(&self, request: &Request) -> Vec<(String, usize)> {
         let loaded = self.library();
         let Ok((library, _)) = loaded.as_ref().as_ref() else {
@@ -493,7 +484,6 @@ impl App {
         })
     }
 
-    /// Makes the mods of the results those `in:search` keeps; the sentence says what was found.
     pub fn find_finish(&self, generation: u64, summary: Summary) -> Option<Sentence> {
         let state = self.find.state.lock().unwrap();
         if state.generation != generation {
@@ -537,7 +527,6 @@ impl App {
         self.find.hit_mods.lock().unwrap().clone()
     }
 
-    /// Mods with hits so far, for the Mods list; the number of them.
     pub fn find_show_in_mods(&self) -> usize {
         let mods = self.find.state.lock().unwrap().results.mods().clone();
         let count = mods.len();
@@ -571,8 +560,6 @@ impl App {
         Some((located.file, located.line))
     }
 
-    /// Reads the file: off the window's thread. `hit` is the line the results chose; the window
-    /// is around it, or around the line of the match `look` steps to.
     pub fn find_preview(&self, file: &std::path::Path, hit: usize, look: Look) -> Looked {
         let path = file.to_string_lossy().into_owned();
         let found = match look.found {
@@ -670,7 +657,6 @@ impl App {
         }
     }
 
-    /// `revised`: only the options changed since the search before, which this one replaces.
     pub fn find_remember(&self, request: &Request, revised: bool) {
         let file = self.searches_file();
         let kept = Searches::read(&file);

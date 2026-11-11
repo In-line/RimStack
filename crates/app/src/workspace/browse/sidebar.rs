@@ -4,7 +4,6 @@ use rimstack_core::sources::browse::Catalog;
 use rimstack_core::{say, say_n};
 use serde::Serialize;
 
-/// The tags Steam files an item under besides its game versions, in the order its sidebar lists them.
 const TYPES: [&str; 3] = ["Mod", "Translation", "Scenario"];
 
 const TAG: &str = "tag:";
@@ -33,7 +32,6 @@ fn toggled(into: &mut Vec<String>, other: &mut Vec<String>, value: &str) {
 }
 
 impl Picked {
-    /// Ticking what is ticked clears it; ticking the other sign moves it.
     pub fn tag(&mut self, tag: &str, include: bool) {
         match include {
             true => toggled(&mut self.include_tags, &mut self.exclude_tags, tag),
@@ -78,7 +76,6 @@ impl Picked {
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Facet {
-    /// The tag or the Steam app id.
     pub id: String,
     pub label: Sentence,
     /// None where the source cannot count (Steam with the key).
@@ -87,14 +84,12 @@ pub struct Facet {
     pub exclude: bool,
 }
 
-/// Its id is what `clearFilter` takes.
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Chip {
     pub id: String,
     pub label: Sentence,
     pub exclude: bool,
-    /// The Theme colour the chip is drawn in.
     pub tone: &'static str,
 }
 

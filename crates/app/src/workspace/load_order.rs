@@ -312,7 +312,6 @@ impl LoadOrder {
         self.active.needs_facts() || self.inactive.needs_facts()
     }
 
-    /// What the filter found on each side, and how many mods a word of it still waits to read.
     pub fn filter_summary(&self) -> Sentence {
         let (active, inactive) = (self.active.matching(), self.inactive.matching());
         match self.active.unread() + self.inactive.unread() {
@@ -538,7 +537,7 @@ impl App {
         }
     }
 
-    /// Off the window's thread. The active mods first, then the others in the background.
+    /// Off the window's thread.
     pub fn read_active_files(&self, members: Vec<ModId>) {
         use rayon::prelude::*;
         use rimstack_core::kept::mod_facts::ModFacts;

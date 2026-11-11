@@ -31,27 +31,20 @@ pub mod qobject {
         #[qproperty(QString, summary)]
         #[qproperty(QString, problem)]
         #[qproperty(bool, capped)]
-        /// Mods with hits.
         #[qproperty(i32, count)]
-        /// A mod id, -1 for none.
+        /// -1 for none.
         #[qproperty(i32, selected_mod, cxx_name = "selectedMod")]
-        /// The row chosen, -1 for none; its file is in `preview`.
+        /// -1 for none.
         #[qproperty(i32, current)]
         #[qproperty(QVariant, recent)]
         #[qproperty(QVariant, preview)]
         #[qproperty(QVariant, options)]
-        /// The mods with matches, by count, and which one the results are of.
         #[qproperty(QVariant, mods)]
-        /// What is typed for the file types, as `xml, cs; json`.
         #[qproperty(QString, file_types, cxx_name = "fileTypes")]
-        /// Extensions to offer for the token being typed in `fileTypes`.
         #[qproperty(QVariant, type_suggestions, cxx_name = "typeSuggestions")]
-        /// What the box inside the previewed file asks for.
         #[qproperty(QString, inside_text, cxx_name = "insideText")]
         #[qproperty(QString, inside_said, cxx_name = "insideSaid")]
-        /// Lines with a match in the file previewed.
         #[qproperty(i32, inside_found, cxx_name = "insideFound")]
-        /// Long lines of the preview wrap instead of being cut.
         #[qproperty(bool, wrap)]
         type FindData = super::FindDataRust;
     }
@@ -82,8 +75,6 @@ pub mod qobject {
     }
 
     extern "RustQt" {
-        /// Looks as the box and the options say; a newer search ends the one before. A change of
-        /// the options runs it again by itself.
         #[qinvokable]
         fn search(self: Pin<&mut FindData>);
 
@@ -93,18 +84,17 @@ pub mod qobject {
         #[qinvokable]
         fn select(self: Pin<&mut FindData>, row: i32);
 
-        /// The next match inside the previewed file (`by` 1) or the one before (-1).
+        /// `by` is 1 for the next match, -1 for the one before.
         #[qinvokable]
         #[cxx_name = "insideStep"]
         fn inside_step(self: Pin<&mut FindData>, by: i32);
 
-        /// Shows only the results of one mod, by its index in `mods.rows`; -1 for every mod.
+        /// -1 for every mod.
         #[qinvokable]
         #[cxx_name = "pickMod"]
         fn pick_mod(self: Pin<&mut FindData>, group: i32);
 
-        /// The row `by` file or line rows from `row` (a mod's row and a gap are passed over);
-        /// `row` itself when there is none.
+        /// A mod's row and a gap are passed over; `row` itself when there is none.
         #[qinvokable]
         fn step(self: &FindData, row: i32, by: i32) -> i32;
 
@@ -112,7 +102,7 @@ pub mod qobject {
         #[qinvokable]
         fn fold(self: Pin<&mut FindData>, row: i32, how: i32) -> i32;
 
-        /// The path to give `Qt.openUrlExternally(Theme.fileUrl(…))`; empty for a mod's row.
+        /// Empty for a mod's row.
         #[qinvokable]
         #[cxx_name = "openFile"]
         fn open_file(self: &FindData, row: i32) -> QString;
@@ -132,7 +122,6 @@ pub mod qobject {
         #[qinvokable]
         fn toggle(self: Pin<&mut FindData>, row: i32);
 
-        /// Gives the filter text for the Mods list; the mods found are kept.
         #[qinvokable]
         #[cxx_name = "showInMods"]
         fn show_in_mods(self: Pin<&mut FindData>) -> QString;
@@ -145,12 +134,10 @@ pub mod qobject {
         #[cxx_name = "filterResults"]
         fn filter_results(self: Pin<&mut FindData>, text: &QString);
 
-        /// `fileTypes` with the token being typed replaced by the suggestion at `index`.
         #[qinvokable]
         #[cxx_name = "completeType"]
         fn complete_type(self: &FindData, index: i32) -> QString;
 
-        /// The suggestion `by` places from `at`, wrapping round.
         #[qinvokable]
         #[cxx_name = "stepType"]
         fn step_type(self: &FindData, at: i32, by: i32) -> i32;
@@ -159,7 +146,6 @@ pub mod qobject {
         #[qinvokable]
         fn flip(self: Pin<&mut FindData>, id: &QString);
 
-        /// `id` is one of `options.where`.
         #[qinvokable]
         fn choose(self: Pin<&mut FindData>, id: &QString);
     }

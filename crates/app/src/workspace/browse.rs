@@ -36,10 +36,8 @@ pub enum Related {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Defaults {
-    /// False until the database is downloaded: Browse offers the download.
     pub ready: bool,
     pub key_mode: bool,
-    /// The sorts the source offers now; none until Browse is opened.
     pub sorts: Vec<Sort>,
 }
 
@@ -105,7 +103,6 @@ fn installed_in(library: &Library) -> impl Iterator<Item = String> + '_ {
 }
 
 impl App {
-    /// Results fetched at a time; the made-up database gives small pages so a second one is seen.
     pub fn browse_page(&self) -> usize {
         match self.fixture {
             true => 3,
@@ -113,7 +110,6 @@ impl App {
         }
     }
 
-    /// The made-up database and Steam: nothing reaches the network.
     pub fn browsing_fixture(self, on: bool) -> Self {
         let app = Self {
             fixture: on,
@@ -137,7 +133,6 @@ impl App {
         self.keyed_source().unwrap_or_else(|| self.kept_source())
     }
 
-    /// The cache, or the fixture: what is searched without the key.
     fn kept_source(&self) -> Arc<dyn Browse> {
         if self.fixture {
             return self
@@ -152,7 +147,6 @@ impl App {
         std::fs::metadata(workshopindex::file_in(&self.data_dir)).is_ok_and(|file| file.len() > 0)
     }
 
-    /// True the first time only: the index is read once Browse is opened, not before.
     pub fn browse_opened(&self) -> bool {
         !self.browse_open.swap(true, Ordering::Relaxed)
     }
@@ -170,8 +164,6 @@ impl App {
         }
     }
 
-    /// What Downloads and Browse both call installed: the Workshop id of a folder in the library
-    /// or in Steam's record.
     pub fn installed_workshop(&self) -> HashSet<String> {
         let mut ids: HashSet<String> = self.steam_record().0.keys().cloned().collect();
         if let Ok((library, _)) = self.library().as_ref().as_ref() {
@@ -195,8 +187,7 @@ impl App {
             .collect()
     }
 
-    /// The Steam app ids of the expansions the game folder has: the database gives a package id's
-    /// app as its Workshop id.
+    /// The database gives a package id's app as its Workshop id.
     pub fn owned_dlc(&self) -> Vec<String> {
         let names = self.workshop_names();
         let official = self.install().official();
@@ -299,8 +290,7 @@ impl App {
         }
     }
 
-    /// Asks Steam about the ids it has not answered, or failed to within a few minutes; no lock
-    /// is held meanwhile.
+    /// No lock is held meanwhile.
     pub fn remember_details(&self, source: &dyn Browse, ids: &[String]) {
         let unasked = self.browse_details.held().unasked(ids, Instant::now());
         if unasked.is_empty() {
@@ -357,7 +347,6 @@ impl App {
         found.map_or_else(|| id.to_string(), |entry| entry.title)
     }
 
-    /// Asks Steam about the ids not yet known in one batch, then takes their previews side by side.
     /// `each` hears every id once, with `None` when it has no preview; it stops the rest by
     /// answering false.
     pub fn browse_previews(&self, ids: &[String], each: &Each<'_>) {
@@ -386,8 +375,7 @@ impl App {
             .call_once(|| previews::trim(&self.previews_dir(), previews::CACHE_CAP));
     }
 
-    /// The pictures of a description, side by side; each is `None` when it could not be taken.
-    /// Blocks on the network.
+    /// Each is `None` when it could not be taken. Blocks on the network.
     pub fn browse_images(&self, urls: &[String]) -> Vec<(String, Option<PathBuf>)> {
         use rayon::prelude::*;
         let taken: Vec<(String, Option<PathBuf>)> = urls

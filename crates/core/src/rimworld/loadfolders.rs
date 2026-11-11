@@ -83,7 +83,6 @@ pub fn folders(root: &Path, game_version: &str, is_active: &dyn Fn(&str) -> bool
     folders_where(root, game_version, &|entry| entry.applies(is_active))
 }
 
-/// Every folder the game version lists, whatever mods are active.
 pub fn every_folder(root: &Path, game_version: &str) -> Vec<PathBuf> {
     folders_where(root, game_version, &|_| true)
 }

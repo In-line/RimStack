@@ -1,10 +1,8 @@
 use crate::base::error::Error;
 use std::path::Path;
 
-/// More lines than this with a match are not listed.
 const MOST_LINES: usize = 5000;
 
-/// The lines of the file, from 1, that hold `text` in any case, each once; none for no text.
 pub fn inside(file: &Path, text: &str) -> Result<Vec<usize>, Error> {
     let bytes = std::fs::read(file).map_err(|e| Error::file(file, e))?;
     if text.is_empty() {

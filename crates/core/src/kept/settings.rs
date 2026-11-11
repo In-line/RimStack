@@ -138,7 +138,6 @@ pub enum Switch {
     GitForWorkshop,
     SelfCheck,
     ShowMature,
-    /// Whether a key was put in the credential store, which is asked only while it is on.
     SteamKeyKept,
 }
 

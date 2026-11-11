@@ -49,7 +49,6 @@ pub fn is_https_image(url: &str) -> bool {
     named && !host.starts_with(['.', '-']) && !host.ends_with(['.', '-'])
 }
 
-/// FNV-1a over the whole URL, so two URLs differing in a query keep two files.
 pub fn file_name(url: &str) -> String {
     let hash = url.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
         (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
@@ -65,7 +64,6 @@ pub fn fetch(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     get(url, folder, LARGEST)
 }
 
-/// A picture of a description, which may be on any host.
 pub fn fetch_in_text(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     if !is_https_image(url) {
         return Err(Error::refused(said!("a picture is only taken over https")));
@@ -102,7 +100,6 @@ pub fn made_up(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     painted(url, folder)
 }
 
-/// `made_up` for a picture of a description.
 pub fn made_up_in_text(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     if !is_https_image(url) {
         return Err(Error::refused(said!("a picture is only taken over https")));
@@ -124,7 +121,6 @@ fn painted(url: &str, folder: &Path) -> Result<PathBuf, Error> {
     Ok(path)
 }
 
-/// Deletes the files least recently fetched or reused until the folder holds at most `cap` bytes.
 pub fn trim(folder: &Path, cap: u64) {
     let mut files: Vec<(std::time::SystemTime, u64, PathBuf)> = std::fs::read_dir(folder)
         .into_iter()

@@ -4,12 +4,9 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-/// How long a failed ask is answered again without asking Steam.
 const RETRY_AFTER: Duration = Duration::from_secs(180);
 
-/// What Steam said of items for the session: what it knows, what it does not, and what it failed
-/// to say, which is asked again after a while. Holds no lock and does no asking: a caller takes
-/// `unasked`, asks, and hands the answer to `learn`.
+/// Holds no lock and asks nothing: a caller takes `unasked`, asks, and hands the answer to `learn`.
 #[derive(Default)]
 pub struct Memory {
     found: HashMap<String, Arc<Details>>,
@@ -22,13 +19,11 @@ impl Memory {
         self.found.get(id).cloned()
     }
 
-    /// The failure of an ask that is still remembered.
     pub fn failure(&self, id: &str, now: Instant) -> Option<Error> {
         let (at, error) = self.failed.get(id)?;
         (now.saturating_duration_since(*at) < RETRY_AFTER).then(|| error.clone())
     }
 
-    /// The ids whose answer is not remembered.
     pub fn unasked(&self, ids: &[String], now: Instant) -> Vec<String> {
         let mut seen = HashSet::new();
         ids.iter()

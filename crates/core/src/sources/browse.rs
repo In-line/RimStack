@@ -14,11 +14,8 @@ use crate::rimworld::workshopindex::{Entry, Index, REAL_VERSION};
 use crate::rimworld::workshopsearch::{Counts, Filters, Order, Page, Query};
 use std::sync::Arc;
 
-/// Steam with the key does them all; the cache and the fixture do those `Browse::sorts` lists, and
-/// rank by relevance (by newest with no words) for any other.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Sort {
-    /// By the words, or by votes with none.
     #[default]
     Relevance,
     /// Steam keeps a window of 1 to 7 days.
@@ -35,13 +32,11 @@ pub struct Request {
     pub query: Query,
     pub filters: Filters,
     pub sort: Sort,
-    /// Look for collections instead of items; only Steam with the key does.
     pub collections: bool,
     pub offset: usize,
     pub count: usize,
 }
 
-/// What the sidebar offers beside the counts: every game version and every app the source knows.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Catalog {
     /// Oldest first.
@@ -51,7 +46,6 @@ pub struct Catalog {
 }
 
 impl Catalog {
-    /// The versions with `REAL_VERSION` mods or more.
     pub fn of(index: &Index) -> Catalog {
         Catalog::of_versions_with(index, REAL_VERSION)
     }
@@ -73,10 +67,8 @@ pub trait Browse: Send + Sync {
     /// What the source knows of a mod without asking: `requires` is as published, known or not.
     fn entry(&self, id: &str) -> Option<Entry>;
 
-    /// The name the database gives an expansion's Steam app id.
     fn app_name(&self, app_id: &str) -> Option<String>;
 
-    /// The sorts this source offers now: the cache adds some once a sweep is merged in.
     fn sorts(&self) -> Vec<Sort>;
 
     /// How many results the request has under each tag and required DLC; `None` where the source
@@ -85,7 +77,6 @@ pub trait Browse: Send + Sync {
 
     fn catalog(&self) -> Catalog;
 
-    /// Its Workshop requirements that the source knows.
     fn requires(&self, id: &str) -> Result<Vec<String>, Error>;
 
     fn needed_by(&self, id: &str) -> Result<Vec<String>, Error>;
@@ -96,7 +87,6 @@ pub trait Browse: Send + Sync {
     fn collection_items(&self, ids: &[String]) -> Result<Vec<String>, Error>;
 }
 
-/// The sorts a swept index can do; before the sweep only the newest is known, by id.
 pub(super) fn cache_sorts(index: &Index) -> Vec<Sort> {
     let mut sorts = vec![Sort::Relevance, Sort::MostRecent];
     if index.swept() {

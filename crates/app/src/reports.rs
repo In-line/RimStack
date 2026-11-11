@@ -182,7 +182,6 @@ mod tests {
     }
 }
 
-/// What Settings shows of the Steam key: never the key.
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyShown {
@@ -194,7 +193,6 @@ pub struct KeyShown {
 }
 
 impl KeyShown {
-    /// A failure of the last check or forget comes before what the store says.
     pub fn of(state: KeyState, checking: bool, failure: Option<Sentence>) -> Self {
         KeyShown {
             stored: state.stored,

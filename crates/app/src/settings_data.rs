@@ -35,8 +35,7 @@ pub mod qobject {
         #[qproperty(QVariant, release)]
         #[qproperty(bool, release_busy, cxx_name = "releaseBusy")]
         #[qproperty(QString, problem)]
-        /// `{ stored, available, refused, checking, note }`; `note` says why the key cannot be
-        /// kept or used, or why the last check failed, and is null for none.
+        /// `{ stored, available, refused, checking, note }`; `note` is null for none.
         #[qproperty(QVariant, steam_key, cxx_name = "steamKey")]
         type SettingsData = super::SettingsDataRust;
     }
@@ -110,8 +109,6 @@ pub mod qobject {
         #[cxx_name = "useFont"]
         fn use_font(self: Pin<&mut SettingsData>, family: &QString) -> QString;
 
-        /// Asks Steam with the typed key, then keeps it in the credential store if Steam accepts
-        /// it. Off the window's thread; `steamKey.checking` is true meanwhile.
         #[qinvokable]
         #[cxx_name = "checkKey"]
         fn check_key(self: Pin<&mut SettingsData>, typed: &QString);
@@ -189,7 +186,6 @@ pub struct SettingsDataRust {
     steam_key: QVariant,
     key_checking: bool,
     key_known: Option<crate::workspace::KeyState>,
-    /// What the last check or forget failed with; kept until the next one.
     key_failure: Option<rimstack_core::base::sentence::Sentence>,
     key_reading: crate::jobs::Lane,
     app: crate::hub::Given,

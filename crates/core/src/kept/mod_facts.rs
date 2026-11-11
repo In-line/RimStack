@@ -9,7 +9,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-/// Raised whenever what a record holds changes shape.
 pub const FORMAT: u32 = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,7 +41,6 @@ impl<T> ModFacts<T> {
         self.mods.is_empty()
     }
 
-    /// Only while the mod's folders still have the stamp it was read at.
     pub fn get(&self, folder: &Path, stamp: FolderStamp) -> Option<Arc<T>> {
         let record = self.mods.get(&*folder.to_string_lossy())?;
         (record.stamp == stamp).then(|| record.facts.clone())
@@ -53,7 +51,6 @@ impl<T> ModFacts<T> {
         self.mods.insert(key, Record { stamp, facts });
     }
 
-    /// Records of mods no longer installed are dropped.
     pub fn keep_only(&mut self, folders: &std::collections::HashSet<String>) {
         self.mods.retain(|folder, _| folders.contains(folder));
     }

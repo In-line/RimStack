@@ -74,7 +74,6 @@ fn indexed(workshop_id: &str, entry: &Entry) -> Option<workshopindex::Entry> {
     })
 }
 
-/// The names and the index come from one reading of the database.
 pub fn parse(json: impl std::io::Read) -> Result<(Names, Index), Error> {
     let all: Database = serde_json::from_reader(json)
         .map_err(|e| Error::format(said!("the database is not as expected: {}", e)))?;

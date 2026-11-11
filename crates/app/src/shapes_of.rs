@@ -319,10 +319,6 @@ fn lists(app: &App, shapes: &mut Shapes) {
     let snapshot = app.recent_snapshots().first().map(|s| s.name.clone());
     let snapshot = snapshot.unwrap_or_default();
     shapes.add("lists.snapshotNamed", &app.snapshot_named(&snapshot));
-    shapes.add(
-        "lists.idsInText",
-        &rimstack_core::mods::share::ids_in("ludeon.rimworld\nann.a"),
-    );
     shapes.add("lists.original", &app.original_list());
 }
 

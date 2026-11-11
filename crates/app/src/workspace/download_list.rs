@@ -26,8 +26,6 @@ pub struct ListRow {
     pub failed: Option<Sentence>,
 }
 
-/// `subscribe` is offered where Steam is installed; `download` and `install_steamcmd` are
-/// exclusive and never offered where SteamCMD is not run. With neither route, `stuck` says why.
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ListAction {
@@ -61,8 +59,6 @@ pub struct AddShown {
 }
 
 impl AddShown {
-    /// What to tell the player, and whether it is bad news; the answer alone says when nothing was
-    /// added.
     pub fn note(&self) -> Option<(Sentence, bool)> {
         let parts: Vec<Sentence> = [&self.said, &self.refusal, &self.unknown_said]
             .into_iter()
@@ -78,7 +74,6 @@ impl AddShown {
 }
 
 impl ListShown {
-    /// Before the list is first read: nothing on it, and nothing to press.
     pub fn empty() -> Self {
         Self {
             rows: Vec::new(),
@@ -110,8 +105,6 @@ pub fn action(os: Os, steam: bool, steamcmd: bool, empty: bool) -> ListAction {
     }
 }
 
-/// An id the database lists is a mod; Steam's answer decides for any other, and when Steam could
-/// not be asked, nothing the database does not list is passed.
 pub fn vet(
     ids: &[String],
     answer: &Result<Vec<rimstack_core::rimworld::workshop::Details>>,
@@ -254,7 +247,6 @@ impl App {
         }
     }
 
-    /// With its requirements that are not installed or listed, marked as needed by it.
     pub fn add_to_list(&self, id: &str, with_requirements: bool) -> AddShown {
         let source = self.browse_source();
         let installed = self.installed_workshop();
@@ -286,7 +278,6 @@ impl App {
         self.added_shown(&*source, id, added, refused, unknown)
     }
 
-    /// The items of a collection when Steam's source knows it for one, else the id alone.
     fn items_of(&self, source: &dyn Browse, id: &str) -> Vec<String> {
         let alone = vec![id.to_string()];
         if !self.key_mode() {
@@ -295,8 +286,6 @@ impl App {
         source.collection_items(&alone).unwrap_or(alone)
     }
 
-    /// For the Missing card's `Fix::Subscribe`: an id the database does not list as a mod (a DLC's
-    /// app id among them) is never added.
     pub fn add_missing_to_list(&self, workshop_id: &str) -> AddShown {
         let source = self.browse_source();
         if source.entry(workshop_id).is_none() {
@@ -309,7 +298,6 @@ impl App {
         self.added_shown(&*source, workshop_id, added, refused, Vec::new())
     }
 
-    /// What a lookup found that is not installed.
     pub fn add_wanted_to_list(&self, wanted: &[(String, String)]) {
         self.change_list(|list| {
             for (id, title) in wanted {
@@ -342,9 +330,6 @@ impl App {
         }
     }
 
-    /// Asks Steam about every listed id before any goes to Steam or SteamCMD: only a RimWorld item
-    /// that is not a collection passes, the others stay on the list with why. Sizes are filled
-    /// from the same answer.
     pub fn vet_list(&self) -> Vec<String> {
         let ids = self.listed_ids();
         let source = self.browse_source();
@@ -366,7 +351,6 @@ impl App {
         passed
     }
 
-    /// What Steam says of the ids, from what it said before where it did.
     fn listed_details(
         &self,
         source: &dyn rimstack_core::sources::browse::Browse,
@@ -388,9 +372,6 @@ impl App {
         self.change_list(|list| list.remove_downloaded(ids));
     }
 
-    /// Downloaded ones leave; a failed one stays with why. A downloaded mod's `About.xml`
-    /// requirements that are installed nowhere, and that the Workshop database maps to a Workshop
-    /// mod, join the list as needed by it.
     pub fn apply_downloads(&self, outcomes: &[(String, Result<PathBuf>)]) {
         let downloaded: Vec<(&String, &Path)> = outcomes
             .iter()

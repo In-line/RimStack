@@ -23,7 +23,6 @@ pub struct Record {
     pub updated: u64,
     pub banned: bool,
     pub app_id: u64,
-    /// Steam did not return the item: removed or made private.
     pub removed: bool,
 }
 
@@ -54,7 +53,6 @@ impl Record {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Sweep {
     pub completed: u64,
-    /// Items up to this Workshop id are fresh in a pass that was stopped.
     pub resume_after: u64,
     pub records: BTreeMap<u64, Record>,
 }
@@ -64,7 +62,6 @@ pub fn file_in(data_dir: &Path) -> PathBuf {
 }
 
 impl Sweep {
-    /// A pass has never finished, a stopped one waits, or the last one is a day old.
     pub fn due(&self, now: u64) -> bool {
         self.resume_after != 0 || now.saturating_sub(self.completed) >= DAY
     }
@@ -93,7 +90,6 @@ impl Sweep {
         crate::base::atomic_file::write_lines(to, std::iter::once(header).chain(records))
     }
 
-    /// Whether a pass is due, from the header line alone.
     pub fn due_in(path: &Path, now: u64) -> bool {
         let first = std::fs::File::open(path)
             .ok()

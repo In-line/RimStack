@@ -188,7 +188,6 @@ impl App {
         ))
     }
 
-    /// Steam downloads the listed mods itself; they leave the list once it has been asked.
     pub fn subscribe_listed(&self) -> Done {
         self.clear_list_failures();
         let ids = self.vet_list();

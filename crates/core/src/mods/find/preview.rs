@@ -2,7 +2,6 @@ use crate::base::error::Error;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-/// Lines of a file either side of the one shown, so about this many in all.
 const AROUND: usize = 150;
 const LINE_CHARS: usize = 1000;
 
@@ -15,7 +14,6 @@ pub struct Preview {
     pub marked: Option<usize>,
 }
 
-/// Reads the file as far as the window ends, never all of it.
 pub fn preview(file: &Path, line: usize) -> Result<Preview, Error> {
     let mut reader = BufReader::new(std::fs::File::open(file).map_err(|e| Error::file(file, e))?);
     let first_line = line.saturating_sub(AROUND).max(1);

@@ -3,12 +3,9 @@ use crate::base::path_text::has_extension;
 use crate::said;
 use std::path::Path;
 
-/// The files a search reads, by extension: `xml, cs; json`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FileTypes {
-    /// Every file that is text, not only those with a given extension.
     Any,
-    /// Lowercase, in order, each once.
     Only(Vec<String>),
 }
 
@@ -70,7 +67,6 @@ impl FileTypes {
 
 const SEPARATORS: [char; 5] = [',', ';', '|', ' ', '\t'];
 
-/// An extension offered for the token being typed; `.` is every text file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Offer {
     pub ext: String,
@@ -81,13 +77,10 @@ fn bare(token: &str) -> String {
     token.trim_start_matches(['*', '.']).to_lowercase()
 }
 
-/// The text after the last separator.
 fn typing(text: &str) -> (&str, &str) {
     text.split_at(text.rfind(SEPARATORS).map_or(0, |at| at + 1))
 }
 
-/// Extensions from `counts` that start the token being typed and are not listed yet, in the order
-/// of `counts`, then `.` when nothing is typed past dots and stars.
 pub fn suggest(counts: &[(String, usize)], text: &str) -> Vec<Offer> {
     let (head, token) = typing(text);
     let prefix = bare(token);
@@ -119,7 +112,6 @@ pub fn suggest(counts: &[(String, usize)], text: &str) -> Vec<Offer> {
     offers
 }
 
-/// `text` with the token being typed replaced by `ext`, and a separator after it (not after `.`).
 pub fn complete(text: &str, ext: &str) -> String {
     let (head, _) = typing(text);
     let space = if head.is_empty() || head.ends_with(char::is_whitespace) {

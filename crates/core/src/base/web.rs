@@ -8,7 +8,6 @@ pub(crate) fn agent(limit_secs: u64) -> ureq::Agent {
         .into()
 }
 
-/// One agent for every ask of Steam, so connections are reused.
 pub(crate) fn steam_agent() -> ureq::Agent {
     static AGENT: std::sync::OnceLock<ureq::Agent> = std::sync::OnceLock::new();
     AGENT.get_or_init(|| agent(120)).clone()

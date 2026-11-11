@@ -8,9 +8,6 @@ pub(super) fn index() -> Index {
     fixture::index()
 }
 
-/// Steam's answers for the fixture's items, plus a collection: sorts change the order, every
-/// mod has votes, and its screenshots are addresses the app answers with made-up pictures in the
-/// fixture.
 pub struct Canned;
 
 struct Item {

@@ -1,7 +1,3 @@
-//! The daily pass over Steam's details for the database's items, started when Browse is first
-//! opened in a session and the database is there. Browsing never waits for it; what it finds is
-//! laid over the database the next time the index is built.
-
 use super::{App, now_secs};
 use crate::changes::Changes;
 use rimstack_core::problem;
@@ -13,7 +9,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 pub struct Sweeper {
     fetch: Arc<dyn Fetch>,
     pace: Pace,
-    /// Whether this session has decided about a pass: it looks once, when the database is there.
     decided: AtomicBool,
 }
 
@@ -28,7 +23,6 @@ impl Default for Sweeper {
 }
 
 impl App {
-    /// What the pass asks Steam with, and how fast: tests hand canned answers.
     pub fn with_sweeper(self, fetch: Arc<dyn Fetch>, pace: Pace) -> Self {
         Self {
             sweeper: Sweeper {
@@ -40,8 +34,6 @@ impl App {
         }
     }
 
-    /// Starts a pass in the background when Browse has been opened, the database is there and the
-    /// last pass is a day old or was stopped. Decided once a session; the made-up install has its own.
     pub fn sweep_if_due(self: &Arc<Self>) {
         let opened = self.browse_open.load(Ordering::Relaxed);
         if self.fixture

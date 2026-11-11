@@ -7,8 +7,6 @@ use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-/// Which files of a mod folder are searched. A folder is left out by its name
-/// at any depth.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FolderSettings {
     pub types: FileTypes,
@@ -62,8 +60,6 @@ impl FolderSettings {
 type Kept = (FolderStamp, Arc<Vec<PathBuf>>);
 type Key = (PathBuf, [bool; 4]);
 
-/// Every file of each mod folder outside the folders left out, kept for the session and reused
-/// while the folder's stamp is unchanged; the file types pick from it.
 #[derive(Default)]
 pub struct FileLists {
     kept: Mutex<HashMap<Key, Kept>>,
@@ -99,7 +95,7 @@ impl FileLists {
         }
     }
 
-    /// Files under `folders` by extension in lowercase, most common first; the same count by name.
+    /// Most common first; the same count by name.
     pub fn extensions(
         &self,
         folders: &[PathBuf],

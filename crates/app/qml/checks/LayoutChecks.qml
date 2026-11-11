@@ -228,7 +228,6 @@ Item {
         Qt.exit(checks.failed > 0 ? 1 : 0)
     }
 
-    // After a picture is taken, so it shows this scene and not the next.
     function advance(scene) {
         leave(scene)
         at += 1

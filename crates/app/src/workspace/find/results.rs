@@ -13,7 +13,6 @@ pub const MOST_HITS: usize = 20_000;
 
 const NONE: u32 = u32::MAX;
 
-/// A row of the results by place: a mod, a file of it, a line of that.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RowRef {
     group: u32,
@@ -88,7 +87,6 @@ struct Group {
     name: Sentence,
     files: Vec<FileGroup>,
     collapsed: bool,
-    /// Left out of the rows by the mod the list on the side chose.
     hidden: bool,
     rows: usize,
     matches: usize,
@@ -136,7 +134,6 @@ pub struct Results {
     capped: bool,
     files_found: usize,
     mods: HashSet<ModId>,
-    /// The index in `groups` of the only mod shown.
     picked: Option<usize>,
 }
 
@@ -150,7 +147,7 @@ pub struct FoundMod {
     pub chosen: bool,
 }
 
-/// The list on the side: every mod with matches and how many, in the order they were found.
+/// In the order the mods were found.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FoundMods {
@@ -216,7 +213,6 @@ impl Results {
         self.files_found
     }
 
-    /// Counts the mods whose hits were past the cap too, and settings of no installed mod.
     pub fn mods_found(&self) -> usize {
         self.mods.len() + usize::from(self.by_key.contains_key(&None))
     }
@@ -229,7 +225,6 @@ impl Results {
         self.groups.iter().all(|g| g.rows == 0)
     }
 
-    /// `name` is asked only for a mod seen first now.
     pub fn add(
         &mut self,
         mut found: FileHits<Option<ModId>>,
@@ -337,7 +332,6 @@ impl Results {
         }
     }
 
-    /// The rows now shown, which the caller reaches from the ones it has.
     pub fn set_filter(&mut self, text: &str) -> Vec<RowRef> {
         self.filter = text.trim().to_lowercase();
         for group in &mut self.groups {
@@ -350,7 +344,6 @@ impl Results {
         self.refs()
     }
 
-    /// Shows only the mod of the list's row `group` (`None` for every mod); the rows now shown.
     pub fn set_pick(&mut self, group: Option<usize>) -> Vec<RowRef> {
         self.picked = group.filter(|&at| at < self.groups.len());
         for (at, one) in self.groups.iter_mut().enumerate() {
@@ -483,7 +476,6 @@ impl Results {
         })
     }
 
-    /// A file row stands for its first line with a match; a gap, for the line after it.
     pub fn locate(&self, at: RowRef) -> Option<Located> {
         let file = self
             .groups

@@ -7,14 +7,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
 
-/// A larger file is skipped and counted.
 const MOST_BYTES: u64 = 16 << 20;
 /// A file with a NUL in its first bytes is binary.
 const SNIFF: usize = 8192;
 const CONTEXT: usize = 3;
-/// A line is shown cut to about this many characters around the match.
 const LINE_CUT: usize = 300;
-/// Hits held back before a batch is handed on.
 const BATCH_HITS: usize = 500;
 
 pub enum Target<K> {
@@ -22,7 +19,6 @@ pub enum Target<K> {
         key: K,
         folder: PathBuf,
     },
-    /// The `Mod_*.xml` files of a settings folder, each named by `key_of` from its file name.
     Settings {
         folder: PathBuf,
         key_of: Box<dyn Fn(&str) -> K + Send + Sync>,
@@ -34,7 +30,6 @@ pub struct Hit {
     /// From 1.
     pub line: usize,
     pub before: Vec<String>,
-    /// Cut around the match when long.
     pub text: String,
     /// Bytes of `text`, clipped to it when the match runs past the line.
     pub marked: Range<usize>,
@@ -46,7 +41,6 @@ pub struct FileHits<K> {
     pub key: K,
     pub file: PathBuf,
     pub hits: Vec<Hit>,
-    /// Matches past `most_hits`, counted and not built.
     pub unkept: usize,
 }
 
@@ -81,9 +75,6 @@ struct Counts {
     binary: AtomicUsize,
 }
 
-/// Targets are searched in parallel and each file's batch goes to `on_batch`
-/// as soon as it is found; `cancel` is checked between files. Past `most_hits` hits
-/// built, a match is only counted, and a file with matches comes with no hits.
 pub fn search<K: Clone + Send + Sync>(
     targets: &[Target<K>],
     pattern: &Pattern,
@@ -204,7 +195,6 @@ fn search_file(
     })
 }
 
-/// With `sniff`, a file whose first bytes hold a NUL is counted as binary and not read further.
 fn read_text(open: &mut std::fs::File, sniff: bool, counts: &Counts) -> Option<Vec<u8>> {
     let mut bytes = Vec::new();
     if sniff {
@@ -226,7 +216,6 @@ fn take_room(room: &AtomicUsize) -> bool {
         .is_ok()
 }
 
-/// The hits built while `room` lasts, and all the matches.
 fn hits_within(text: &str, pattern: &Pattern, room: &AtomicUsize) -> (Vec<Hit>, usize) {
     let mut found = pattern.find_in(text).peekable();
     if found.peek().is_none() {

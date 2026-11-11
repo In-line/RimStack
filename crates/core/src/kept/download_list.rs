@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Why {
     Added,
-    /// The Workshop id of the mod that requires it.
     NeededBy(String),
     Missing,
 }
@@ -82,7 +81,6 @@ pub fn file_in(data_dir: &Path) -> PathBuf {
 }
 
 impl DownloadList {
-    /// A missing or damaged file is an empty list; a row not as written is skipped.
     pub fn read(file: &Path) -> Self {
         let rows = crate::base::atomic_file::read_json(file)
             .and_then(|value| value.as_array().cloned())

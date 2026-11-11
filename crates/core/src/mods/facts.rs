@@ -1,5 +1,3 @@
-//! What reading one mod's files gives, for the filter words `has:`, `defines:` and `patchesdef:`.
-
 use crate::base::path_text::has_extension;
 use crate::base::walk;
 use crate::mods::infer::{self, Scanned};
@@ -10,7 +8,6 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Facts {
-    /// The load folders it was read with.
     pub folders: Vec<PathBuf>,
     /// Whole for a mod that is active, which the rules are inferred from; for the others only
     /// the def names and the names patched.
@@ -49,7 +46,6 @@ fn is_xml(path: &Path) -> bool {
     has_extension(path, "xml")
 }
 
-/// Stops at the first file `wanted` takes; links to folders are not entered.
 fn holds(dir: &Path, wanted: &dyn Fn(&Path) -> bool) -> bool {
     walk::visit(
         dir,
@@ -72,7 +68,6 @@ impl Facts {
         Self::with(load_folders, scanned, true)
     }
 
-    /// Opens no assembly and keeps no path: the record of a mod nobody has active stays small.
     pub fn read_names(load_folders: Vec<PathBuf>) -> Self {
         let found = infer::scan_xml(&load_folders);
         let mut patched: Vec<(String, PathBuf)> = found.patched;

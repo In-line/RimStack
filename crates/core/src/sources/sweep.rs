@@ -1,5 +1,3 @@
-//! The daily pass over Steam's keyless details for every item of the database.
-
 use crate::base::error::Error;
 use crate::rimworld::workshop::{self, Details};
 use crate::rimworld::workshopsweep::{Record, Sweep};
@@ -9,9 +7,7 @@ use std::time::Duration;
 
 const BATCH: usize = 100;
 
-/// The network, so that a test hands canned answers instead.
 pub trait Fetch: Send + Sync {
-    /// The items Steam returns among up to 100 ids; the others are not there any more.
     fn batch(&self, ids: &[String]) -> Result<Vec<Details>, Error>;
 }
 
@@ -36,9 +32,7 @@ impl Fetch for Web {
 #[derive(Debug, Clone, Copy)]
 pub struct Pace {
     pub workers: usize,
-    /// Each worker's rest after a request.
     pub pause: Duration,
-    /// The wait after a failed request before its one retry.
     pub backoff: Duration,
 }
 
@@ -53,12 +47,7 @@ impl Pace {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Outcome {
     Finished,
-    /// Steam failed twice in a row: what was reached is kept and the next
-    /// pass resumes after it.
-    Stopped {
-        reached: usize,
-        of: usize,
-    },
+    Stopped { reached: usize, of: usize },
 }
 
 struct Shared {
@@ -68,8 +57,6 @@ struct Shared {
     stopped: Option<Error>,
 }
 
-/// Fetches the details of `ids` (ascending) that the file at `path` has not covered, writes
-/// what came back whole, and says whether the pass finished. A finished pass forgets the items not in `ids`.
 pub fn run(
     ids: &[u64],
     path: &Path,
@@ -166,7 +153,6 @@ mod tests {
         backoff: Duration::ZERO,
     };
 
-    /// Knows every id but the multiples of 1000; fails the first `fails` calls from `fail_from`.
     struct Fake {
         calls: AtomicUsize,
         sizes: Mutex<Vec<usize>>,

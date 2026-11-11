@@ -12,7 +12,6 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-/// Mods read at once off the window's thread, in the background.
 const BATCH: usize = 48;
 const THREADS: usize = 2;
 const BETWEEN_BATCHES: Duration = Duration::from_millis(20);
@@ -28,7 +27,6 @@ pub struct Read {
 pub struct Job {
     pub root: PathBuf,
     pub loaded: Vec<PathBuf>,
-    /// The rules are inferred from what it holds: its record must be whole.
     pub whole: bool,
 }
 
@@ -40,7 +38,6 @@ fn left_out(name: &OsStr) -> bool {
         .any(|skip| name.eq_ignore_ascii_case(skip))
 }
 
-/// A record whose stamp and load folders still hold is used; the rest are read.
 /// Returns the facts in the order of `jobs` and how many mods' files were read.
 pub fn gather(
     record: &mut ModFacts<Facts>,
@@ -85,7 +82,6 @@ impl App {
         self.data_dir().join("mod-facts.json")
     }
 
-    /// What reading the mods' files gave so far; nothing for a reading of the library that is gone.
     pub fn mod_facts(&self, library: &Arc<crate::workspace::Loaded>) -> Arc<FactsBy> {
         let read = self.facts().reading();
         match read
@@ -98,7 +94,6 @@ impl App {
         }
     }
 
-    /// How many mods' files were read since the start, for the tests and the diagnostics.
     pub fn mods_read(&self) -> usize {
         self.facts_counted().load(Ordering::Relaxed)
     }
@@ -107,7 +102,6 @@ impl App {
         self.facts_counted().fetch_add(read, Ordering::Relaxed);
     }
 
-    /// A newer run asked for makes an older one stop at its next batch.
     pub(super) fn begin_facts_run(&self) -> u64 {
         self.facts_runs().fetch_add(1, Ordering::SeqCst) + 1
     }
@@ -116,7 +110,6 @@ impl App {
         self.facts_runs().load(Ordering::SeqCst) == run
     }
 
-    /// False when a newer run or another library took over.
     pub(super) fn keep_facts(
         &self,
         run: u64,
@@ -144,7 +137,6 @@ impl App {
         true
     }
 
-    /// Written whole; a run that was overtaken writes nothing.
     pub(super) fn keep_record(
         &self,
         run: u64,
@@ -162,7 +154,6 @@ impl App {
         }
     }
 
-    /// The mods that are not active, a few at a time: each batch is told as it lands.
     /// `members` is ascending.
     pub(super) fn read_inactive_facts(
         &self,

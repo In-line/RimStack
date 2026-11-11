@@ -1,5 +1,3 @@
-//! The player's Steam Web API key. It is kept in the credential store and read when a search
-//! needs it; once read it lives only inside the `Steam` source, which is rebuilt when the key or
 //! the mature-content choice changes. No record that reaches QML, a log or the history holds it.
 
 use super::secret::Vault;
@@ -17,7 +15,6 @@ use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-/// Sees what Steam answers the source, so a refused key is noticed wherever it is used.
 pub struct Watch {
     inner: Arc<dyn Transport>,
     refused: AtomicBool,
@@ -74,9 +71,7 @@ pub struct Chosen(Option<(Stamp, Option<Arc<dyn Browse>>)>);
 #[serde(rename_all = "camelCase")]
 pub struct KeyState {
     pub stored: bool,
-    /// False when the credential store does not work; `note` says why.
     pub available: bool,
-    /// Steam refused the key kept, and searches use the kept list.
     pub refused: bool,
     pub note: Option<Sentence>,
 }
@@ -94,7 +89,6 @@ impl App {
         Self { vault, ..self }
     }
 
-    /// The network, for Steam with the key; tests hand canned answers.
     pub fn with_transport(self, transport: Arc<dyn Transport>) -> Self {
         Self {
             watch: Arc::new(Watch::new(transport.clone())),
@@ -118,8 +112,6 @@ impl App {
         }
     }
 
-    /// Asks the credential store, which can take a while, only once a key was kept: before that
-    /// the store is not touched, and `available` is unknown until a key is typed.
     pub fn key_state(&self) -> KeyState {
         let refused = self.watch.refused();
         let (stored, available, note) = match self.key_kept().then(|| self.vault.get()) {
@@ -143,8 +135,6 @@ impl App {
         }
     }
 
-    /// One test call before keeping; nothing is kept for a key Steam refuses or cannot be asked
-    /// about. Slow: it asks Steam and the credential store.
     pub fn check_and_keep(&self, typed: &str) -> Result<(), Sentence> {
         let Some(key) = ApiKey::new(typed) else {
             return Err(say!("Type the key first"));
@@ -182,9 +172,6 @@ impl App {
         written(workshopindex::file_in(&self.data_dir))
     }
 
-    /// The Steam source while a key is kept, the store works and Steam has not refused the key.
-    /// Reads the credential store the first time, and again only after the key, the database or
-    /// the mature-content choice changed.
     pub(super) fn keyed_source(&self) -> Option<Arc<dyn Browse>> {
         if self.watch.refused() || !self.key_kept() {
             return None;
@@ -221,7 +208,6 @@ impl App {
         self.keyed_source().is_some()
     }
 
-    /// What the last call to Steam failed with, if the source was Steam's.
     pub(super) fn steam_failure(&self) -> Option<Failure> {
         self.watch.take()
     }

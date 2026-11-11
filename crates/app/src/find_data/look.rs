@@ -61,8 +61,7 @@ impl qobject::FindData {
         self.look(0, false);
     }
 
-    /// Reads the file in the preview again: `step` moves to the next match or the one before,
-    /// and `again` keeps the lines found instead of searching the file for them.
+    /// `again` keeps the lines found instead of searching the file for them.
     fn look(self: Pin<&mut Self>, step: i32, again: bool) {
         let app = self.app();
         let viewing = &self.viewing;

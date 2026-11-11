@@ -22,9 +22,6 @@ impl Kind {
     }
 }
 
-/// Beside the search text, as Steam's sidebar sets them; none of them apply to a search for given
-/// Workshop ids. The default shows everything, as Steam does.
-///
 /// Tags and DLC are matched like Steam's own two-version search: every included one must be there
 /// (two versions ticked finds the mods that carry both, checked on the site, 2026-11-10), and none
 /// of the excluded ones may.
@@ -33,12 +30,10 @@ pub struct Filters {
     /// Tags as Steam writes them (`Mod`, `1.6`); case is not significant.
     pub include_tags: Vec<String>,
     pub exclude_tags: Vec<String>,
-    /// Steam app ids of the DLC a mod must, and must not, require.
     pub include_dlc: Vec<String>,
     pub exclude_dlc: Vec<String>,
     /// App ids of the DLC the player has: a mod needing another is left out. `None` leaves none out.
     pub owned_dlc: Option<Vec<String>>,
-    /// Banned and removed mods are hidden unless this is set.
     pub show_incompatible: bool,
 }
 
@@ -46,7 +41,6 @@ pub struct Filters {
 /// the highest id (the newest) comes first.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Order {
-    /// By how well the words match; with none, the newest.
     #[default]
     Relevance,
     Subscribed,
@@ -121,7 +115,6 @@ pub struct Counts {
     pub total: usize,
     /// By tag, case folded into the first spelling met; only tags with results.
     pub tags: Vec<(String, usize)>,
-    /// By Steam app id.
     pub dlc: Vec<(String, usize)>,
 }
 
@@ -149,8 +142,6 @@ struct Plan<'a> {
     show_incompatible: bool,
 }
 
-/// What a hit lacks of the tag and DLC filters: counted with the other tags to tell which would
-/// be shown with one filter undone.
 struct Verdict {
     tier: u8,
     unmet: u8,
@@ -269,9 +260,7 @@ fn first_sorted<K: Ord>(hits: &mut Vec<(u8, usize)>, want: usize, key: impl Fn(&
 }
 
 impl Index {
-    /// Best first: the title is the words, starts with them, has each, or only author or package id do.
-    /// With no words and no other order, the newest first: ids grow with time and the index keeps
-    /// them in order.
+    /// With no words and no other order, newest first: ids grow with time and the index keeps them in order.
     pub fn search(
         &self,
         query: &Query,

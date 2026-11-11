@@ -9,7 +9,6 @@ use std::collections::BTreeMap;
 pub const HARMONY: &str = "2009463077";
 pub const COLLECTION: &str = "3000000001";
 
-/// Made up, and never asks the network.
 pub struct Fixture {
     index: Index,
 }
@@ -82,7 +81,6 @@ pub(super) fn entries() -> Vec<Entry> {
     ]
 }
 
-/// Subscriptions and dates that do not follow the ids, so each sort puts the items in its own order.
 fn made_up_sweep() -> Sweep {
     let records = entries().into_iter().enumerate().map(|(i, e)| {
         let record = Record {

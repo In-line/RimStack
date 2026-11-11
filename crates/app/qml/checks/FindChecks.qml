@@ -1,5 +1,3 @@
-// `--check=find --find-text=… [--find-regex] [--find-all] [--find-where=installed] [--find-stop=ms] [--picture-to=png]`
-// searches the installed mods once and prints how it went; read-only.
 pragma ComponentBehavior: Bound
 import QtQuick
 import RimStack.Ui
