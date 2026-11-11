@@ -212,14 +212,11 @@ impl App {
         if self.fixture {
             return Some(Arc::new(Steam::fixture()));
         }
-        let file = workshopindex::file_in(&self.data_dir);
-        let read = std::fs::metadata(&file).is_ok_and(|f| f.len() > 0);
-        let index = read.then(|| self.workshop_index());
+        let index = self.database_there().then(|| self.workshop_index());
         let transport: Arc<dyn Transport> = self.watch.clone();
         Some(Arc::new(Steam::new(key, transport, index, show_mature)))
     }
 
-    /// Whether searches go through Steam with the key.
     pub fn key_mode(&self) -> bool {
         self.keyed_source().is_some()
     }
@@ -233,7 +230,6 @@ impl App {
         self.watch.forget();
     }
 
-    /// Settings shows a key refused while browsing.
     pub(super) fn steam_refusal_told(&self, failure: Failure) -> Sentence {
         match failure {
             Failure::Status(401 | 403) => {

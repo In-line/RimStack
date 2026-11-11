@@ -76,9 +76,6 @@ pub trait Browse: Send + Sync {
     /// The name the database gives an expansion's Steam app id.
     fn app_name(&self, app_id: &str) -> Option<String>;
 
-    /// The game versions to filter by, newest first; see `Index::offered_versions`.
-    fn versions(&self, game: Option<&str>) -> Vec<String>;
-
     /// The sorts this source offers now: the cache adds some once a sweep is merged in.
     fn sorts(&self) -> Vec<Sort>;
 
@@ -163,10 +160,6 @@ impl Browse for Cache {
 
     fn app_name(&self, app_id: &str) -> Option<String> {
         self.index.app_name(app_id).map(str::to_string)
-    }
-
-    fn versions(&self, game: Option<&str>) -> Vec<String> {
-        self.index.offered_versions(game)
     }
 
     fn requires(&self, id: &str) -> Result<Vec<String>, Error> {

@@ -5,7 +5,6 @@
 use super::{App, now_secs};
 use crate::changes::Changes;
 use rimstack_core::problem;
-use rimstack_core::rimworld::workshopindex;
 use rimstack_core::rimworld::workshopsweep::{self, Sweep};
 use rimstack_core::sources::sweep::{self, Fetch, Outcome, Pace, Web};
 use std::sync::Arc;
@@ -45,22 +44,23 @@ impl App {
     /// last pass is a day old or was stopped. Decided once a session; the made-up install has its own.
     pub fn sweep_if_due(self: &Arc<Self>) {
         let opened = self.browse_open.load(Ordering::Relaxed);
-        let index = workshopindex::file_in(&self.data_dir);
-        let there = std::fs::metadata(&index).is_ok_and(|file| file.len() > 0);
-        if self.fixture || !opened || !there || self.sweeper.decided.swap(true, Ordering::SeqCst) {
+        if self.fixture
+            || !opened
+            || !self.database_there()
+            || self.sweeper.decided.swap(true, Ordering::SeqCst)
+        {
             return;
         }
         let file = workshopsweep::file_in(&self.data_dir);
         let app = self.clone();
         crate::jobs::spawn("workshop sweep", move || {
             let now = now_secs();
-            if !Sweep::read(&file).due(now) {
+            if !Sweep::due_in(&file, now) {
                 return;
             }
             let ids = app.workshop_index().ids().to_vec();
             let Sweeper { fetch, pace, .. } = &app.sweeper;
-            let cancel = AtomicBool::new(false);
-            match sweep::run(&ids, &file, &**fetch, pace, now, &cancel) {
+            match sweep::run(&ids, &file, &**fetch, pace, now) {
                 Ok(Outcome::Finished) => {}
                 Ok(Outcome::Stopped { reached, of }) => {
                     problem!("the Workshop sweep stopped after {reached} of {of} requests")
@@ -77,6 +77,7 @@ mod tests {
     use super::*;
     use rimstack_core::base::error::Error;
     use rimstack_core::rimworld::workshop::Details;
+    use rimstack_core::rimworld::workshopindex;
     use rimstack_core::rimworld::workshopindex::Entry;
     use rimstack_core::rimworld::workshopsearch::{Filters, Order, Query};
     use std::sync::Mutex;

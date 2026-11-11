@@ -10,7 +10,7 @@ use crate::rimworld::steamapi::{
     self, ApiKey, Call, Found, SEXUAL_DESCRIPTORS, Search, query_type,
 };
 use crate::rimworld::workshop::Details;
-use crate::rimworld::workshopindex::{self, Entry, Index};
+use crate::rimworld::workshopindex::{Entry, Index};
 use crate::rimworld::workshopsearch::{Counts, Order, Page};
 use serde_json::Value;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -283,9 +283,9 @@ impl Steam {
 
     fn by_ids(&self, request: &Request) -> Result<Page, Error> {
         let found: Vec<String> = self
-            .details(&request.query.ids)?
-            .into_iter()
-            .map(|d| d.id)
+            .shared(&request.query.ids)?
+            .iter()
+            .map(|d| d.id.clone())
             .collect();
         let total = found.len();
         let ids = found
@@ -296,8 +296,31 @@ impl Steam {
         Ok(Page { ids, total })
     }
 
-    fn known(&self, id: &str) -> Result<Option<Details>, Error> {
-        Ok(self.details(&[id.to_string()])?.into_iter().next())
+    fn shared(&self, ids: &[String]) -> Result<Vec<Arc<Details>>, Error> {
+        let todo = self.state().memory.unasked(ids, Instant::now());
+        for chunk in todo.chunks(DETAILS_CHUNK) {
+            let answer = self
+                .ask(Call::GetDetails, &steamapi::get_details(chunk))
+                .and_then(|text| steamapi::parse_get_details(&text));
+            self.state().memory.learn(chunk, answer, Instant::now());
+        }
+        let state = self.state();
+        let mut found = Vec::new();
+        for id in ids {
+            match state.memory.get(id) {
+                Some(d) => found.push(d),
+                None => {
+                    if let Some(error) = state.memory.failure(id, Instant::now()) {
+                        return Err(error);
+                    }
+                }
+            }
+        }
+        Ok(found)
+    }
+
+    fn known(&self, id: &str) -> Result<Option<Arc<Details>>, Error> {
+        Ok(self.shared(&[id.to_string()])?.into_iter().next())
     }
 }
 
@@ -341,26 +364,7 @@ impl Browse for Steam {
     }
 
     fn details(&self, ids: &[String]) -> Result<Vec<Details>, Error> {
-        let todo = self.state().memory.unasked(ids, Instant::now());
-        for chunk in todo.chunks(DETAILS_CHUNK) {
-            let answer = self
-                .ask(Call::GetDetails, &steamapi::get_details(chunk))
-                .and_then(|text| steamapi::parse_get_details(&text));
-            self.state().memory.learn(chunk, answer, Instant::now());
-        }
-        let state = self.state();
-        let mut found = Vec::new();
-        for id in ids {
-            match state.memory.get(id) {
-                Some(d) => found.push((*d).clone()),
-                None => {
-                    if let Some(error) = state.memory.failure(id, Instant::now()) {
-                        return Err(error);
-                    }
-                }
-            }
-        }
-        Ok(found)
+        Ok(self.shared(ids)?.iter().map(|d| (**d).clone()).collect())
     }
 
     fn sorts(&self) -> Vec<Sort> {
@@ -405,13 +409,6 @@ impl Browse for Steam {
         index.app_name(app_id).map(str::to_string)
     }
 
-    fn versions(&self, game: Option<&str>) -> Vec<String> {
-        self.index.as_ref().map_or_else(
-            || workshopindex::versions_below(game),
-            |i| i.offered_versions(game),
-        )
-    }
-
     fn requires(&self, id: &str) -> Result<Vec<String>, Error> {
         let known = self.index.as_ref().map(|i| i.requires(id));
         if let Some(known) = known.filter(|k| !k.is_empty()) {
@@ -420,7 +417,7 @@ impl Browse for Steam {
         Ok(self
             .known(id)?
             .filter(|d| !d.collection)
-            .map_or_else(Vec::new, |d| d.children))
+            .map_or_else(Vec::new, |d| d.children.clone()))
     }
 
     fn needed_by(&self, id: &str) -> Result<Vec<String>, Error> {
@@ -431,7 +428,11 @@ impl Browse for Steam {
     }
 
     fn same_author(&self, id: &str) -> Result<Vec<String>, Error> {
-        let Some(creator) = self.known(id)?.map(|d| d.creator).filter(|c| !c.is_empty()) else {
+        let Some(creator) = self
+            .known(id)?
+            .map(|d| d.creator.clone())
+            .filter(|c| !c.is_empty())
+        else {
             return Ok(Vec::new());
         };
         let mut ids: Vec<String> = Vec::new();
@@ -452,7 +453,7 @@ impl Browse for Steam {
         let mut all: Vec<String> = Vec::new();
         for id in ids {
             let set = self.known(id)?.filter(|d| d.collection);
-            let items = set.map_or_else(|| vec![id.clone()], |d| d.children);
+            let items = set.map_or_else(|| vec![id.clone()], |d| d.children.clone());
             for item in items {
                 if !all.contains(&item) {
                     all.push(item);
@@ -596,16 +597,6 @@ mod tests {
         let mut late = request("", Sort::MostSubscribed);
         (late.offset, late.count) = (4, 3);
         assert_eq!(ids(&steam, &late), all[4..7]);
-    }
-
-    #[test]
-    fn without_a_database_the_versions_are_the_games_and_those_below_it() {
-        let steam = Steam::new(key(), Arc::new(canned::Canned), None, false);
-        assert_eq!(
-            steam.versions(Some("1.6")),
-            ["1.6", "1.5", "1.4", "1.3", "1.2"]
-        );
-        assert!(steam.versions(None).is_empty());
     }
 
     #[test]

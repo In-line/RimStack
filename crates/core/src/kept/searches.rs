@@ -53,9 +53,7 @@ impl Searches {
     }
 
     pub fn write(&self, file: &Path) -> Result<(), Error> {
-        let text = serde_json::to_string(self)
-            .map_err(|e| Error::format(format!("{}: {e}", file.display())))?;
-        crate::base::atomic_file::write(file, text)
+        crate::base::atomic_file::write_json(file, self)
     }
 
     pub fn all(&self) -> &[Search] {

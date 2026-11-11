@@ -24,7 +24,6 @@ pub use shown::{Marks, Part, Results, Row, Shown};
 pub use sidebar::{Chip, Facet, Picked, Sidebar};
 pub use sorts::{SortOffer, chosen, effective, offers, sort_of};
 
-/// Hears a result's preview file and its stars.
 pub type Each<'a> = dyn Fn(&str, Option<PathBuf>, Vec<bool>) -> bool + Sync + 'a;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,13 +38,11 @@ pub enum Related {
 pub struct Defaults {
     /// False until the database is downloaded: Browse offers the download.
     pub ready: bool,
-    /// Searches go through Steam with the player's key.
     pub key_mode: bool,
     /// The sorts the source offers now; none until Browse is opened.
     pub sorts: Vec<Sort>,
 }
 
-/// What a search asks.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Asked {
     pub text: String,
@@ -151,6 +148,10 @@ impl App {
         Arc::new(Cache::new(self.workshop_index()))
     }
 
+    pub(crate) fn database_there(&self) -> bool {
+        std::fs::metadata(workshopindex::file_in(&self.data_dir)).is_ok_and(|file| file.len() > 0)
+    }
+
     /// True the first time only: the index is read once Browse is opened, not before.
     pub fn browse_opened(&self) -> bool {
         !self.browse_open.swap(true, Ordering::Relaxed)
@@ -159,9 +160,8 @@ impl App {
     pub fn browse_defaults(&self) -> Defaults {
         let opened = self.fixture || self.browse_open.load(Ordering::Relaxed);
         let key_mode = self.key_mode();
-        let stored = std::fs::metadata(workshopindex::file_in(&self.data_dir));
         Defaults {
-            ready: self.fixture || key_mode || stored.is_ok_and(|file| file.len() > 0),
+            ready: self.fixture || key_mode || self.database_there(),
             key_mode,
             sorts: match opened || key_mode {
                 true => self.browse_source().sorts(),
@@ -180,7 +180,7 @@ impl App {
         ids
     }
 
-    fn marks(&self) -> Marks {
+    pub(crate) fn marks(&self) -> Marks {
         Marks {
             installed: self.installed_workshop(),
             listed: self.listed_ids().into_iter().collect(),
@@ -262,7 +262,7 @@ impl App {
             )
         });
         Ok(Results {
-            more: offset + page.ids.len() < page.total,
+            more: offset.saturating_add(count) < page.total,
             total: page.total,
             rows: self.rows_of(source, &page.ids),
             notice: None,

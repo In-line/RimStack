@@ -130,26 +130,9 @@ pub struct Index {
     stats: Vec<Stat>,
 }
 
-const OFFERED: usize = 5;
-const WELL_STOCKED: usize = 100;
 /// Measured on the real database: the mistyped tags (0.8 to 0.13, 1.18, 2.x) have 5 mods or
 /// fewer, the smallest real version (0.19) has 543.
 pub const REAL_VERSION: usize = 100;
-
-/// Without a database: the game's own version, then the minors below it down to `.0`, at most
-/// `OFFERED`. Empty when the game is unknown or its version is not `major.minor`.
-pub fn versions_below(game: Option<&str>) -> Vec<String> {
-    let Some(game) = game.filter(|game| is_version_tag(game)) else {
-        return Vec::new();
-    };
-    let numbers = versions::numbers(game);
-    let (major, minor) = (numbers[0], numbers[1]);
-    (0..=minor)
-        .rev()
-        .take(OFFERED)
-        .map(|minor| format!("{major}.{minor}"))
-        .collect()
-}
 
 fn is_version_tag(tag: &str) -> bool {
     let mut parts = tag.split('.');
@@ -316,7 +299,6 @@ impl Index {
         merged
     }
 
-    /// Whether Steam's own numbers are laid over the database's.
     pub fn swept(&self) -> bool {
         !self.stats.is_empty()
     }
@@ -401,7 +383,6 @@ impl Index {
         after.checked_sub(1).filter(|&at| self.ids[at] == id)
     }
 
-    /// Steam app id to name, for the expansions the database lists.
     pub fn with_apps(mut self, apps: BTreeMap<String, String>) -> Index {
         self.apps = apps;
         self
@@ -432,31 +413,6 @@ impl Index {
             .collect();
         tags.sort_by_key(|tag| versions::numbers(tag));
         tags
-    }
-
-    /// Game versions to offer, newest first, at most `OFFERED`: the game's own first, then the
-    /// versions below it the database has. Without a game, from the newest with `WELL_STOCKED` mods.
-    pub fn offered_versions(&self, game: Option<&str>) -> Vec<String> {
-        let mut tags: Vec<&(String, usize)> = self.version_counts.iter().collect();
-        tags.sort_by_key(|tag| std::cmp::Reverse(versions::numbers(&tag.0)));
-        let ceiling = match game {
-            Some(game) => game.to_string(),
-            None => {
-                let stocked = tags.iter().find(|(_, n)| *n >= WELL_STOCKED);
-                match stocked.or(tags.first()) {
-                    Some((tag, _)) => tag.clone(),
-                    None => return Vec::new(),
-                }
-            }
-        };
-        let mut offered = vec![ceiling.clone()];
-        let below = tags
-            .iter()
-            .map(|(tag, _)| tag)
-            .filter(|tag| versions::newer(tag, &ceiling));
-        offered.extend(below.cloned());
-        offered.truncate(OFFERED);
-        offered
     }
 
     pub fn len(&self) -> usize {
@@ -527,26 +483,20 @@ impl Index {
     }
 
     pub fn store(&self, to: &Path) -> Result<(), Error> {
-        let mut text = String::new();
-        for at in 0..self.len() {
+        let entries = (0..self.len()).map(|at| {
             let e = self.entry(at);
-            let line = (
-                &e.id,
-                &e.title,
-                &e.author,
-                &e.package_id,
-                &e.tags,
-                &e.requires,
-                &e.dlc,
-            );
-            text.push_str(&serde_json::to_string(&line).unwrap_or_default());
-            text.push('\n');
-        }
-        for app in &self.apps {
-            text.push_str(&serde_json::to_string(&app).unwrap_or_default());
-            text.push('\n');
-        }
-        crate::base::atomic_file::write(to, text)
+            serde_json::json!([
+                e.id,
+                e.title,
+                e.author,
+                e.package_id,
+                e.tags,
+                e.requires,
+                e.dlc
+            ])
+        });
+        let apps = self.apps.iter().map(|app| serde_json::json!(app));
+        crate::base::atomic_file::write_lines(to, entries.chain(apps))
     }
 
     /// Empty when the file is missing; a line that is not as written is skipped.
@@ -598,46 +548,6 @@ mod tests {
         (0..count)
             .map(|n| entry(&(n + 1).to_string(), "m", None, tags))
             .collect()
-    }
-
-    #[test]
-    fn the_versions_offered_come_from_the_tags() {
-        let mut all = stocked(&["Mod", "1.6", "1.5"], 120);
-        all.extend(stocked(&["1.7"], 3));
-        all.extend(stocked(
-            &["1.4", "1.3", "1.2", "1.1", "2.9", "0.14", "Mod"],
-            2,
-        ));
-        let index = Index::new(all);
-        assert_eq!(
-            index.offered_versions(Some("1.7")),
-            ["1.7", "1.6", "1.5", "1.4", "1.3"]
-        );
-        assert_eq!(
-            index.offered_versions(Some("1.9")),
-            ["1.9", "1.7", "1.6", "1.5", "1.4"]
-        );
-        assert_eq!(
-            index.offered_versions(Some("1.5")),
-            ["1.5", "1.4", "1.3", "1.2", "1.1"]
-        );
-        assert_eq!(
-            index.offered_versions(None),
-            ["1.6", "1.5", "1.4", "1.3", "1.2"]
-        );
-        assert!(Index::default().offered_versions(None).is_empty());
-    }
-
-    #[test]
-    fn without_a_database_the_game_and_the_minors_below_it_are_offered() {
-        assert_eq!(
-            versions_below(Some("1.6")),
-            ["1.6", "1.5", "1.4", "1.3", "1.2"]
-        );
-        assert_eq!(versions_below(Some("1.2")), ["1.2", "1.1", "1.0"]);
-        assert_eq!(versions_below(Some("1.0")), ["1.0"]);
-        assert!(versions_below(Some("1.6.4871")).is_empty());
-        assert!(versions_below(Some("junk")).is_empty() && versions_below(None).is_empty());
     }
 
     fn sample() -> Index {

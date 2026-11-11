@@ -28,7 +28,6 @@ pub struct Paths {
     /// The folder holding `Config/` and `Saves/`.
     pub config: Option<PathBuf>,
     pub workshop: Option<PathBuf>,
-    /// Whether a Steam folder was found.
     pub steam: bool,
     /// Short form, `1.6`, from `<game>/Version.txt`.
     pub game_version: Option<String>,

@@ -63,7 +63,61 @@ Rectangle {
                 id: typesBox
                 width: parent.width
                 placeholder: Theme.say("xml, cs; json  or  .")
-                onTextChanged: Hub.find.fileTypes = text
+                onTextChanged: { Hub.find.fileTypes = text; offers.shut = false }
+                holdEscape: offers.visible
+                onAccepted: text = Hub.find.completeType(offers.pick)
+                Keys.enabled: offers.visible
+                Keys.onDownPressed: offers.at = Hub.find.stepType(offers.at, 1)
+                Keys.onUpPressed: offers.at = Hub.find.stepType(offers.at, -1)
+                Keys.onTabPressed: text = Hub.find.completeType(offers.at)
+                onTapped: offers.shut = false
+                onEditingChanged: offers.shut = false
+                onEscaped: offers.shut = true
+                Popup {
+                    id: offers
+                    property bool shut: false
+                    property int at: 0
+                    readonly property var offered: Hub.find.typeSuggestions || []
+                    readonly property int pick: visible * (at + 1) - 1
+                    visible: typesBox.editing && !shut
+                    onOfferedChanged: at = 0
+                    onClosed: shut = true
+                    closePolicy: Popup.CloseOnPressOutsideParent
+                    y: typesBox.height + Theme.gapTiny
+                    width: typesBox.width
+                    padding: Theme.gapTiny
+                    background: Rectangle { radius: Theme.cornerLarge; color: Theme.bar; border.width: 1; border.color: Theme.line }
+                    contentItem: ListView {
+                        implicitHeight: Math.max(Math.min(contentHeight, 6 * Theme.strip), none.implicitHeight)
+                        Text {
+                            id: none
+                            visible: offers.offered.length === 0
+                            width: parent.width
+                            padding: Theme.gap
+                            wrapMode: Text.WordWrap
+                            color: Theme.ink3
+                            font.pixelSize: Theme.small
+                            text: Theme.say("None of these mods has such files; it is still searched")
+                        }
+                        clip: true
+                        model: offers.offered
+                        currentIndex: offers.at
+                        highlight: Rectangle { radius: Theme.corner; color: Theme.chip }
+                        delegate: Item {
+                            id: offer
+                            required property var modelData
+                            required property int index
+                            width: ListView.view.width
+                            height: Theme.strip
+                            Accessible.role: Accessible.Button
+                            Accessible.name: offer.modelData.label
+                            Text { id: offerKey; anchors.left: parent.left; anchors.leftMargin: Theme.gap; anchors.verticalCenter: parent.verticalCenter; color: Theme.ink; font.pixelSize: Theme.body; text: offer.modelData.label }
+                            Text { anchors.left: offerKey.right; anchors.leftMargin: Theme.gap; anchors.right: parent.right; anchors.rightMargin: Theme.gap; anchors.verticalCenter: parent.verticalCenter; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight; color: Theme.ink2; font.pixelSize: Theme.small; text: offer.modelData.note }
+                            HoverHandler { onHoveredChanged: offers.at = offer.index }
+                            TapHandler { onTapped: typesBox.text = Hub.find.completeType(offer.index) }
+                        }
+                    }
+                }
             }
             Binding { target: typesBox; property: "text"; value: Hub.find.fileTypes }
             Text {

@@ -7,11 +7,11 @@ use super::workshop::Details;
 use crate::base::error::Error;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
 
 pub const DAY: u64 = 86_400;
 
-/// What Steam last said of one item.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Record {
     pub title: String,
@@ -74,30 +74,36 @@ impl Sweep {
     }
 
     pub fn store(&self, to: &Path) -> Result<(), Error> {
-        let mut text = format!(
-            "{}\n",
-            json!(["sweep", 1, self.completed, self.resume_after])
-        );
-        for (id, r) in &self.records {
-            let line = match r.removed {
-                true => json!([id]),
-                false => json!([
-                    id,
-                    r.title,
-                    r.tags,
-                    r.size,
-                    r.subscriptions,
-                    r.favorited,
-                    r.created,
-                    r.updated,
-                    r.banned,
-                    r.app_id
-                ]),
-            };
-            text.push_str(&line.to_string());
-            text.push('\n');
+        let header = json!(["sweep", 1, self.completed, self.resume_after]);
+        let records = self.records.iter().map(|(id, r)| match r.removed {
+            true => json!([id]),
+            false => json!([
+                id,
+                r.title,
+                r.tags,
+                r.size,
+                r.subscriptions,
+                r.favorited,
+                r.created,
+                r.updated,
+                r.banned,
+                r.app_id
+            ]),
+        });
+        crate::base::atomic_file::write_lines(to, std::iter::once(header).chain(records))
+    }
+
+    /// Whether a pass is due, from the header line alone.
+    pub fn due_in(path: &Path, now: u64) -> bool {
+        let first = std::fs::File::open(path)
+            .ok()
+            .and_then(|file| std::io::BufReader::new(file).lines().next()?.ok());
+        let mut sweep = Sweep::default();
+        if let Some(Value::Array(fields)) = first.and_then(|l| serde_json::from_str(&l).ok()) {
+            let number = |at: usize| fields.get(at).and_then(Value::as_u64).unwrap_or(0);
+            (sweep.completed, sweep.resume_after) = (number(2), number(3));
         }
-        crate::base::atomic_file::write(to, text)
+        sweep.due(now)
     }
 
     /// Empty when the file is missing; a line that is not as written is skipped.

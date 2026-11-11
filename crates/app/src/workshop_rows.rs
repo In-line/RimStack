@@ -107,7 +107,7 @@ pub mod qobject {
     }
 }
 
-use crate::qml::diff::{Step, steps};
+use crate::qml::diff::steps;
 use crate::qml::values::to_qml;
 use crate::workspace::browse::Row;
 use core::pin::Pin;
@@ -164,6 +164,8 @@ fn cell(item: &Item, field: usize) -> Option<QVariant> {
     })
 }
 
+crate::qml::apply::shown_rows!(qobject::WorkshopRows, Item);
+
 impl qobject::WorkshopRows {
     fn data(&self, index: &QModelIndex, role: i32) -> QVariant {
         let field = usize::try_from(role - FIRST_ROLE).ok();
@@ -193,10 +195,10 @@ impl qobject::WorkshopRows {
         let after: Vec<_> = items.iter().map(|i| i.row.id.clone()).collect();
         match steps(&before, &after) {
             Some(steps) => {
-                self.as_mut().step(&steps, &items);
+                crate::qml::apply::apply(self.as_mut(), &steps, &items);
                 self.changed_rows(items);
             }
-            None => self.renew(items),
+            None => crate::qml::apply::renew(self.as_mut(), items),
         }
     }
 
@@ -232,49 +234,6 @@ impl qobject::WorkshopRows {
         let root = QModelIndex::default();
         let (top, bottom) = (self.index(0, 0, &root), self.index(last as i32, 0, &root));
         self.data_changed(&top, &bottom, &QVector::default());
-    }
-
-    fn renew(mut self: Pin<&mut Self>, items: Vec<Item>) {
-        // SAFETY: the reset ends below, after the rows changed.
-        unsafe { self.as_mut().begin_reset_model() };
-        self.as_mut().rust_mut().shown = items;
-        // SAFETY: ends the reset begun above.
-        unsafe { self.as_mut().end_reset_model() };
-    }
-
-    fn step(mut self: Pin<&mut Self>, steps: &[Step], items: &[Item]) {
-        let root = QModelIndex::default();
-        for step in steps {
-            // SAFETY: each change is announced before `shown` changes and
-            // ended right after, with the rows it names.
-            unsafe {
-                match *step {
-                    Step::Remove { first, last } => {
-                        self.as_mut()
-                            .begin_remove_rows(&root, first as i32, last as i32);
-                        self.as_mut().rust_mut().shown.drain(first..=last);
-                        self.as_mut().end_remove_rows();
-                    }
-                    Step::Insert { first, last } => {
-                        self.as_mut()
-                            .begin_insert_rows(&root, first as i32, last as i32);
-                        let coming = items[first..=last].iter().cloned();
-                        self.as_mut().rust_mut().shown.splice(first..first, coming);
-                        self.as_mut().end_insert_rows();
-                    }
-                    Step::Move { from, to } => {
-                        // Qt names the place as the row it goes before, counted before the move.
-                        let before = if to > from { to + 1 } else { to };
-                        let (from, before) = (from as i32, before as i32);
-                        self.as_mut()
-                            .begin_move_rows(&root, from, from, &root, before);
-                        let item = self.as_mut().rust_mut().shown.remove(from as usize);
-                        self.as_mut().rust_mut().shown.insert(to, item);
-                        self.as_mut().end_move_rows();
-                    }
-                }
-            }
-        }
     }
 
     fn changed_rows(mut self: Pin<&mut Self>, items: Vec<Item>) {

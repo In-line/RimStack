@@ -304,9 +304,12 @@ impl LoadOrder {
         self.inactive.set_facts(facts);
     }
 
-    /// A batch of mods' files was read in the background.
     pub fn facts_read(&mut self, app: &App) {
         self.share_facts(app);
+    }
+
+    pub fn needs_facts(&self) -> bool {
+        self.active.needs_facts() || self.inactive.needs_facts()
     }
 
     /// What the filter found on each side, and how many mods a word of it still waits to read.

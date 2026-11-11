@@ -1,4 +1,5 @@
 use super::*;
+use crate::workspace::find::type_offers;
 use crate::workspace::find::{Cell, Look};
 use crate::workspace::tests::installed;
 use std::sync::Mutex;
@@ -275,17 +276,12 @@ fn a_bad_regex_is_said_before_anything_runs_and_an_empty_box_is_no_problem() {
         ..ask("(", Place::Active)
     };
     assert!(app.find_start(&bad).is_err());
-    assert!(
-        !app.find_ready(&bad),
-        "nothing starts unasked on a bad pattern"
-    );
-    assert!(!app.find_ready(&ask(" ", Place::Active)));
     let bad_types = Request {
         types: "xml, a/b".into(),
         ..ask("Steel", Place::Active)
     };
-    assert!(!app.find_ready(&bad_types));
-    assert!(app.find_ready(&ask("Steel", Place::Active)));
+    assert!(app.find_prepare(&bad_types).is_err());
+    assert!(app.find_prepare(&ask("Steel", Place::Active)).is_ok());
 }
 
 #[test]
@@ -417,4 +413,19 @@ fn the_mods_found_are_listed_with_counts_and_a_pick_keeps_one_mods_rows() {
     let rows = app.find_change(|r| r.set_pick(Some(one)));
     assert!(rows.iter().all(|r| r.same_mod(rows[0])));
     assert!(app.find_results(|r| r.found_mods()).rows[0].chosen);
+}
+
+#[test]
+fn extensions_are_counted_per_place_and_leave_the_folders_left_out() {
+    let (_tmp, app) = made_up();
+    let counted = |request: &Request| app.find_extensions(request);
+    let kept = |place| counted(&ask("", place));
+    assert_eq!(kept(Place::Active), [("xml".to_string(), 2)]);
+    assert_eq!(kept(Place::Workshop), [("xml".to_string(), 2)]);
+    assert_eq!(kept(Place::Local), [("xml".to_string(), 2)]);
+    let mut all = ask("", Place::Local);
+    all.folders.languages = false;
+    assert_eq!(counted(&all), [("xml".to_string(), 3)]);
+    let offers = type_offers(&kept(Place::Workshop), "x");
+    assert_eq!((offers[0].ext.as_str(), offers[0].count), ("xml", 2));
 }

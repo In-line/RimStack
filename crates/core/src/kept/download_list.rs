@@ -96,9 +96,7 @@ impl DownloadList {
 
     pub fn write(&self, file: &Path) -> Result<(), Error> {
         let rows: Vec<Value> = self.rows.iter().map(Row::to_value).collect();
-        let text = serde_json::to_string(&rows)
-            .map_err(|e| Error::format(format!("{}: {e}", file.display())))?;
-        crate::base::atomic_file::write(file, text)
+        crate::base::atomic_file::write_json(file, &rows)
     }
 
     pub fn rows(&self) -> &[Row] {

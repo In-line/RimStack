@@ -1,11 +1,53 @@
 //! A mod's links may loop: a folder is entered once however it is reached.
 
+use std::ffi::OsStr;
+use std::fs::FileType;
+use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 
 pub struct Entry {
     pub path: PathBuf,
     pub within: PathBuf,
     pub is_dir: bool,
+}
+
+pub enum Seen<'a> {
+    Folder(&'a Path),
+    /// Anything that is not a folder, links to folders included.
+    Item(&'a Path, FileType),
+}
+
+/// Every folder under `root` (itself too) not named by `skip`, and what is in them, in no order.
+/// Links to folders are never entered. Whatever cannot be read counts as nothing.
+/// Returns whether `on` stopped it.
+pub fn visit(
+    root: &Path,
+    skip: impl Fn(&OsStr) -> bool,
+    mut on: impl FnMut(Seen) -> ControlFlow<()>,
+) -> bool {
+    let mut waiting = vec![root.to_path_buf()];
+    while let Some(folder) = waiting.pop() {
+        if on(Seen::Folder(&folder)).is_break() {
+            return true;
+        }
+        let Ok(entries) = std::fs::read_dir(&folder) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            let path = entry.path();
+            if kind.is_dir() {
+                if !skip(&entry.file_name()) {
+                    waiting.push(path);
+                }
+            } else if on(Seen::Item(&path, kind)).is_break() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// In no order. Links to folders are followed unless they lead into or above

@@ -5,7 +5,6 @@ use crate::rimworld::workshop::{self, Details};
 use crate::rimworld::workshopsweep::{Record, Sweep};
 use std::path::Path;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 const BATCH: usize = 100;
@@ -23,7 +22,7 @@ pub struct Web {
 impl Default for Web {
     fn default() -> Self {
         Web {
-            agent: crate::base::web::agent(120),
+            agent: crate::base::web::steam_agent(),
         }
     }
 }
@@ -54,7 +53,7 @@ impl Pace {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Outcome {
     Finished,
-    /// Steam failed twice in a row, or the caller cancelled: what was reached is kept and the next
+    /// Steam failed twice in a row: what was reached is kept and the next
     /// pass resumes after it.
     Stopped {
         reached: usize,
@@ -77,7 +76,6 @@ pub fn run(
     fetch: &dyn Fetch,
     pace: &Pace,
     now: u64,
-    cancel: &AtomicBool,
 ) -> Result<Outcome, Error> {
     let mut sweep = Sweep::read(path);
     let from = ids.partition_point(|&id| id <= sweep.resume_after);
@@ -95,10 +93,7 @@ pub fn run(
                 loop {
                     let at = {
                         let mut state = lock();
-                        if state.stopped.is_some()
-                            || cancel.load(Ordering::Relaxed)
-                            || state.next >= todo.len()
-                        {
+                        if state.stopped.is_some() || state.next >= todo.len() {
                             return;
                         }
                         state.next += 1;
@@ -112,11 +107,14 @@ pub fn run(
                     let mut state = lock();
                     match answer {
                         Ok(details) => {
+                            let by_id: std::collections::HashMap<&str, &Details> =
+                                details.iter().map(|d| (d.id.as_str(), d)).collect();
                             for &id in todo[at] {
-                                let found = details.iter().find(|d| d.id == id.to_string());
-                                state
-                                    .got
-                                    .push((id, found.map_or_else(Record::removed, Record::of)));
+                                let found = by_id.get(id.to_string().as_str());
+                                state.got.push((
+                                    id,
+                                    found.map_or_else(Record::removed, |d| Record::of(d)),
+                                ));
                             }
                             state.done[at] = true;
                         }
@@ -160,7 +158,7 @@ mod tests {
     use super::*;
     use crate::rimworld::workshopsweep::file_in;
     use crate::said;
-    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     const QUICK: Pace = Pace {
         workers: 4,
@@ -223,15 +221,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = file_in(dir.path());
         let fake = Fake::ok();
-        let out = run(
-            &ids(2050),
-            &path,
-            &fake,
-            &QUICK,
-            5000,
-            &AtomicBool::new(false),
-        )
-        .unwrap();
+        let out = run(&ids(2050), &path, &fake, &QUICK, 5000).unwrap();
         assert_eq!(out, Outcome::Finished);
         let mut sizes = fake.sizes.lock().unwrap().clone();
         sizes.sort();
@@ -255,15 +245,7 @@ mod tests {
             ..QUICK
         };
         let fake = Fake::failing(3, 2);
-        let out = run(
-            &ids(1000),
-            &path,
-            &fake,
-            &one,
-            5000,
-            &AtomicBool::new(false),
-        )
-        .unwrap();
+        let out = run(&ids(1000), &path, &fake, &one, 5000).unwrap();
         assert_eq!(out, Outcome::Stopped { reached: 3, of: 10 });
         let kept = Sweep::read(&path);
         assert_eq!(
@@ -273,15 +255,7 @@ mod tests {
         assert!(kept.due(6000));
 
         let later = Fake::ok();
-        let out = run(
-            &ids(1000),
-            &path,
-            &later,
-            &one,
-            9000,
-            &AtomicBool::new(false),
-        )
-        .unwrap();
+        let out = run(&ids(1000), &path, &later, &one, 9000).unwrap();
         assert_eq!(out, Outcome::Finished);
         assert_eq!(later.sizes.lock().unwrap().len(), 7);
         let done = Sweep::read(&path);
@@ -297,7 +271,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = file_in(dir.path());
         let fake = Fake::failing(1, 1);
-        let out = run(&ids(500), &path, &fake, &QUICK, 1, &AtomicBool::new(false)).unwrap();
+        let out = run(&ids(500), &path, &fake, &QUICK, 1).unwrap();
         assert_eq!(out, Outcome::Finished);
         assert_eq!(Sweep::read(&path).records.len(), 500);
     }
@@ -307,36 +281,16 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = file_in(dir.path());
         let fake = Fake::failing(0, 100);
-        assert!(run(&ids(300), &path, &fake, &QUICK, 1, &AtomicBool::new(false)).is_err());
+        assert!(run(&ids(300), &path, &fake, &QUICK, 1).is_err());
         assert!(!path.exists());
     }
 
     #[test]
-    fn cancelling_keeps_what_was_reached_and_a_finished_pass_forgets_items_the_index_dropped() {
+    fn a_finished_pass_forgets_items_the_index_dropped() {
         let dir = tempfile::tempdir().unwrap();
         let path = file_in(dir.path());
-        let stop = AtomicBool::new(true);
-        let out = run(&ids(300), &path, &Fake::ok(), &QUICK, 1, &stop).unwrap();
-        assert_eq!(out, Outcome::Stopped { reached: 0, of: 3 });
-        assert!(!path.exists());
-        run(
-            &ids(300),
-            &path,
-            &Fake::ok(),
-            &QUICK,
-            1,
-            &AtomicBool::new(false),
-        )
-        .unwrap();
-        run(
-            &ids(150),
-            &path,
-            &Fake::ok(),
-            &QUICK,
-            2,
-            &AtomicBool::new(false),
-        )
-        .unwrap();
+        run(&ids(300), &path, &Fake::ok(), &QUICK, 1).unwrap();
+        run(&ids(150), &path, &Fake::ok(), &QUICK, 2).unwrap();
         assert_eq!(Sweep::read(&path).records.len(), 150);
     }
 }

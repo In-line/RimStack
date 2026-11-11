@@ -6,7 +6,7 @@ use rimstack_core::base::sentence::Sentence;
 use rimstack_core::base::sizes;
 use rimstack_core::kept::download_list::{self, DownloadList, Row, Why};
 use rimstack_core::mods::describe::{self, Fix};
-use rimstack_core::rimworld::paths::{APP_ID, Os};
+use rimstack_core::rimworld::paths::Os;
 use rimstack_core::rimworld::{about, id};
 use rimstack_core::sources::browse::{Browse, Refusal, add_with_requirements};
 use rimstack_core::{say, say_n};
@@ -124,9 +124,7 @@ pub fn vet(
             .ok()
             .and_then(|all| all.iter().find(|d| d.id == *id));
         let why = match (found, answer) {
-            (Some(d), _) if d.collection => Some(say!("A collection: add its mods instead")),
-            (Some(d), _) if d.app_id.to_string() != APP_ID => Some(say!("Not an item of RimWorld")),
-            (Some(_), _) => None,
+            (Some(d), _) => d.refusal(),
             (None, Ok(_)) => Some(say!("Steam does not know this item")),
             (None, Err(_)) if in_database(id) => None,
             (None, Err(_)) => Some(say!("Steam could not be asked about this item")),

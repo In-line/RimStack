@@ -82,16 +82,13 @@ fn get(url: &str, folder: &Path, largest: u64) -> Result<PathBuf, Error> {
         return Ok(path);
     }
     let failed = crate::base::web::steam_failed;
-    let mut response = crate::base::web::agent(20)
+    static AGENT: std::sync::OnceLock<ureq::Agent> = std::sync::OnceLock::new();
+    let mut response = AGENT
+        .get_or_init(|| crate::base::web::agent(20))
         .get(url)
         .call()
         .map_err(crate::base::web::failed)?;
-    let bytes = response
-        .body_mut()
-        .with_config()
-        .limit(largest)
-        .read_to_vec()
-        .map_err(failed)?;
+    let bytes = crate::base::web::read_bytes(&mut response, largest).map_err(failed)?;
     crate::base::atomic_file::write(&path, bytes)?;
     Ok(path)
 }

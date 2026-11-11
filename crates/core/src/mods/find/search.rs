@@ -188,11 +188,12 @@ fn search_file(
     counts: &Counts,
     room: &AtomicUsize,
 ) -> Option<(Vec<Hit>, usize)> {
-    if std::fs::metadata(file).is_ok_and(|m| m.len() > MOST_BYTES) {
+    let mut open = std::fs::File::open(file).ok()?;
+    if open.metadata().is_ok_and(|m| m.len() > MOST_BYTES) {
         counts.too_large.fetch_add(1, Relaxed);
         return None;
     }
-    let bytes = read_text(file, all_text, counts)?;
+    let bytes = read_text(&mut open, all_text, counts)?;
     counts.files.fetch_add(1, Relaxed);
     let text = String::from_utf8_lossy(&bytes);
     let (hits, matches) = hits_within(&text, pattern, room);
@@ -204,11 +205,10 @@ fn search_file(
 }
 
 /// With `sniff`, a file whose first bytes hold a NUL is counted as binary and not read further.
-fn read_text(file: &Path, sniff: bool, counts: &Counts) -> Option<Vec<u8>> {
-    let mut open = std::fs::File::open(file).ok()?;
+fn read_text(open: &mut std::fs::File, sniff: bool, counts: &Counts) -> Option<Vec<u8>> {
     let mut bytes = Vec::new();
     if sniff {
-        (&mut open)
+        (&mut *open)
             .take(SNIFF as u64)
             .read_to_end(&mut bytes)
             .ok()?;

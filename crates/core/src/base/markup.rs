@@ -128,7 +128,6 @@ pub fn rich(text: &str) -> String {
     html.trim().replace('\n', "<br>")
 }
 
-/// A description cut at its pictures.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Piece {
     Html(String),

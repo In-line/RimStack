@@ -11,6 +11,7 @@ Rectangle {
     property string icon
     property string keys
     property bool wanted: false
+    property bool holdEscape: false
     property int echo: TextInput.Normal
     readonly property real lead: icon !== "" ? Theme.icon + Theme.gap : 0
     readonly property real inset: clear.visible ? clear.width + 2 * Theme.gap : Theme.gapMedium
@@ -135,7 +136,7 @@ Rectangle {
             field.compose()
         }
         Keys.onEscapePressed: {
-            field.text = ""
+            field.text = field.holdEscape && field.text || ""
             field.escaped()
         }
         TapHandler { onTapped: field.tapped() }

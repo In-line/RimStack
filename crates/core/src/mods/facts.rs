@@ -1,8 +1,11 @@
 //! What reading one mod's files gives, for the filter words `has:`, `defines:` and `patchesdef:`.
 
+use crate::base::path_text::has_extension;
+use crate::base::walk;
 use crate::mods::infer::{self, Scanned};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -43,26 +46,19 @@ impl Has {
 }
 
 fn is_xml(path: &Path) -> bool {
-    path.extension()
-        .is_some_and(|x| x.eq_ignore_ascii_case("xml"))
+    has_extension(path, "xml")
 }
 
 /// Stops at the first file `wanted` takes; links to folders are not entered.
 fn holds(dir: &Path, wanted: &dyn Fn(&Path) -> bool) -> bool {
-    let mut waiting = vec![dir.to_path_buf()];
-    while let Some(folder) = waiting.pop() {
-        for entry in std::fs::read_dir(&folder).into_iter().flatten().flatten() {
-            let Ok(kind) = entry.file_type() else {
-                continue;
-            };
-            if kind.is_dir() {
-                waiting.push(entry.path());
-            } else if wanted(&entry.path()) {
-                return true;
-            }
-        }
-    }
-    false
+    walk::visit(
+        dir,
+        |_| false,
+        |seen| match seen {
+            walk::Seen::Item(path, _) if wanted(path) => ControlFlow::Break(()),
+            _ => ControlFlow::Continue(()),
+        },
+    )
 }
 
 fn any_in(folders: &[PathBuf], name: &str, wanted: &dyn Fn(&Path) -> bool) -> bool {

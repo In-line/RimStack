@@ -243,7 +243,8 @@ impl App {
             });
         }
         let ids = workshop::expand_collections(&ids)?;
-        let answered = workshop::fetch_details(&ids)?;
+        let mut answered = workshop::fetch_details(&ids)?;
+        answered.retain(|details| details.refusal().is_none());
         self.library().as_ref().as_ref().map_err(Clone::clone)?;
         let installed = self.installed_workshop();
         let items = downloads::asked(&ids, &answered, &|id| installed.contains(id));

@@ -36,7 +36,8 @@ Column {
                 visible: status === Image.Ready
                 asynchronous: true
                 fillMode: Image.PreserveAspectCrop
-                sourceSize.width: Theme.sized(192)
+                sourceSize.width: width * Screen.devicePixelRatio
+                sourceSize.height: height * Screen.devicePixelRatio
                 source: Mods.info.preview ? Theme.fileUrl(Mods.info.preview) : ""
             }
             Text { visible: !Mods.info.preview; anchors.centerIn: parent; color: Theme.brand; font.pixelSize: Theme.display; font.weight: Font.DemiBold; text: (Mods.info.name || "?").charAt(0).toUpperCase() }

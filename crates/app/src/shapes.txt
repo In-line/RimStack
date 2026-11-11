@@ -155,6 +155,12 @@ find.recent: list
     text: text
     types: text
     word: bool
+find.typeSuggestions: list
+  []: object
+    count: number
+    ext: text
+    label: text
+    note: text
 game.lastStart: object
   errors: number
   time: number

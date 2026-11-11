@@ -62,6 +62,14 @@ ListView {
         Mods.editRequested(event.key === Qt.Key_N ? "note" : "tags")
         event.accepted = true
     }
+    Shortcut {
+        sequences: [StandardKey.SelectAll]
+        enabled: list.activeFocus
+        onActivated: {
+            Mods.select(list.model.firstModId(), list.model.active)
+            Mods.selectThrough(list.model.lastModId(), list.model.active)
+        }
+    }
     Keys.onReturnPressed: Mods.activateSelected(list.model)
     Keys.onEnterPressed: Mods.activateSelected(list.model)
     Rectangle { id: ring; parent: list; anchors.fill: parent; anchors.margins: Theme.gapLine; z: 4; radius: Theme.corner; color: "transparent"; border.width: 2; border.color: Theme.focus; visible: list.activeFocus }

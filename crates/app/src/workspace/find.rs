@@ -5,7 +5,8 @@ use rimstack_core::base::pattern::{Pattern, Switches};
 use rimstack_core::base::sentence::Sentence;
 use rimstack_core::kept::searches::{Search, Searches};
 use rimstack_core::mods::find::{
-    Batch, FileLists, FileTypes, FolderSettings, Progress, Summary, Target, inside, preview, search,
+    Batch, FileLists, FileTypes, FolderSettings, Offer, Progress, Summary, Target, inside, preview,
+    search, suggest,
 };
 use rimstack_core::mods::library::{Library, ModId};
 use rimstack_core::rimworld::paths::Source;
@@ -19,7 +20,6 @@ use std::sync::{Arc, Mutex};
 mod results;
 pub use results::{Cell, Folded, FoundMods, MOST_HITS, Op, Part, ROLES, Results, RowRef};
 
-/// Where a search looks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Place {
     Active,
@@ -150,7 +150,8 @@ impl Request {
         }
     }
 
-    pub fn flip(&mut self, id: &str) {
+    /// Whether the switch changed which folders are looked in.
+    pub fn flip(&mut self, id: &str) -> bool {
         let (s, f) = (&mut self.switches, &mut self.folders);
         match id {
             "case" => s.case = !s.case,
@@ -162,6 +163,7 @@ impl Request {
             "git" => f.git = !f.git,
             _ => {}
         }
+        matches!(id, "languages" | "source" | "textures" | "git")
     }
 
     pub fn choose(&mut self, id: &str) {
@@ -189,6 +191,34 @@ pub struct Options {
 }
 
 #[derive(Debug, Serialize)]
+pub struct TypeOffer {
+    pub ext: String,
+    pub label: String,
+    pub count: usize,
+    pub note: Sentence,
+}
+
+pub fn type_offers(counts: &[(String, usize)], text: &str) -> Vec<TypeOffer> {
+    suggest(counts, text)
+        .into_iter()
+        .map(|Offer { ext, count }| match count {
+            0 => TypeOffer {
+                label: ext.clone(),
+                ext,
+                count,
+                note: say!("every text file"),
+            },
+            n => TypeOffer {
+                label: ext.clone(),
+                ext,
+                count,
+                note: say_n!(n, "{} file", "{} files"),
+            },
+        })
+        .collect()
+}
+
+#[derive(Debug, Serialize)]
 pub struct TypesField {
     pub text: String,
     pub problem: Option<Sentence>,
@@ -210,11 +240,8 @@ pub struct Recent {
 pub struct PreviewLine {
     pub number: usize,
     pub text: String,
-    /// The line the results chose.
     pub marked: bool,
-    /// A line the search inside the file found.
     pub found: bool,
-    /// The one of those the box is at.
     pub here: bool,
 }
 
@@ -222,7 +249,6 @@ pub struct PreviewLine {
 #[serde(rename_all = "camelCase")]
 pub struct PreviewShown {
     pub path: String,
-    /// The line the window is around.
     pub line: usize,
     pub lines: Vec<PreviewLine>,
     pub problem: Option<Sentence>,
@@ -244,13 +270,18 @@ pub struct Looked {
     pub at: Option<usize>,
 }
 
+/// What a request compiles to, ready to start; made off the window's thread.
+pub struct Prepared {
+    pattern: Pattern,
+    targets: Vec<Target<Option<ModId>>>,
+    folders: FolderSettings,
+}
+
 /// Valid for the search that started it; a newer search makes it stale.
 pub struct Started {
     pub generation: u64,
     cancel: Arc<AtomicBool>,
-    pattern: Pattern,
-    targets: Vec<Target<Option<ModId>>>,
-    folders: FolderSettings,
+    prepared: Prepared,
 }
 
 pub struct Arrived {
@@ -352,15 +383,8 @@ impl App {
         }
     }
 
-    /// Whether a search may start unasked: the box holds a valid pattern and the file types are valid.
-    pub fn find_ready(&self, request: &Request) -> bool {
-        !request.text.trim().is_empty()
-            && matching(request).is_ok()
-            && request.types_parsed().is_ok()
-    }
-
-    /// Ends the search before, forgets its results, and takes the places to look.
-    pub fn find_start(&self, request: &Request) -> Result<Started, Error> {
+    /// Compiles the request; nothing else is touched, so it may run on any thread.
+    pub fn find_prepare(&self, request: &Request) -> Result<Prepared, Error> {
         let pattern = matching(request)?;
         let loaded = self.library();
         let (library, _) = loaded.as_ref().as_ref().map_err(Clone::clone)?;
@@ -368,6 +392,15 @@ impl App {
         let active = self.active_now(library);
         let config = self.paths().config.as_ref().map(|c| c.join("Config"));
         let targets = targets_of(library, &active, request, config);
+        Ok(Prepared {
+            pattern,
+            targets,
+            folders,
+        })
+    }
+
+    /// Ends the search before and forgets its results.
+    pub fn find_launch(&self, prepared: Prepared) -> Started {
         let cancel = Arc::new(AtomicBool::new(false));
         let mut state = self.find.state.lock().unwrap();
         if let Some(older) = state.cancel.replace(cancel.clone()) {
@@ -375,13 +408,15 @@ impl App {
         }
         state.generation += 1;
         state.results = Results::default();
-        Ok(Started {
+        Started {
             generation: state.generation,
             cancel,
-            pattern,
-            targets,
-            folders,
-        })
+            prepared,
+        }
+    }
+
+    pub fn find_start(&self, request: &Request) -> Result<Started, Error> {
+        Ok(self.find_launch(self.find_prepare(request)?))
     }
 
     /// Blocks until the search is done or stopped; each batch goes to `on_batch` as found.
@@ -391,14 +426,31 @@ impl App {
         on_batch: impl Fn(Batch<Option<ModId>>) + Sync,
     ) -> Summary {
         search(
-            &started.targets,
-            &started.pattern,
-            &started.folders,
+            &started.prepared.targets,
+            &started.prepared.pattern,
+            &started.prepared.folders,
             &self.find.lists,
             &started.cancel,
             MOST_HITS,
             on_batch,
         )
+    }
+
+    /// The extensions of the files in the places the request looks in, most common first.
+    pub fn find_extensions(&self, request: &Request) -> Vec<(String, usize)> {
+        let loaded = self.library();
+        let Ok((library, _)) = loaded.as_ref().as_ref() else {
+            return Vec::new();
+        };
+        let active = self.active_now(library);
+        let config = self.paths().config.as_ref().map(|c| c.join("Config"));
+        let folders: Vec<PathBuf> = targets_of(library, &active, request, config)
+            .into_iter()
+            .map(|target| match target {
+                Target::Mod { folder, .. } | Target::Settings { folder, .. } => folder,
+            })
+            .collect();
+        self.find.lists.extensions(&folders, &request.folders)
     }
 
     pub fn find_stop(&self) {
@@ -481,7 +533,6 @@ impl App {
         }
     }
 
-    /// What `in:search` keeps.
     pub fn find_mods(&self) -> Arc<HashSet<ModId>> {
         self.find.hit_mods.lock().unwrap().clone()
     }
@@ -515,7 +566,6 @@ impl App {
         self.find_results(|r| r.locate(at)).map(|l| l.text)
     }
 
-    /// The file and line a results row stands for.
     pub fn find_located(&self, at: RowRef) -> Option<(PathBuf, usize)> {
         let located = self.find_results(|r| r.locate(at))?;
         Some((located.file, located.line))

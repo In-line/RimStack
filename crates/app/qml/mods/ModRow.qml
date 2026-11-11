@@ -233,7 +233,8 @@ Item {
                     visible: status === Image.Ready
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
-                    sourceSize.width: Theme.sized(192)
+                    sourceSize.width: width * Screen.devicePixelRatio
+                    sourceSize.height: height * Screen.devicePixelRatio
                     source: row.comfortable && row.picture !== "" ? Theme.fileUrl(row.picture) : ""
                 }
             }

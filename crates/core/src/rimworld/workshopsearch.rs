@@ -12,7 +12,6 @@ pub enum Kind {
 }
 
 impl Kind {
-    /// The tag as Steam writes it.
     pub fn steam_tag(self) -> Option<&'static str> {
         match self {
             Kind::Any => None,
@@ -117,7 +116,6 @@ impl Query {
     }
 }
 
-/// The number of results under each tag and each required DLC.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Counts {
     pub total: usize,
@@ -135,7 +133,6 @@ enum Held {
     ExcludeDlc(usize),
 }
 
-/// A search with its words and filters resolved against one index.
 struct Plan<'a> {
     index: &'a Index,
     query: &'a Query,
@@ -260,6 +257,17 @@ impl<'a> Plan<'a> {
     }
 }
 
+/// The `want` smallest by `key`, sorted: the rest is not ordered.
+fn first_sorted<K: Ord>(hits: &mut Vec<(u8, usize)>, want: usize, key: impl Fn(&(u8, usize)) -> K) {
+    if want < hits.len() {
+        if want > 0 {
+            hits.select_nth_unstable_by_key(want - 1, &key);
+        }
+        hits.truncate(want);
+    }
+    hits.sort_unstable_by_key(key);
+}
+
 impl Index {
     /// Best first: the title is the words, starts with them, has each, or only author or package id do.
     /// With no words and no other order, the newest first: ids grow with time and the index keeps
@@ -287,19 +295,21 @@ impl Index {
         let total = hits.len();
         let id = |at: usize| std::cmp::Reverse(self.id_at(at));
         let newest_first = query.words.is_empty() && order == Order::Relevance;
+        let want = offset.saturating_add(count);
+        type Hit = (u8, usize);
         match order {
             _ if newest_first => hits.reverse(),
             Order::Relevance => {
-                let rank = |&(tier, at): &(u8, usize)| (tier, self.title_key(at), at);
-                hits.sort_unstable_by_key(rank);
+                let rank = |&(tier, at): &Hit| (tier, self.title_key(at), at);
+                first_sorted(&mut hits, want, rank);
             }
-            Order::Subscribed => hits.sort_unstable_by_key(|&(_, at)| {
+            Order::Subscribed => first_sorted(&mut hits, want, |&(_, at): &Hit| {
                 (std::cmp::Reverse(self.stat(at).subscriptions), id(at))
             }),
-            Order::Updated => hits.sort_unstable_by_key(|&(_, at)| {
+            Order::Updated => first_sorted(&mut hits, want, |&(_, at): &Hit| {
                 (std::cmp::Reverse(self.stat(at).updated), id(at))
             }),
-            Order::Newest => hits.sort_unstable_by_key(|&(_, at)| {
+            Order::Newest => first_sorted(&mut hits, want, |&(_, at): &Hit| {
                 (std::cmp::Reverse(self.stat(at).created), id(at))
             }),
         }
@@ -577,7 +587,7 @@ mod tests {
             ("Éclair", vec!["Mod".to_string()])
         );
         assert_eq!(
-            index.offered_versions(None).first().map(String::as_str),
+            index.version_tags(1).last().map(String::as_str),
             Some("1.7")
         );
     }

@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import RimStack.Ui
 
@@ -137,25 +138,33 @@ Item {
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    Scrolled {
+                    GridView {
                         id: grid
                         objectName: "resultGrid"
                         anchors.fill: parent
                         visible: view.found && Hub.workshop.total > 0
+                        model: Hub.workshop.rows
+                        clip: true
+                        reuseItems: true
+                        cacheBuffer: Theme.sized(600)
+                        boundsBehavior: Flickable.StopAtBounds
+                        readonly property real gap: Theme.gapLarge
+                        readonly property real usable: width - bar.width
+                        readonly property int across: Math.max(1, Math.floor((usable + gap) / (view.cardLeast + gap)))
+                        readonly property real each: (usable + gap) / across - gap
+                        cellWidth: each + gap
+                        cellHeight: probe.height + gap
                         readonly property bool hungry: contentY + 2 * height >= contentHeight && !Hub.workshop.searching
                         onHungryChanged: Hub.workshop.wantMore(hungry)
-                        Flow {
-                            id: cards
-                            objectName: "resultCards"
-                            width: parent.width
-                            spacing: Theme.gapLarge
-                            readonly property int across: Math.max(1, Math.floor((width + spacing) / (view.cardLeast + spacing)))
-                            readonly property real each: (width - (across - 1) * spacing) / across
-                            Repeater {
-                                model: Hub.workshop.rows
-                                ResultCard { width: cards.each }
-                            }
+                        Wheel {}
+                        ScrollBar.vertical: Scroller { id: bar }
+                        ResultCard {
+                            id: probe
+                            visible: false
+                            width: grid.each
+                            model: ({ id: "", title: "", author: "", preview: "", badge: "", stars: [], installed: false, onList: false, canAdd: false })
                         }
+                        delegate: ResultCard { width: grid.each }
                     }
                     Column {
                         visible: !Hub.workshop.ready

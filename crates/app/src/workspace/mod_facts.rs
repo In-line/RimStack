@@ -14,8 +14,6 @@ use std::time::Duration;
 
 /// Mods read at once off the window's thread, in the background.
 const BATCH: usize = 48;
-/// The record is written every this many batches, and when the last one lands.
-const WRITE_EVERY: usize = 6;
 const THREADS: usize = 2;
 const BETWEEN_BATCHES: Duration = Duration::from_millis(20);
 
@@ -211,7 +209,6 @@ impl App {
             return;
         };
         let mut unwritten = false;
-        let mut batches = 0;
         while !waiting.is_empty() {
             let rest = waiting.split_off(BATCH.min(waiting.len()));
             let (ids, jobs): (Vec<ModId>, Vec<Job>) =
@@ -219,15 +216,10 @@ impl App {
             let (facts, read) = pool.install(|| gather(record, &jobs, &library.game_assemblies));
             self.count_mods_read(read);
             unwritten |= read > 0;
-            batches += 1;
             if !self.keep_facts(run, loaded, ids.into_iter().zip(facts)) {
-                return;
+                break;
             }
             self.publish(crate::changes::Changes::FACTS);
-            if unwritten && (batches % WRITE_EVERY == 0 || waiting.is_empty()) {
-                self.keep_record(run, record, &installed);
-                unwritten = false;
-            }
             std::thread::sleep(BETWEEN_BATCHES);
         }
         if unwritten {

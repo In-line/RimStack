@@ -1,7 +1,9 @@
+use super::walk;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsStr;
 use std::hash::{Hash, Hasher};
+use std::ops::ControlFlow;
 use std::path::Path;
 
 /// The modification times of a folder and all its subfolders, which change
@@ -18,25 +20,18 @@ impl FolderStamp {
     /// named by `skip` is left out. Whatever cannot be read counts as nothing.
     pub fn of(root: &Path, skip: impl Fn(&OsStr) -> bool) -> Self {
         let mut stamp = Self { folders: 0, sum: 0 };
-        let mut waiting = vec![root.to_path_buf()];
-        while let Some(folder) = waiting.pop() {
-            let mut hasher = DefaultHasher::new();
-            folder.hash(&mut hasher);
-            if let Ok(changed) = std::fs::metadata(&folder).and_then(|m| m.modified()) {
-                changed.hash(&mut hasher);
-            }
-            stamp.folders += 1;
-            stamp.sum = stamp.sum.wrapping_add(hasher.finish());
-            let Ok(entries) = std::fs::read_dir(&folder) else {
-                continue;
-            };
-            for entry in entries.flatten() {
-                let is_dir = entry.file_type().is_ok_and(|kind| kind.is_dir());
-                if is_dir && !skip(&entry.file_name()) {
-                    waiting.push(entry.path());
+        walk::visit(root, skip, |seen| {
+            if let walk::Seen::Folder(folder) = seen {
+                let mut hasher = DefaultHasher::new();
+                folder.hash(&mut hasher);
+                if let Ok(changed) = std::fs::metadata(folder).and_then(|m| m.modified()) {
+                    changed.hash(&mut hasher);
                 }
+                stamp.folders += 1;
+                stamp.sum = stamp.sum.wrapping_add(hasher.finish());
             }
-        }
+            ControlFlow::Continue(())
+        });
         stamp
     }
 }

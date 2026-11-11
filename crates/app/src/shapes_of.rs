@@ -407,6 +407,11 @@ fn find(app: &App, shapes: &mut Shapes) {
     request.types = "xml, a/b".into();
     shapes.add("find.options", &app.find_options(&request));
     request.types = "xml".into();
+    let counts = app.find_extensions(&request);
+    shapes.add(
+        "find.typeSuggestions",
+        &crate::workspace::find::type_offers(&counts, ""),
+    );
     let started = app.find_start(&request).unwrap();
     let summary = app.find_search(&started, |batch| {
         app.find_add(started.generation, batch);

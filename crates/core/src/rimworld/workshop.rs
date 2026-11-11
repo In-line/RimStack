@@ -1,5 +1,7 @@
 use crate::base::error::Error;
-use crate::said;
+use crate::base::sentence::Sentence;
+use crate::rimworld::paths::APP_ID;
+use crate::{said, say};
 
 use crate::base::vdf::{Token, tokens};
 use rayon::prelude::*;
@@ -100,6 +102,19 @@ pub struct Details {
     /// A collection's items, or a mod's required items; only where the key was used.
     pub children: Vec<String>,
     pub tags: Vec<String>,
+}
+
+impl Details {
+    /// Why RimStack does not take this item as a mod, or none when it does.
+    pub fn refusal(&self) -> Option<Sentence> {
+        if self.collection {
+            Some(say!("A collection: add its mods instead"))
+        } else if self.app_id.to_string() != APP_ID {
+            Some(say!("Not an item of RimWorld"))
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -223,19 +238,14 @@ pub fn fetch_batch(agent: &ureq::Agent, batch: &[String]) -> Result<Vec<Details>
         .send_form(pairs)
         .map_err(crate::base::web::steam_failed)?;
     // Descriptions come along, so this is above the default limit.
-    let mut body = response
-        .body_mut()
-        .with_config()
-        .limit(64 * 1024 * 1024)
-        .reader();
-    let mut text = String::new();
-    std::io::Read::read_to_string(&mut body, &mut text).map_err(crate::base::web::steam_failed)?;
+    let text = crate::base::web::read_text(&mut response, 64 * 1024 * 1024)
+        .map_err(crate::base::web::steam_failed)?;
     parse_details(&text)
 }
 
 /// Blocks on the network. Steam is slow per item, so chunks of 100 go out in parallel.
 pub fn fetch_details(ids: &[String]) -> Result<Vec<Details>, Error> {
-    let agent = crate::base::web::agent(120);
+    let agent = crate::base::web::steam_agent();
     let answers: Vec<Result<Vec<Details>, Error>> = ids
         .par_chunks(100)
         .map(|batch| fetch_batch(&agent, batch))

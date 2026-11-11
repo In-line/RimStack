@@ -228,6 +228,7 @@
  "Ctrl + F": "Ctrl + F",
  "Ctrl + K": "Ctrl + K",
  "Ctrl + S": "Ctrl + S",
+ "Ctrl + A": "Ctrl + A",
  "Ctrl + Shift + F": "Ctrl + Shift + F",
  "Ctrl + Shift + Z": "Ctrl + Shift + Z",
  "Ctrl + Z": "Ctrl + Z",
@@ -850,6 +851,7 @@
  "Seed": "Semente",
  "Select the mod above or below": "Selecionar o mod acima ou abaixo",
  "Select through": "Selecionar até aqui",
+ "Select every mod shown": "Selecionar todos os mods mostrados",
  "Selected": "Selecionados",
  "Selected mod": "Mod selecionado",
  "Selected row against the window": "Linha selecionada contra a janela",
@@ -1577,5 +1579,7 @@
  "Not an item of RimWorld": "Não é um item do RimWorld",
  "Nothing on the list can be asked of Steam; the rows say why": "Nada na lista pode ser pedido ao Steam; as linhas dizem por quê",
  "Steam could not be asked about this item": "Não foi possível consultar o Steam sobre este item",
- "Steam does not know this item": "O Steam não conhece este item"
+ "Steam does not know this item": "O Steam não conhece este item",
+ "every text file": "todos os ficheiros de texto",
+ "None of these mods has such files; it is still searched": "Nenhum destes mods tem esses arquivos; a busca é feita mesmo assim"
 }

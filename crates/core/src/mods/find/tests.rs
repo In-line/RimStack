@@ -265,24 +265,24 @@ fn a_file_list_is_reused_until_a_folder_inside_changes() {
     write(t, "m/a/b/one.xml", "");
     let lists = FileLists::default();
     let settings = FolderSettings::default();
-    let first = lists.get(&t.join("m"), &settings);
+    let first = lists.all(&t.join("m"), &settings);
     assert!(std::sync::Arc::ptr_eq(
         &first,
-        &lists.get(&t.join("m"), &settings)
+        &lists.all(&t.join("m"), &settings)
     ));
     write(t, "m/a/b/two.xml", "");
     touch_dir(&t.join("m/a/b"), 100);
-    let again = lists.get(&t.join("m"), &settings);
+    let again = lists.all(&t.join("m"), &settings);
     assert!(!std::sync::Arc::ptr_eq(&first, &again));
     assert_eq!(again.len(), 2);
-    let other = lists.get(
-        &t.join("m"),
-        &FolderSettings {
-            types: FileTypes::Any,
-            ..settings
-        },
-    );
-    assert!(!std::sync::Arc::ptr_eq(&again, &other));
+    write(t, "m/a/b/three.txt", "");
+    touch_dir(&t.join("m/a/b"), 200);
+    let any = FolderSettings {
+        types: FileTypes::Any,
+        ..settings.clone()
+    };
+    assert_eq!(lists.get(&t.join("m"), &any).len(), 3);
+    assert_eq!(lists.get(&t.join("m"), &settings).len(), 2);
 }
 
 #[test]

@@ -8,7 +8,6 @@ pub struct Official {
     pub name: String,
     pub author: String,
     pub picture: Option<String>,
-    /// Folded.
     #[serde(skip)]
     pub package_id: String,
 }

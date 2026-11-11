@@ -8,7 +8,6 @@ use rimstack_core::base::sentence::Sentence;
 use rimstack_core::{say, say_n};
 use std::path::PathBuf;
 
-/// The file in the preview and what the box inside it found there.
 #[derive(Default)]
 pub(super) struct Viewing {
     pub file: PathBuf,
@@ -90,7 +89,6 @@ impl qobject::FindData {
         );
     }
 
-    /// The box inside the file changed.
     pub(super) fn inside_typed(mut self: Pin<&mut Self>) {
         if self.viewing.file.as_os_str().is_empty() {
             return;

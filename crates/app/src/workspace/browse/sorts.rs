@@ -33,7 +33,6 @@ pub fn id_of(sort: Sort) -> &'static str {
 pub struct SortOffer {
     pub id: &'static str,
     pub label: Sentence,
-    /// Whether it is the sort the results are in.
     pub chosen: bool,
 }
 
@@ -75,7 +74,6 @@ pub fn effective(wanted: &str, offers: &[SortOffer], words: bool) -> &'static st
         .unwrap_or("relevance")
 }
 
-/// The offers with the one named `id` chosen.
 pub fn chosen(offers: &[SortOffer], id: &str) -> Vec<SortOffer> {
     offers
         .iter()

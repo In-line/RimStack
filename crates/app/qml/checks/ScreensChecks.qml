@@ -520,8 +520,8 @@ Item {
     property bool picked: false
     property string placed
     function cardPlace(id) {
-        const cards = named(window.contentItem, "resultCards")
-        const card = cards ? Array.from(cards.children).find(child => !!child.model && child.model.id === id) : null
+        const cards = named(window.contentItem, "resultGrid")
+        const card = cards ? Array.from(cards.contentItem.children).find(child => !!child.model && child.model.id === id) : null
         if (!card)
             return ""
         const at = card.mapToItem(null, 0, 0)

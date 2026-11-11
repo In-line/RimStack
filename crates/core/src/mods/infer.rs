@@ -19,6 +19,8 @@ pub struct Scanned {
     pub patches: Vec<(String, PathBuf)>,
 }
 
+use crate::base::path_text::has_extension;
+
 fn dlls_of(load_folders: &[PathBuf]) -> Vec<PathBuf> {
     let mut found = Vec::new();
     for folder in load_folders {
@@ -27,10 +29,7 @@ fn dlls_of(load_folders: &[PathBuf]) -> Vec<PathBuf> {
         };
         for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
             let path = entry.path();
-            if path
-                .extension()
-                .is_some_and(|x| x.eq_ignore_ascii_case("dll"))
-            {
+            if has_extension(&path, "dll") {
                 found.push(path);
             }
         }
@@ -39,10 +38,7 @@ fn dlls_of(load_folders: &[PathBuf]) -> Vec<PathBuf> {
 }
 
 fn xml_files(dir: &Path, into: &mut Vec<PathBuf>) {
-    let is_xml = |file: &PathBuf| {
-        let kind = file.extension();
-        kind.is_some_and(|x| x.eq_ignore_ascii_case("xml"))
-    };
+    let is_xml = |file: &PathBuf| has_extension(file, "xml");
     into.extend(crate::base::walk::files(dir).into_iter().filter(is_xml));
 }
 

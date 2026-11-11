@@ -40,9 +40,7 @@ pub fn stars_of(votes: Option<Votes>) -> Vec<bool> {
 
 impl Marks {
     pub fn row(&self, entry: &Entry) -> Row {
-        let installed = self.installed.contains(&entry.id);
-        let on_list = self.listed.contains(&entry.id);
-        Row {
+        let mut row = Row {
             id: entry.id.clone(),
             title: entry.title.clone(),
             author: entry.author.clone(),
@@ -52,16 +50,25 @@ impl Marks {
                 .filter(|tag| tag.starts_with(|c: char| c.is_ascii_digit()))
                 .cloned()
                 .collect(),
-            installed,
-            on_list,
-            badge: match (installed, on_list) {
-                (true, _) => Some(say!("Installed")),
-                (false, true) => Some(say!("On the list")),
-                _ => None,
-            },
-            can_add: !installed && !on_list,
+            installed: false,
+            on_list: false,
+            badge: None,
+            can_add: true,
             stars: Vec::new(),
-        }
+        };
+        self.mark(&mut row);
+        row
+    }
+
+    pub fn mark(&self, row: &mut Row) {
+        row.installed = self.installed.contains(&row.id);
+        row.on_list = self.listed.contains(&row.id);
+        row.badge = match (row.installed, row.on_list) {
+            (true, _) => Some(say!("Installed")),
+            (false, true) => Some(say!("On the list")),
+            _ => None,
+        };
+        row.can_add = !row.installed && !row.on_list;
     }
 }
 
@@ -102,7 +109,6 @@ pub struct Part {
     pub note: Option<Sentence>,
 }
 
-/// Pictures a description may show.
 pub const PICTURES: usize = 12;
 
 #[derive(Serialize, Debug)]
@@ -147,7 +153,6 @@ fn votes_said(votes: Votes) -> Option<Sentence> {
 }
 
 impl Shown {
-    /// The addresses of the pictures in the description.
     pub fn picture_urls(&self) -> Vec<String> {
         self.pieces
             .iter()

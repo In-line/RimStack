@@ -1,7 +1,9 @@
 use super::types::FileTypes;
 use crate::base::stamp::FolderStamp;
+use crate::base::walk;
 use std::collections::HashMap;
 use std::ffi::OsStr;
+use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -37,31 +39,20 @@ impl FolderSettings {
             || (self.git && named(".git"))
     }
 
-    fn takes(&self, file: &Path) -> bool {
-        self.types.takes(file)
-    }
-
     fn walk(&self, root: &Path) -> Vec<PathBuf> {
         let mut found = Vec::new();
-        let mut waiting = vec![root.to_path_buf()];
-        while let Some(folder) = waiting.pop() {
-            let Ok(entries) = std::fs::read_dir(&folder) else {
-                continue;
-            };
-            for entry in entries.flatten() {
-                let Ok(kind) = entry.file_type() else {
-                    continue;
-                };
-                let path = entry.path();
-                if kind.is_dir() {
-                    if !self.leaves_out(&entry.file_name()) {
-                        waiting.push(path);
-                    }
-                } else if self.takes(&path) && (!kind.is_symlink() || path.is_file()) {
-                    found.push(path);
+        walk::visit(
+            root,
+            |name| self.leaves_out(name),
+            |seen| {
+                if let walk::Seen::Item(path, kind) = seen
+                    && (!kind.is_symlink() || path.is_file())
+                {
+                    found.push(path.to_path_buf());
                 }
-            }
-        }
+                ControlFlow::Continue(())
+            },
+        );
         found.sort_unstable();
         found.dedup();
         found
@@ -69,18 +60,27 @@ impl FolderSettings {
 }
 
 type Kept = (FolderStamp, Arc<Vec<PathBuf>>);
+type Key = (PathBuf, [bool; 4]);
 
-/// The files to search in each mod folder, kept for the session and reused
-/// while the folder's stamp is unchanged.
+/// Every file of each mod folder outside the folders left out, kept for the session and reused
+/// while the folder's stamp is unchanged; the file types pick from it.
 #[derive(Default)]
 pub struct FileLists {
-    kept: Mutex<HashMap<(PathBuf, FolderSettings), Kept>>,
+    kept: Mutex<HashMap<Key, Kept>>,
 }
 
 impl FileLists {
-    pub fn get(&self, folder: &Path, settings: &FolderSettings) -> Arc<Vec<PathBuf>> {
+    pub(super) fn all(&self, folder: &Path, settings: &FolderSettings) -> Arc<Vec<PathBuf>> {
         let stamp = FolderStamp::of(folder, |name| settings.leaves_out(name));
-        let key = (folder.to_path_buf(), settings.clone());
+        let key = (
+            folder.to_path_buf(),
+            [
+                settings.languages,
+                settings.source,
+                settings.textures,
+                settings.git,
+            ],
+        );
         if let Some((kept, list)) = self.kept.lock().unwrap().get(&key)
             && *kept == stamp
         {
@@ -89,5 +89,37 @@ impl FileLists {
         let list = Arc::new(settings.walk(folder));
         self.kept.lock().unwrap().insert(key, (stamp, list.clone()));
         list
+    }
+
+    pub fn get(&self, folder: &Path, settings: &FolderSettings) -> Vec<PathBuf> {
+        let all = self.all(folder, settings);
+        match &settings.types {
+            FileTypes::Any => all.to_vec(),
+            types => all.iter().filter(|f| types.takes(f)).cloned().collect(),
+        }
+    }
+
+    /// Files under `folders` by extension in lowercase, most common first; the same count by name.
+    pub fn extensions(
+        &self,
+        folders: &[PathBuf],
+        leave_out: &FolderSettings,
+    ) -> Vec<(String, usize)> {
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        for folder in folders {
+            for file in self.all(folder, leave_out).iter() {
+                let Some(x) = file.extension() else {
+                    continue;
+                };
+                let name = x.to_string_lossy();
+                match counts.get_mut(&*name) {
+                    Some(n) => *n += 1,
+                    None => *counts.entry(name.to_lowercase()).or_default() += 1,
+                }
+            }
+        }
+        let mut counts: Vec<_> = counts.into_iter().collect();
+        counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        counts
     }
 }

@@ -128,7 +128,6 @@ impl App {
         })
     }
 
-    /// The list's mods, in one SteamCMD run.
     pub fn download_listed(&self) -> Done {
         let steamcmd = (*self.steamcmd()).clone();
         let (steamcmd, local) = match (steamcmd, self.paths().local_mods()) {

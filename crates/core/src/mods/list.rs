@@ -533,6 +533,10 @@ impl GroupedList {
         }
     }
 
+    pub fn needs_facts(&self) -> bool {
+        self.filter.needs_facts() && !self.filter.shuts(self.side)
+    }
+
     /// Installed mods a word of the filter cannot judge yet; none while no word needs the files.
     pub fn unread(&self) -> usize {
         if !self.filter.needs_facts() || self.filter.shuts(self.side) {

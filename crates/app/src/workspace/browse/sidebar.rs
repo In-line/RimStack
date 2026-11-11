@@ -12,7 +12,6 @@ const DLC: &str = "dlc:";
 const OWNED: &str = "owned";
 const INCOMPATIBLE: &str = "incompatible";
 
-/// What the sidebar has ticked: a tag or an expansion is included, excluded or neither.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Picked {
     pub include_tags: Vec<String>,
@@ -76,7 +75,6 @@ impl Picked {
     }
 }
 
-/// One row of the sidebar: a type, a game version or an expansion.
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Facet {
@@ -89,7 +87,7 @@ pub struct Facet {
     pub exclude: bool,
 }
 
-/// A ticked filter, with the id `clearFilter` takes.
+/// Its id is what `clearFilter` takes.
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Chip {
@@ -108,11 +106,8 @@ pub struct Sidebar {
     pub dlc: Vec<Facet>,
     pub chips: Vec<Chip>,
     pub found: Sentence,
-    /// Whether the facets carry counts.
     pub counted: bool,
-    /// Whether a filter is ticked.
     pub filtered: bool,
-    /// Whether the search has words.
     pub searched: bool,
     pub hide_unowned: bool,
     pub show_incompatible: bool,

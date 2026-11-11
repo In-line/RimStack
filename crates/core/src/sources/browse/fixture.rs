@@ -186,10 +186,6 @@ impl Browse for Fixture {
         self.index.app_name(app_id).map(str::to_string)
     }
 
-    fn versions(&self, game: Option<&str>) -> Vec<String> {
-        self.index.offered_versions(game)
-    }
-
     fn requires(&self, id: &str) -> Result<Vec<String>, Error> {
         Ok(self.index.requires(id))
     }

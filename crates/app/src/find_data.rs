@@ -44,6 +44,8 @@ pub mod qobject {
         #[qproperty(QVariant, mods)]
         /// What is typed for the file types, as `xml, cs; json`.
         #[qproperty(QString, file_types, cxx_name = "fileTypes")]
+        /// Extensions to offer for the token being typed in `fileTypes`.
+        #[qproperty(QVariant, type_suggestions, cxx_name = "typeSuggestions")]
         /// What the box inside the previewed file asks for.
         #[qproperty(QString, inside_text, cxx_name = "insideText")]
         #[qproperty(QString, inside_said, cxx_name = "insideSaid")]
@@ -88,7 +90,6 @@ pub mod qobject {
         #[qinvokable]
         fn stop(self: &FindData);
 
-        /// A hit, or a file (its first hit), is chosen and shown in `preview`.
         #[qinvokable]
         fn select(self: Pin<&mut FindData>, row: i32);
 
@@ -128,24 +129,31 @@ pub mod qobject {
         #[cxx_name = "copyLine"]
         fn copy_line(self: &FindData, row: i32) -> QString;
 
-        /// Folds or unfolds a mod's or a file's rows.
         #[qinvokable]
         fn toggle(self: Pin<&mut FindData>, row: i32);
 
-        /// Makes `in:search` keep the mods found; gives the filter text to put in the Mods list.
+        /// Gives the filter text for the Mods list; the mods found are kept.
         #[qinvokable]
         #[cxx_name = "showInMods"]
         fn show_in_mods(self: Pin<&mut FindData>) -> QString;
 
-        /// Fills the box and the options as that search had them, and searches.
         #[qinvokable]
         #[cxx_name = "useRecent"]
         fn use_recent(self: Pin<&mut FindData>, at: i32);
 
-        /// Keeps the results with the text in their line, file or mod.
         #[qinvokable]
         #[cxx_name = "filterResults"]
         fn filter_results(self: Pin<&mut FindData>, text: &QString);
+
+        /// `fileTypes` with the token being typed replaced by the suggestion at `index`.
+        #[qinvokable]
+        #[cxx_name = "completeType"]
+        fn complete_type(self: &FindData, index: i32) -> QString;
+
+        /// The suggestion `by` places from `at`, wrapping round.
+        #[qinvokable]
+        #[cxx_name = "stepType"]
+        fn step_type(self: &FindData, at: i32, by: i32) -> i32;
 
         /// A switch: "case", "word", "regex", "languages", "source", "textures" or "git".
         #[qinvokable]
@@ -220,7 +228,7 @@ use crate::App;
 use crate::changes::Changes;
 use crate::qml::diff::{Step, steps};
 use crate::qml::values::to_qml;
-use crate::workspace::find::{Cell, Folded, Op, ROLES, Request, RowRef};
+use crate::workspace::find::{Cell, Folded, Op, Prepared, ROLES, Request, RowRef, type_offers};
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{
@@ -238,6 +246,7 @@ mod look;
 const FIRST_ROLE: i32 = 257;
 const IN_SEARCH: &str = "in:search";
 const TYPES_PAUSE: std::time::Duration = std::time::Duration::from_millis(400);
+const MODS_EVERY: std::time::Duration = std::time::Duration::from_millis(200);
 
 pub struct FindDataRust {
     text: QString,
@@ -256,6 +265,9 @@ pub struct FindDataRust {
     options: QVariant,
     mods: QVariant,
     file_types: QString,
+    type_suggestions: QVariant,
+    extensions: Vec<(String, usize)>,
+    counted: crate::jobs::Lane,
     inside_text: QString,
     inside_said: QString,
     inside_found: i32,
@@ -270,6 +282,9 @@ pub struct FindDataRust {
     runs: crate::jobs::Lane,
     previews: crate::jobs::Lane,
     retyped: crate::jobs::Lane,
+    checks: crate::jobs::Lane,
+    prepares: crate::jobs::Lane,
+    mods_shown: Option<std::time::Instant>,
 }
 
 impl Default for FindDataRust {
@@ -291,6 +306,9 @@ impl Default for FindDataRust {
             options: QVariant::default(),
             mods: QVariant::default(),
             file_types: QString::from("xml"),
+            type_suggestions: QVariant::default(),
+            extensions: Vec::new(),
+            counted: crate::jobs::Lane::default(),
             inside_text: QString::default(),
             inside_said: QString::default(),
             inside_found: 0,
@@ -305,6 +323,9 @@ impl Default for FindDataRust {
             runs: crate::jobs::Lane::default(),
             previews: crate::jobs::Lane::default(),
             retyped: crate::jobs::Lane::default(),
+            checks: crate::jobs::Lane::default(),
+            prepares: crate::jobs::Lane::default(),
+            mods_shown: None,
         }
     }
 }
@@ -333,7 +354,10 @@ impl qobject::FindData {
         self.as_mut().rust_mut().get_mut().app = crate::hub::Given::of(app.clone());
         self.as_mut().on_text_changed(|me| me.check()).release();
         self.as_mut()
-            .on_selected_mod_changed(|me| me.show_options())
+            .on_selected_mod_changed(|mut me| {
+                me.as_mut().count_extensions();
+                me.show_options()
+            })
             .release();
         self.as_mut()
             .on_file_types_changed(|me| me.types_typed())
@@ -343,6 +367,7 @@ impl qobject::FindData {
             .release();
         self.as_mut().show_options();
         self.as_mut().show_mods();
+        self.as_mut().count_extensions();
         crate::jobs::run(
             "find recent",
             self.qt_thread(),
@@ -352,9 +377,13 @@ impl qobject::FindData {
     }
 
     fn heard(mut self: Pin<&mut Self>, changes: Changes) {
+        if changes.contains(Changes::LIBRARY | Changes::LOAD_ORDER) {
+            self.as_mut().count_extensions();
+        }
         if !changes.contains(Changes::LANGUAGE) {
             return;
         }
+        self.as_mut().show_suggestions();
         self.as_mut().show_options();
         self.as_mut().show_texts();
         self.as_mut().show_mods();
@@ -397,49 +426,97 @@ impl qobject::FindData {
     }
 
     fn check(self: Pin<&mut Self>) {
-        let (text, switches) = (self.text.to_string(), self.request.switches);
-        let checked = self.app().find_check(&text, switches);
-        self.set_problem(crate::words::why_not(&checked));
+        let (app, text, switches) = (self.app(), self.text.to_string(), self.request.switches);
+        self.checks.run(
+            "find check",
+            self.qt_thread(),
+            move |_| app.find_check(&text, switches),
+            |me, checked| me.set_problem(crate::words::why_not(&checked)),
+        );
+    }
+
+    fn count_extensions(self: Pin<&mut Self>) {
+        let (app, request) = (self.app(), self.request_now());
+        self.counted.run(
+            "find extensions",
+            self.qt_thread(),
+            move |_| app.find_extensions(&request),
+            |mut me, counts| {
+                me.as_mut().rust_mut().get_mut().extensions = counts;
+                me.show_suggestions();
+            },
+        );
+    }
+
+    fn show_suggestions(self: Pin<&mut Self>) {
+        let offers = type_offers(&self.extensions, &self.file_types.to_string());
+        self.set_type_suggestions(to_qml(&offers));
+    }
+
+    fn complete_type(&self, index: i32) -> QString {
+        let text = self.file_types.to_string();
+        let offers = type_offers(&self.extensions, &text);
+        let picked = usize::try_from(index).ok().and_then(|at| offers.get(at));
+        let done = picked.map_or(text.clone(), |o| {
+            rimstack_core::mods::find::complete(&text, &o.ext)
+        });
+        QString::from(done.as_str())
+    }
+
+    fn step_type(&self, at: i32, by: i32) -> i32 {
+        let count = int(type_offers(&self.extensions, &self.file_types.to_string()).len());
+        match count {
+            0 => 0,
+            n => (at + by).rem_euclid(n),
+        }
     }
 
     fn flip(mut self: Pin<&mut Self>, id: &QString) {
-        self.as_mut()
+        let folders = self
+            .as_mut()
             .rust_mut()
             .get_mut()
             .request
             .flip(&id.to_string());
-        self.as_mut().show_options();
         self.as_mut().check();
-        self.rerun();
+        self.options_moved(folders);
     }
 
     fn choose(mut self: Pin<&mut Self>, id: &QString) {
-        let id = id.to_string();
-        self.as_mut().rust_mut().get_mut().request.choose(&id);
+        self.as_mut()
+            .rust_mut()
+            .get_mut()
+            .request
+            .choose(&id.to_string());
+        self.options_moved(true);
+    }
+
+    fn options_moved(mut self: Pin<&mut Self>, folders: bool) {
+        if folders {
+            self.as_mut().count_extensions();
+        }
         self.as_mut().show_options();
         self.rerun();
     }
 
     fn types_typed(mut self: Pin<&mut Self>) {
         let typed = self.file_types.to_string();
+        self.as_mut().show_suggestions();
         if typed == self.request.types {
             return;
         }
         self.as_mut().rust_mut().get_mut().request.types = typed;
         self.as_mut().show_options();
-        self.retyped.cancel();
-        if self.app().find_ready(&self.request_now()) {
-            self.retyped.run(
-                "find types",
-                self.qt_thread(),
-                |turn| turn.after(TYPES_PAUSE),
-                |me, _| me.rerun(),
-            );
-        }
+        self.retyped.run(
+            "find types",
+            self.qt_thread(),
+            |turn| turn.after(TYPES_PAUSE),
+            |me, _| me.rerun(),
+        );
     }
 
     fn rerun(self: Pin<&mut Self>) {
-        if self.app().find_ready(&self.request_now()) {
+        if !self.text.to_string().trim().is_empty() {
             self.begin(true);
         }
     }
@@ -450,12 +527,30 @@ impl qobject::FindData {
 
     fn begin(mut self: Pin<&mut Self>, revised: bool) {
         self.retyped.cancel();
+        self.as_mut().rust_mut().get_mut().generation = u64::MAX;
+        self.as_mut().set_running(true);
         let app = self.app();
         let request = self.request_now();
-        let started = match app.find_start(&request) {
-            Ok(started) => started,
-            Err(problem) => return self.set_problem(crate::words::said_of(&problem)),
-        };
+        let (compiling, compiled) = (app, request.clone());
+        self.prepares.run(
+            "find prepare",
+            self.qt_thread(),
+            move |_| compiling.find_prepare(&compiled),
+            move |mut me, prepared| match prepared {
+                Ok(prepared) => me.launch(request, revised, prepared),
+                Err(problem) => {
+                    me.as_mut().set_running(false);
+                    if !revised {
+                        me.set_problem(crate::words::said_of(&problem));
+                    }
+                }
+            },
+        );
+    }
+
+    fn launch(mut self: Pin<&mut Self>, request: Request, revised: bool, prepared: Prepared) {
+        let app = self.app();
+        let started = app.find_launch(prepared);
         let generation = started.generation;
         self.as_mut().set_problem(QString::default());
         self.as_mut().renew(Vec::new());
@@ -467,6 +562,7 @@ impl qobject::FindData {
         self.as_mut().rust_mut().get_mut().viewing = look::Viewing::default();
         self.as_mut().show_inside();
         self.as_mut().show_mods();
+        self.as_mut().rust_mut().get_mut().mods_shown = Some(std::time::Instant::now());
         self.as_mut().set_capped(false);
         self.as_mut().set_count(0);
         self.as_mut().set_done(0);
@@ -510,7 +606,10 @@ impl qobject::FindData {
         self.as_mut().set_done(int(done));
         self.as_mut().set_total(int(total));
         self.as_mut().set_count(int(arrived.mods));
-        self.as_mut().show_mods();
+        if self.mods_shown.is_none_or(|at| at.elapsed() >= MODS_EVERY) {
+            self.as_mut().rust_mut().get_mut().mods_shown = Some(std::time::Instant::now());
+            self.as_mut().show_mods();
+        }
         self.as_mut().set_capped(arrived.capped);
         self.as_mut().rust_mut().get_mut().working =
             Some(say!("Mods searched: {} of {}", done, total));
@@ -526,6 +625,7 @@ impl qobject::FindData {
         me.said = said;
         me.working = None;
         self.as_mut().set_running(false);
+        self.as_mut().show_mods();
         self.show_texts();
     }
 

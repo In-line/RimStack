@@ -25,7 +25,6 @@ impl Changes {
     pub const LOGS: Self = Self(1 << 12);
     pub const SAVES: Self = Self(1 << 13);
     pub const LISTS: Self = Self(1 << 14);
-    pub const SEARCH: Self = Self(1 << 15);
     pub const LAUNCHES: Self = Self(1 << 16);
     pub const FOLDERS: Self = Self(1 << 17);
     pub const MOD_FILES: Self = Self(1 << 18);

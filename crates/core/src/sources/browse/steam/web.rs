@@ -1,7 +1,6 @@
 use super::{Failure, Transport};
 use crate::rimworld::steamapi::{ApiKey, Call};
 use serde_json::Value;
-use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Where the key goes. Never the address, so no address that reaches an error or a log has it.
@@ -24,7 +23,7 @@ pub struct Http {
 impl Default for Http {
     fn default() -> Self {
         Http {
-            agent: crate::base::web::agent(60),
+            agent: crate::base::web::steam_agent(),
         }
     }
 }
@@ -49,15 +48,8 @@ impl Wire for Http {
             ureq::Error::StatusCode(code) => Failure::Status(code),
             _ => Failure::Unreachable,
         })?;
-        let mut body = response
-            .body_mut()
-            .with_config()
-            .limit(64 * 1024 * 1024)
-            .reader();
-        let mut text = String::new();
-        body.read_to_string(&mut text)
-            .map_err(|_| Failure::Unreachable)?;
-        Ok(text)
+        crate::base::web::read_text(&mut response, 64 * 1024 * 1024)
+            .map_err(|_| Failure::Unreachable)
     }
 }
 

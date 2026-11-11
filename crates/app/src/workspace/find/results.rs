@@ -381,7 +381,6 @@ impl Results {
         }
     }
 
-    /// Whether the file `at` is in, or a line of it, is folded.
     pub fn is_folded(&self, at: RowRef) -> bool {
         let file = self
             .groups

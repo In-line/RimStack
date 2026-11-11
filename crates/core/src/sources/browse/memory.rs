@@ -22,11 +22,6 @@ impl Memory {
         self.found.get(id).cloned()
     }
 
-    /// Steam answered, and does not know the id.
-    pub fn is_unknown(&self, id: &str) -> bool {
-        self.unknown.contains(id)
-    }
-
     /// The failure of an ask that is still remembered.
     pub fn failure(&self, id: &str, now: Instant) -> Option<Error> {
         let (at, error) = self.failed.get(id)?;
@@ -102,7 +97,7 @@ mod tests {
         let asked = ids(&["1", "2"]);
         assert_eq!(memory.unasked(&asked, now), asked);
         memory.learn(&asked, Ok(vec![details("1")]), now);
-        assert!(memory.get("1").is_some() && memory.is_unknown("2"));
+        assert!(memory.get("1").is_some() && memory.get("2").is_none());
         let later = now + Duration::from_secs(86_400);
         assert!(memory.unasked(&ids(&["1", "2", "1"]), later).is_empty());
         assert_eq!(memory.unasked(&ids(&["3", "3", "1"]), later), ids(&["3"]));

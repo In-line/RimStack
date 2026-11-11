@@ -229,6 +229,7 @@
  "Ctrl + F": "Ctrl + F",
  "Ctrl + K": "Ctrl + K",
  "Ctrl + S": "Ctrl + S",
+ "Ctrl + A": "Ctrl + A",
  "Ctrl + Shift + F": "Ctrl + Shift + F",
  "Ctrl + Shift + Z": "Ctrl + Shift + Z",
  "Ctrl + Z": "Ctrl + Z",
@@ -853,6 +854,7 @@
  "Seed": "Сид",
  "Select the mod above or below": "Выберите мод выше или ниже",
  "Select through": "Выделить до",
+ "Select every mod shown": "Выделить все показанные моды",
  "Selected": "Выбрано",
  "Selected mod": "Выбранный мод",
  "Selected row against the window": "Выбранная строка у окна",
@@ -1577,5 +1579,7 @@
  "{}×{} is not a multiple of four, as its compression needs": "{}×{} не кратно четырём, как требует его сжатие",
  "‹ Load order": "‹ Порядок загрузки",
  "← → next texture": "← → следующая текстура",
- "✓ Kept": "✓ Сохранено"
+ "✓ Kept": "✓ Сохранено",
+ "every text file": "все текстовые файлы",
+ "None of these mods has such files; it is still searched": "Ни в одном из этих модов нет таких файлов; поиск всё равно идёт"
 }

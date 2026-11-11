@@ -61,9 +61,7 @@ impl<T> ModFacts<T> {
 
 impl<T: Serialize> ModFacts<T> {
     pub fn write(&self, file: &Path) -> Result<(), Error> {
-        let text = serde_json::to_vec(self)
-            .map_err(|e| Error::format(format!("{}: {e}", file.display())))?;
-        atomic_file::write(file, text)
+        atomic_file::write_json(file, self)
     }
 }
 
