@@ -949,6 +949,7 @@
  "Steam could not be asked: {}": "Steam konnte nicht gefragt werden: {}",
  "Steam could not be reached to check the key, so it was not kept": "Steam war nicht erreichbar, um den Schlüssel zu prüfen; er wurde nicht gespeichert",
  "Steam could not be reached; searching the kept list instead": "Steam war nicht erreichbar; stattdessen wird die gespeicherte Liste durchsucht",
+ "Steam could not be started for the game: {}": "Steam konnte für das Spiel nicht gestartet werden: {}",
  "Steam did not do all it was asked: {}": "Steam hat nicht alles getan, worum es gebeten wurde: {}",
  "Steam does not update mods installed this way.": "Steam aktualisiert Mods, die so installiert wurden, nicht.",
  "Steam downloads a Workshop mod again while you stay subscribed to it.": "Steam lädt einen Workshop-Mod erneut herunter, solange das Abonnement besteht.",

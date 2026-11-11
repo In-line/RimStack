@@ -953,6 +953,7 @@
  "Steam could not be asked: {}": "",
  "Steam could not be reached to check the key, so it was not kept": "",
  "Steam could not be reached; searching the kept list instead": "",
+ "Steam could not be started for the game: {}": "",
  "Steam did not do all it was asked: {}": "",
  "Steam does not know this item": "",
  "Steam does not update mods installed this way.": "",

@@ -923,6 +923,7 @@
  "Steam could not be asked: {}": "Steam에 요청하지 못했습니다: {}",
  "Steam could not be reached to check the key, so it was not kept": "Steam에 연결할 수 없어 키를 확인하지 못했으므로 보관하지 않았습니다",
  "Steam could not be reached; searching the kept list instead": "Steam에 연결할 수 없어 보관된 목록에서 검색합니다",
+ "Steam could not be started for the game: {}": "게임용 Steam을 시작할 수 없습니다: {}",
  "Steam did not do all it was asked: {}": "Steam이 일부 요청을 완료하지 못했습니다: {}",
  "Steam does not update mods installed this way.": "이 방식으로 설치한 모드는 Steam이 업데이트하지 않습니다.",
  "Steam downloads a Workshop mod again while you stay subscribed to it.": "구독을 유지한 채 창작마당 모드를 Steam으로 다시 다운로드합니다.",

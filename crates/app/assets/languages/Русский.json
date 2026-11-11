@@ -953,6 +953,7 @@
  "Steam could not be asked: {}": "Не удалось спросить Steam: {}",
  "Steam could not be reached to check the key, so it was not kept": "Не удалось связаться со Steam для проверки ключа, поэтому он не сохранён",
  "Steam could not be reached; searching the kept list instead": "Steam недоступен; поиск идёт по сохранённому списку",
+ "Steam could not be started for the game: {}": "Не удалось запустить Steam для игры: {}",
  "Steam did not do all it was asked: {}": "Steam сделал не всё, о чём просили: {}",
  "Steam does not know this item": "Steam не знает этот предмет",
  "Steam does not update mods installed this way.": "Steam не обновляет моды, установленные так.",
