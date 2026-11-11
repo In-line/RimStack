@@ -34,7 +34,7 @@ Item {
             color: Theme.ink
             font.pixelSize: Theme.heading
             font.weight: Font.DemiBold
-            text: Theme.say("Find")
+            text: Theme.say("Search")
         }
         RowLayout {
             Layout.fillWidth: true
@@ -169,7 +169,7 @@ Item {
                         FindKeys {
                             parent: results
                             view: results
-                            title: Theme.say("Find")
+                            title: Theme.say("Search")
                         }
                         Wheel {}
                         ScrollBar.vertical: Scroller {}

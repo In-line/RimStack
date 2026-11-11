@@ -8,8 +8,8 @@ QtObject {
     readonly property AppPrefs stored: AppPrefs {}
 
     readonly property var sections: ({
-        names: ["Mods", "Workshop", "Downloads", "Textures", "Saves", "Logs", "Find", "Settings"],
-        mods: 0, workshop: 1, downloads: 2, textures: 3, saves: 4, logs: 5, find: 6, settings: 7
+        names: ["Mods", "Downloads", "Textures", "Workshop", "Saves", "Logs", "Search", "Settings"],
+        mods: 0, downloads: 1, textures: 2, workshop: 3, saves: 4, logs: 5, find: 6, settings: 7
     })
 
     readonly property string name: stored.theme

@@ -149,10 +149,6 @@ ApplicationWindow {
                 currentIndex: window.section
                 ModsScreen { id: modsScreen }
                 Loader {
-                    active: window.section === Theme.sections.workshop || item !== null
-                    sourceComponent: BrowseView {}
-                }
-                Loader {
                     active: window.section === Theme.sections.downloads || item !== null
                     sourceComponent: DownloadsScreen {
                         onShowMod: modId => window.showMod(modId)
@@ -161,6 +157,10 @@ ApplicationWindow {
                 Loader {
                     active: window.section === Theme.sections.textures || item !== null
                     sourceComponent: TexturesScreen {}
+                }
+                Loader {
+                    active: window.section === Theme.sections.workshop || item !== null
+                    sourceComponent: BrowseView {}
                 }
                 Loader {
                     active: window.section === Theme.sections.saves || item !== null
@@ -292,11 +292,11 @@ ApplicationWindow {
                 { name: Theme.say("Back up the newest save"), group: Theme.say("Saves"), run: () => Hub.saves.backUp(), when: !Theme.demo },
 
                 { name: Theme.say("Mods"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 1), run: go(Theme.sections.mods) },
-                { name: Theme.say("Workshop"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 2), run: go(Theme.sections.workshop) },
-                { name: Theme.say("Downloads"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 3), run: go(Theme.sections.downloads) },
-                { name: Theme.say("Textures"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 4), run: go(Theme.sections.textures) },
+                { name: Theme.say("Workshop"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 4), run: go(Theme.sections.workshop) },
+                { name: Theme.say("Downloads"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 2), run: go(Theme.sections.downloads) },
+                { name: Theme.say("Textures"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 3), run: go(Theme.sections.textures) },
                 { name: Theme.say("Saves"), group: Theme.say("Go to"), keys: Theme.fill("Ctrl + {}", 5), run: go(Theme.sections.saves) },
-                { name: Theme.say("Find in mods' files"), group: Theme.say("Go to"), keys: Theme.say("Ctrl + Shift + F"), run: findKey.activated },
+                { name: Theme.say("Search mods' files"), group: Theme.say("Go to"), keys: Theme.say("Ctrl + Shift + F"), run: findKey.activated },
                 { name: Theme.say("Logs: errors"), group: Theme.say("Go to"), run: () => logs(0) },
                 { name: Theme.say("Logs: mods"), group: Theme.say("Go to"), run: () => logs(1) },
                 { name: Theme.say("Logs: full log"), group: Theme.say("Go to"), run: () => logs(2) },
