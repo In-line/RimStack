@@ -224,6 +224,21 @@ Item {
             checks.drag(checks.inactiveList, 13 + 26 * 2, checks.activeList, row(5))
             checks.check("a mod dragged from the inactive list is activated where it was dropped", Mods.active.count === count + 1 && checks.nameAt(5) === taken)
 
+            const pair = [Mods.inactive.at(0).name, Mods.inactive.at(1).name]
+            Mods.select(Mods.inactive.modIdAt(0), false)
+            Mods.selectAlso(Mods.inactive.modIdAt(1), false)
+            checks.drag(checks.inactiveList, 13, checks.activeList, row(2))
+            checks.check("two selected mods dragged across are both activated where they were dropped", Mods.active.count === count + 3 && checks.nameAt(2) === pair[0] && checks.nameAt(3) === pair[1])
+            checks.check("and stay selected", Mods.selectedCount === 2 && Mods.selectedActive)
+            Mods.select(-1, false)
+
+            const last = Mods.inactive.at(0).name
+            Mods.filtered = "is:inactive"
+            checks.drag(checks.inactiveList, 13, checks.activeList, checks.activeList.height / 2)
+            Mods.filtered = ""
+            checks.activeList.forceLayout()
+            checks.check("a mod dropped on the empty part of the active list is activated at its end", Mods.active.count === count + 4 && checks.nameAt(Mods.active.count - 1) === last)
+
             events.mouseClick(checks.activeList, 120, row(3), Qt.RightButton, Qt.NoModifier, -1)
             checks.check("the right mouse button selects the mod and opens its menu", Mods.info.name === checks.nameAt(3) && checks.screen.menuOpen)
 

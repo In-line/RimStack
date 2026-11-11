@@ -1,6 +1,6 @@
 use super::{id, ids, qobject};
 use crate::qml::values::{from_qml, to_qml};
-use crate::workspace::load_order::{LoadOrder, Side};
+use crate::workspace::load_order::{Holding, LoadOrder, Side};
 use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QVariant};
@@ -176,6 +176,43 @@ impl qobject::ModsData {
     pub(super) fn carried(&self, given: &QVariant) -> QVariant {
         let selected = ids(given).unwrap_or_default();
         to_qml(&self.order.carried(&self.same, &selected))
+    }
+
+    pub(super) fn place_alone(&self, side: Side, to: usize) -> i32 {
+        let last = self.order.list(side).mods().len().saturating_sub(1);
+        to.min(last) as i32
+    }
+
+    /// How many places `drop` moves a mod alone inside its list, for its slide.
+    pub(super) fn slide_of(
+        &self,
+        from_active: bool,
+        index: i32,
+        held: &QVariant,
+        to_active: bool,
+        to: i32,
+    ) -> i32 {
+        let alone = ids(held).is_none_or(|held| held.len() < 2);
+        match (usize::try_from(to), alone && from_active == to_active) {
+            (Ok(to), true) => index - self.place_alone(Side::of(from_active), to),
+            _ => 0,
+        }
+    }
+
+    pub(super) fn holding(&self, mod_id: i32, name: &QString, selected: &QVariant) -> QVariant {
+        let selected = ids(selected).unwrap_or_default();
+        to_qml(&Holding::of(id(mod_id), &name.to_string(), &selected))
+    }
+
+    pub(super) fn inverted(
+        &self,
+        active: bool,
+        selected_active: bool,
+        given: &QVariant,
+    ) -> QVariant {
+        let selected = ids(given).unwrap_or_default();
+        let (side, selected_on) = (Side::of(active), Side::of(selected_active));
+        to_qml(&self.order.inverted(side, selected_on, &selected))
     }
 
     pub(super) fn in_load_order(&self, a: i32, b: i32) -> QVariant {

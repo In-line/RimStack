@@ -660,21 +660,19 @@ impl LoadOrder {
             .iter()
             .filter_map(|id| same.get(id).copied())
             .collect();
-        let Some((&first, others)) = kept.split_first() else {
-            return Carried {
-                first: -1,
-                active: false,
-                also: BTreeMap::new(),
-            };
-        };
-        Carried {
-            first: first.to_qml(),
-            active: self.active.position_of(first).is_some(),
-            also: others
-                .iter()
-                .map(|id| (id.to_qml().to_string(), true))
-                .collect(),
-        }
+        let active = kept
+            .first()
+            .is_some_and(|&first| self.active.position_of(first).is_some());
+        Carried::of(&kept, active)
+    }
+
+    /// The mods `side` shows that are not selected there.
+    pub fn inverted(&self, side: Side, selected_on: Side, selected: &[ModId]) -> Carried {
+        let selected = if selected_on == side { selected } else { &[] };
+        Carried::of(
+            &self.list(side).shown_except(selected),
+            side == Side::Active,
+        )
     }
 }
 
@@ -685,6 +683,48 @@ pub struct Carried {
     pub active: bool,
     /// The others, as the window keeps them: id to `true`.
     pub also: BTreeMap<String, bool>,
+}
+
+impl Carried {
+    fn of(ids: &[ModId], active: bool) -> Carried {
+        let Some((&first, others)) = ids.split_first() else {
+            return Carried {
+                first: -1,
+                active: false,
+                also: BTreeMap::new(),
+            };
+        };
+        Carried {
+            first: first.to_qml(),
+            active,
+            also: others
+                .iter()
+                .map(|id| (id.to_qml().to_string(), true))
+                .collect(),
+        }
+    }
+}
+
+/// What a drag of one mod takes along: the whole selection when it is part of it.
+#[derive(Debug, Serialize, PartialEq)]
+pub struct Holding {
+    pub ids: Vec<i32>,
+    pub name: Sentence,
+}
+
+impl Holding {
+    pub fn of(id: Option<ModId>, name: &str, selected: &[ModId]) -> Holding {
+        match id {
+            Some(id) if selected.len() > 1 && selected.contains(&id) => Holding {
+                ids: selected.iter().map(|id| id.to_qml()).collect(),
+                name: say_n!(selected.len(), "{} mod", "{} mods"),
+            },
+            _ => Holding {
+                ids: id.iter().map(|id| id.to_qml()).collect(),
+                name: Sentence::Plain(name.to_string()),
+            },
+        }
+    }
 }
 
 #[cfg(test)]

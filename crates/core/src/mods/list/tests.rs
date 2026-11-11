@@ -1,6 +1,6 @@
 use super::*;
 
-fn id(n: usize) -> ModId {
+pub(super) fn id(n: usize) -> ModId {
     ModId::new(0, n)
 }
 
@@ -638,7 +638,7 @@ fn mods_that_share_a_name_are_twins_whatever_the_case() {
     assert_eq!(twins(&mods), [true, false, true]);
 }
 
-fn installed_sample() -> GroupedList {
+pub(super) fn installed_sample() -> GroupedList {
     let mut mods = sample().mods().to_vec();
     for (at, m) in mods.iter_mut().enumerate() {
         m.installed = (m.name != "Royalty").then_some(id(100 + at));

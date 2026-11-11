@@ -60,22 +60,62 @@ impl qobject::ModsData {
         self.done_said(said);
     }
 
-    pub(super) fn take_all(mut self: Pin<&mut Self>, from_active: bool, given: &QVariant) {
+    pub(super) fn take_all(self: Pin<&mut Self>, from_active: bool, given: &QVariant) {
         let Some(ids) = ids(given) else {
             return self.refuse_list();
         };
+        self.take_ids(Side::of(from_active), &ids, None);
+    }
+
+    fn take_ids(mut self: Pin<&mut Self>, from: Side, ids: &[ModId], to: Option<usize>) {
         if ids.is_empty() {
             return;
         }
-        let from = Side::of(from_active);
         let app = self.app();
-        self.as_mut().order_mut().take_all(&app, from, &ids);
+        self.as_mut().order_mut().take_all(&app, from, ids, to);
         self.as_mut().changed();
         let said = match from {
             Side::Inactive => say_n!(ids.len(), "Activated {} mod", "Activated {} mods"),
             Side::Active => say_n!(ids.len(), "Deactivated {} mod", "Deactivated {} mods"),
         };
         self.done_said(said);
+    }
+
+    /// `to` is the place dropped on, the list's length for its end. More than one `held`
+    /// move together; one alone moves by `index`, so a missing mod does as well. Whether
+    /// the selected mod is active after it.
+    pub(super) fn drop(
+        mut self: Pin<&mut Self>,
+        from_active: bool,
+        index: i32,
+        held: &QVariant,
+        to_active: bool,
+        to: i32,
+        selected: i32,
+    ) -> bool {
+        let held = ids(held).unwrap_or_default();
+        let (from, into) = (Side::of(from_active), Side::of(to_active));
+        match (usize::try_from(to), held.len() > 1, from == into) {
+            (Err(_), ..) => {}
+            (Ok(to), true, true) => {
+                let app = self.app();
+                if self.as_mut().order_mut().move_mods(&app, from, &held, to) {
+                    self.as_mut().changed();
+                    self.as_mut()
+                        .done_said(say_n!(held.len(), "Moved {} mod", "Moved {} mods"));
+                }
+            }
+            (Ok(to), true, false) => self.as_mut().take_ids(from, &held, Some(to)),
+            (Ok(to), false, true) => {
+                let place = self.place_alone(from, to);
+                if index != place {
+                    self.as_mut().move_mod(from_active, index, place);
+                }
+            }
+            (Ok(_), false, false) => self.as_mut().take(from_active, index, to),
+        }
+        let active = self.order.list(Side::Active);
+        id(selected).is_some_and(|id| active.position_of(id).is_some())
     }
 
     pub(super) fn to_edge(mut self: Pin<&mut Self>, given: &QVariant, top: bool) {
@@ -460,7 +500,7 @@ impl qobject::ModsData {
         let app = self.app();
         self.as_mut()
             .order_mut()
-            .take_all(&app, Side::Inactive, &ids);
+            .take_all(&app, Side::Inactive, &ids, None);
         self.as_mut().changed();
         self.done_said(say!("Activated the needed mods"));
     }
@@ -473,7 +513,7 @@ impl qobject::ModsData {
         }
         self.as_mut()
             .order_mut()
-            .take_all(&app, Side::Inactive, &fresh);
+            .take_all(&app, Side::Inactive, &fresh, None);
         self.as_mut().changed();
         self.done_said(say_n!(
             fresh.len(),

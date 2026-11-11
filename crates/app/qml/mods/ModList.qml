@@ -46,7 +46,8 @@ ListView {
         width: listView ? listView.width : 0
         height: Theme.sized(30)
         DropArea {
-            anchors.fill: parent
+            width: parent.width
+            height: list.height
             onEntered: Mods.drag.target = { model: end.listView.model, modIndex: end.listView.model.count, item: end }
             onExited: if (Mods.drag.target && Mods.drag.target.item === end) Mods.drag.target = null
             Rectangle { visible: parent.containsDrag; x: Theme.gapSmall; width: parent.width - 2 * Theme.gapSmall; height: 2; radius: Math.min(width, height) / 2; color: Theme.focus }
@@ -69,6 +70,11 @@ ListView {
             Mods.select(list.model.firstModId(), list.model.active)
             Mods.selectThrough(list.model.lastModId(), list.model.active)
         }
+    }
+    Shortcut {
+        sequence: "Ctrl+I"
+        enabled: list.activeFocus
+        onActivated: Mods.invertSelection(list.model.active)
     }
     Keys.onReturnPressed: Mods.activateSelected(list.model)
     Keys.onEnterPressed: Mods.activateSelected(list.model)

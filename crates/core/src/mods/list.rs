@@ -750,6 +750,7 @@ pub fn edge_of_run(mods: &[Mod], at: usize, top: bool) -> usize {
     }
 }
 
+mod moves;
 mod navigate;
 #[cfg(test)]
 mod tests;

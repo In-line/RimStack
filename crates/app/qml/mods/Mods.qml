@@ -198,7 +198,6 @@ Item {
 
     readonly property string upkeepProblem: Hub.mods.upkeepProblem
     function copyToLocal(modIds) { Hub.mods.copyToLocal(modIds) }
-    function binMod(modId) { Hub.mods.bin(modId) }
 
     readonly property Columns columns: Columns {
         prefs: mods.prefs
@@ -330,6 +329,12 @@ Item {
         also = next
     }
 
+    function invertSelection(inActive) {
+        const kept = Hub.mods.inverted(inActive, selectedActive, selectedIds)
+        select(kept.first, inActive)
+        also = kept.also
+    }
+
     function moveSelected() {
         Hub.mods.takeAll(selectedActive, selectedIds)
         select(-1, false)
@@ -388,17 +393,8 @@ Item {
         onDropped: (from, to) => mods.drop(from, to)
     }
     function drop(from, to) {
-        if (from.model === to.model) {
-            const place = Math.min(to.modIndex, to.model.count - 1)
-            if (from.modIndex !== place) {
-                slide(from.modId, from.modIndex - place)
-                Hub.mods.moveMod(to.model.active, from.modIndex, place)
-            }
-        } else {
-            Hub.mods.take(from.model.active, from.modIndex, to.modIndex)
-            if (from.modId >= 0 && from.modId === selectedId)
-                selectedActive = to.model.active
-        }
+        slide(from.modId, Hub.mods.slideOf(from.model.active, from.modIndex, from.ids, to.model.active, to.modIndex))
+        selectedActive = Hub.mods.drop(from.model.active, from.modIndex, from.ids, to.model.active, to.modIndex, selectedId)
     }
 
     // `{ earlier, later }` by library id; null when the lists are showing.

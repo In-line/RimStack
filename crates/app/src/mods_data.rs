@@ -93,6 +93,26 @@ pub mod qobject {
         #[cxx_name = "takeAll"]
         fn take_all(self: Pin<&mut ModsData>, from_active: bool, ids: &QVariant);
         #[qinvokable]
+        fn drop(
+            self: Pin<&mut ModsData>,
+            from_active: bool,
+            index: i32,
+            held: &QVariant,
+            to_active: bool,
+            to: i32,
+            selected: i32,
+        ) -> bool;
+        #[qinvokable]
+        #[cxx_name = "slideOf"]
+        fn slide_of(
+            self: &ModsData,
+            from_active: bool,
+            index: i32,
+            held: &QVariant,
+            to_active: bool,
+            to: i32,
+        ) -> i32;
+        #[qinvokable]
         #[cxx_name = "toEdge"]
         fn to_edge(self: Pin<&mut ModsData>, ids: &QVariant, top: bool);
         #[qinvokable]
@@ -229,6 +249,17 @@ pub mod qobject {
         fn others_through(self: &ModsData, active: bool, from: i32, to: i32) -> QVariant;
         #[qinvokable]
         fn carried(self: &ModsData, ids: &QVariant) -> QVariant;
+        /// `{ ids, name }`: what a drag of it takes along.
+        #[qinvokable]
+        fn holding(self: &ModsData, mod_id: i32, name: &QString, selected: &QVariant) -> QVariant;
+        /// As `carried` gives it.
+        #[qinvokable]
+        fn inverted(
+            self: &ModsData,
+            active: bool,
+            selected_active: bool,
+            selected: &QVariant,
+        ) -> QVariant;
         /// `[earlier, later]`; null unless both are in it.
         #[qinvokable]
         #[cxx_name = "inLoadOrder"]

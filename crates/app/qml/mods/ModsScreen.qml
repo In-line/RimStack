@@ -251,7 +251,7 @@ Rectangle {
         Text { width: parent.width; wrapMode: Text.WordWrap; color: Theme.ink2; font.pixelSize: Theme.body; text: Theme.say("Steam downloads a Workshop mod again while you stay subscribed to it.") }
         buttons: [
             Btn { text: Theme.say("Cancel"); onClicked: binPrompt.close() },
-            Btn { danger: true; text: Theme.say("Move to the bin"); onClicked: { Mods.binMod(binPrompt.modId); binPrompt.close() } }
+            Btn { danger: true; text: Theme.say("Move to the bin"); onClicked: { Hub.mods.bin(binPrompt.modId); binPrompt.close() } }
         ]
     }
     Connections {

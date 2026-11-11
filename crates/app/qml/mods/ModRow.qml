@@ -457,7 +457,7 @@ Item {
         target: null
         onActiveChanged: {
             if (dragger.active)
-                Mods.drag.held = { model: row.ownModel, modIndex: row.modIndex, modId: row.modId, name: row.name }
+                Mods.drag.held = Object.assign({ model: row.ownModel, modIndex: row.modIndex, modId: row.modId }, Hub.mods.holding(row.modId, row.name, Mods.selectedIds))
             else
                 Mods.drag.finish()
         }

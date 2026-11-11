@@ -533,8 +533,17 @@ mods.findMods: list
     name: text
 mods.fresh: list
   []: number
+mods.holding: object
+  ids: list
+    []: number
+  name: text
 mods.inLoadOrder: list or nothing
   []: number
+mods.inverted: object
+  active: bool
+  also: map
+    {}: bool
+  first: number
 mods.notInstalled: object
   fixes: list
     []: object

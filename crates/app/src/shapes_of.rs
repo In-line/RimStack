@@ -3,7 +3,7 @@ use crate::reports::{Answer, ReleaseSaid, Written};
 use crate::shapes::Shapes;
 use crate::workspace::changed::{NotesState, Only, since_shown};
 use crate::workspace::downloads::{Checkout, Queue, Updates, updates_shown};
-use crate::workspace::load_order::{LoadOrder, Side};
+use crate::workspace::load_order::{Holding, LoadOrder, Side};
 use crate::workspace::tests::installed;
 use crate::workspace::{logs, saves, textures};
 use rimstack_core::kept::launches;
@@ -286,6 +286,12 @@ fn mods(app: &App, shapes: &mut Shapes) {
     let same = order.same_mods_in(&order);
     shapes.add("mods.carried", &order.carried(&same, &[a, b]));
     shapes.add("mods.carried", &order.carried(&same, &[]));
+    shapes.add(
+        "mods.inverted",
+        &order.inverted(Side::Active, Side::Active, &[a]),
+    );
+    shapes.add("mods.holding", &Holding::of(Some(a), "", &[a, b]));
+    shapes.add("mods.holding", &Holding::of(None, "Missing", &[]));
     let ordered = list.in_load_order(a, b);
     shapes.add(
         "mods.inLoadOrder",

@@ -28,6 +28,7 @@ Rectangle {
         Btn { visible: Mods.selectedActive && Mods.columns.order === ""; icon: "arrow-up"; text: Theme.say("To top"); tip: Theme.say("To the top of their category"); onClicked: Mods.selectedToEdge(true) }
         Btn { visible: Mods.selectedActive && Mods.columns.order === ""; icon: "arrow-down"; text: Theme.say("To bottom"); tip: Theme.say("To the bottom of their category"); onClicked: Mods.selectedToEdge(false) }
         Item { implicitWidth: Theme.gapWide }
+        Btn { text: Theme.say("Invert"); tip: Theme.say("Selects the other mods the list shows instead (Ctrl + I)"); onClicked: Mods.invertSelection(Mods.selectedActive) }
         Btn { text: Theme.say("Clear selection"); tip: Theme.say("Clear the selection (Esc)"); onClicked: Mods.select(-1, false) }
     }
 }

@@ -189,7 +189,7 @@ fn a_mod_taken_across_is_one_step_that_undo_takes_back() {
     let (_tmp, app) = installed();
     let mut order = LoadOrder::read(&app, true, None);
     let id = roads(&order, Side::Inactive);
-    order.take_all(&app, Side::Inactive, &[id]);
+    order.take_all(&app, Side::Inactive, &[id], None);
     assert_eq!(app.session().current(), ["ludeon.rimworld", "ann.roads"]);
     assert!(order.list(Side::Inactive).mods().is_empty());
     assert!(app.session().is_dirty());
@@ -536,4 +536,117 @@ fn a_selection_is_carried_over_a_rescan_by_folder_and_a_mod_gone_leaves_it() {
     let gone = newest.carried(&new.same_mods_in(&newest), &[roads_now]);
     assert_eq!(gone.first, -1);
     assert!(gone.also.is_empty());
+}
+
+fn with_more_mods(tmp: &tempfile::TempDir) {
+    for (folder, id) in [("hats", "Ann.Hats"), ("bridges", "Ann.Bridges")] {
+        let about = tmp.path().join("game/Mods").join(folder).join("About");
+        std::fs::create_dir_all(&about).unwrap();
+        let xml =
+            format!("<ModMetaData><packageId>{id}</packageId><name>{id}</name></ModMetaData>");
+        std::fs::write(about.join("About.xml"), xml).unwrap();
+    }
+}
+
+fn ids_of(order: &LoadOrder, side: Side, keys: &[&str]) -> Vec<ModId> {
+    let list = order.list(side);
+    let id_of = |key: &&str| list.mods().iter().find(|m| m.id == *key)?.installed;
+    keys.iter().filter_map(id_of).collect()
+}
+
+fn keys(order: &LoadOrder, side: Side) -> Vec<String> {
+    order
+        .list(side)
+        .mods()
+        .iter()
+        .map(|m| m.id.clone())
+        .collect()
+}
+
+#[test]
+fn mods_dropped_in_together_land_side_by_side_where_dropped_in_one_step() {
+    let (tmp, app) = installed();
+    with_more_mods(&tmp);
+    let mut order = LoadOrder::read(&app, true, None);
+    let in_order: Vec<String> = keys(&order, Side::Inactive)
+        .into_iter()
+        .filter(|key| key != "ann.bridges")
+        .collect();
+    let held = ids_of(&order, Side::Inactive, &["ann.roads", "ann.hats"]);
+    order.take_all(&app, Side::Inactive, &held, Some(0));
+    let landed = keys(&order, Side::Active);
+    assert_eq!(
+        (&landed[..2], &landed[2][..]),
+        (&in_order[..], "ludeon.rimworld")
+    );
+    assert!(order.undo(&app));
+    assert_eq!(keys(&order, Side::Active), ["ludeon.rimworld"]);
+}
+
+#[test]
+fn mods_moved_together_inside_a_list_are_one_step() {
+    let (tmp, app) = installed();
+    with_more_mods(&tmp);
+    let mut order = LoadOrder::read(&app, true, None);
+    let all = order
+        .list(Side::Inactive)
+        .mods()
+        .iter()
+        .filter_map(|m| m.installed)
+        .collect::<Vec<_>>();
+    order.take_all(&app, Side::Inactive, &all, Some(1));
+    let before = keys(&order, Side::Active);
+    let last_two = ids_of(&order, Side::Active, &[&before[2], &before[3]]);
+    assert!(order.move_mods(&app, Side::Active, &last_two, 1));
+    let after = keys(&order, Side::Active);
+    assert_eq!(after, [&*before[0], &before[2], &before[3], &before[1]]);
+    assert!(order.undo(&app));
+    assert_eq!(keys(&order, Side::Active), before);
+}
+
+#[test]
+fn the_inverse_of_a_selection_is_the_rest_of_its_list() {
+    let (tmp, app) = installed();
+    with_more_mods(&tmp);
+    let order = LoadOrder::read(&app, true, None);
+    let inactive: Vec<i32> = order
+        .list(Side::Inactive)
+        .mods()
+        .iter()
+        .filter_map(|m| m.installed)
+        .map(ModId::to_qml)
+        .collect();
+    let roads = roads(&order, Side::Inactive);
+    let rest = order.inverted(Side::Inactive, Side::Inactive, &[roads]);
+    let mut chosen: Vec<i32> = rest.also.keys().map(|id| id.parse().unwrap()).collect();
+    chosen.push(rest.first);
+    chosen.sort_unstable();
+    let mut others: Vec<i32> = inactive
+        .iter()
+        .copied()
+        .filter(|id| *id != roads.to_qml())
+        .collect();
+    others.sort_unstable();
+    assert_eq!((chosen, rest.active), (others, false));
+    let core = ids_of(&order, Side::Active, &["ludeon.rimworld"]);
+    let whole = order.inverted(Side::Inactive, Side::Active, &core);
+    assert_eq!(whole.also.len() + 1, inactive.len());
+    assert_eq!(order.inverted(Side::Active, Side::Active, &core).first, -1);
+}
+
+#[test]
+fn a_drag_takes_the_selection_along_only_when_it_starts_on_part_of_it() {
+    let (_tmp, app) = installed();
+    let order = LoadOrder::read(&app, true, None);
+    let roads = roads(&order, Side::Inactive);
+    let core = ids_of(&order, Side::Active, &["ludeon.rimworld"])[0];
+    let both = Holding::of(Some(roads), "Ann.Roads", &[core, roads]);
+    assert_eq!(both.ids, [core.to_qml(), roads.to_qml()]);
+    assert_eq!(both.name.to_string(), "2 mods");
+    let alone = Holding::of(Some(roads), "Ann.Roads", &[core]);
+    assert_eq!(
+        (alone.ids, alone.name.to_string()),
+        (vec![roads.to_qml()], "Ann.Roads".to_string())
+    );
+    assert!(Holding::of(None, "Gone", &[core, roads]).ids.is_empty());
 }

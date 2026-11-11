@@ -56,20 +56,35 @@ impl LoadOrder {
         self.active.move_mod(at, to);
     }
 
-    pub fn take_all(&mut self, app: &App, from: Side, ids: &[ModId]) {
+    /// `None` for `to`: each where its category and rules put it; else side by side from `to`.
+    pub fn take_all(&mut self, app: &App, from: Side, ids: &[ModId], to: Option<usize>) {
         self.end_preview();
         let mut ids: Vec<ModId> = ids.to_vec();
         ids.sort_by_key(|&id| self.list(from).position_of(id));
         self.batching = true;
+        let mut put = 0;
         for id in ids {
             if let Some(at) = self.list(from).position_of(id)
                 && let Some(m) = self.list_mut(from).remove(at)
             {
-                self.put(app, from.other(), m, None);
+                self.put(app, from.other(), m, to.map(|to| to + put));
+                put += 1;
             }
         }
         self.batching = false;
         self.settle(app);
+    }
+
+    /// Whether the order changed.
+    pub fn move_mods(&mut self, app: &App, side: Side, ids: &[ModId], to: usize) -> bool {
+        let list = self.list(side);
+        let positions: Vec<usize> = ids.iter().filter_map(|&id| list.position_of(id)).collect();
+        self.end_preview();
+        let moved = self.list_mut(side).move_mods(&positions, to);
+        if moved {
+            self.settle(app);
+        }
+        moved
     }
 
     pub fn to_edge(&mut self, app: &App, ids: &[ModId], top: bool) {
