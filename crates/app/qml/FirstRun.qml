@@ -220,7 +220,8 @@ Rectangle {
                 Found { visible: !!page.info.git; what: "Git"; where: page.info.git ? Theme.fill("version {}", page.info.git) : ""; sentence: true }
                 Found { visible: !page.info.git; note: true; sentence: true; what: Theme.say("Git is not installed: a mod kept as a Git checkout cannot be checked or updated") }
                 Found { visible: !!page.info.steamcmd; what: "SteamCMD"; where: Theme.say("installed"); sentence: true; last: true }
-                Found { visible: !page.info.steamcmd; note: true; sentence: true; last: true; what: Theme.say("SteamCMD is not installed: Downloads can install it, to fetch a mod without subscribing") }
+                Found { visible: !page.info.steamcmd && !page.info.steamcmdRefused; note: true; sentence: true; last: true; what: Theme.say("SteamCMD is not installed: Downloads can install it, to fetch a mod without subscribing") }
+                Found { visible: !!page.info.steamcmdRefused; note: true; sentence: true; last: true; what: page.info.steamcmdRefused || "" }
             }
             Block {
                 visible: page.step === 1 && !!page.info.rimsortRules

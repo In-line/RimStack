@@ -16,6 +16,7 @@ Item {
 
     readonly property var info: Hub.settings.report
     readonly property string problem: Hub.settings.problem
+    readonly property var key: Hub.settings.steamKey || ({})
 
     function keep(name, value) {
         Hub.settings.keep(name, value)
@@ -123,7 +124,7 @@ Item {
     property int part: {
         return Hub.number("--part", 0)
     }
-    readonly property var parts: [Theme.say("Game and folders"), Theme.say("Appearance"), Theme.say("Sorting"), "RimStack"]
+    readonly property var parts: [Theme.say("Game and folders"), Theme.say("Appearance"), Theme.say("Sorting"), Theme.say("Steam Web API key"), "RimStack"]
 
     Rectangle {
         id: nav
@@ -632,6 +633,76 @@ Item {
                 width: parent.width
                 spacing: Theme.gapSmall
                 visible: screen.part === 3 || screen.finding !== ""
+                Line {
+                    title: Theme.say("What a key adds")
+                    Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.ink; font.pixelSize: Theme.body; text: Theme.say("Browse then searches Steam itself, with Steam's sorts, and shows mods newer than the downloaded database, collections, more by the same author, votes and screenshots. Without a key, Browse searches the downloaded database.") }
+                }
+                Line {
+                    title: Theme.say("Keep it private")
+                    Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.warn; font.pixelSize: Theme.body; text: Theme.say("Whoever has this key can read and cancel your trade offers. Never share it with anyone. This is Steam's own warning. RimStack keeps the key in this computer's credential store, never in its settings file.") }
+                }
+                Line {
+                    title: Theme.say("Get a key")
+                    tip: Theme.say("Steam's page asks you to sign in and name a domain; any name will do.")
+                    Btn { icon: "external-link"; text: Theme.say("Open Steam's key page"); onClicked: Qt.openUrlExternally("https://steamcommunity.com/dev/apikey") }
+                    Item { Layout.fillWidth: true }
+                }
+                Line {
+                    title: Theme.say("Your key")
+                    Text { visible: screen.key.available && screen.key.stored; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.ok; font.pixelSize: Theme.body; text: Theme.say("A key is kept.") }
+                    Text { visible: screen.key.available && !screen.key.stored; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.ink3; font.pixelSize: Theme.body; text: Theme.say("No key is kept.") }
+                    Text { visible: !screen.key.available; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.err; font.pixelSize: Theme.body; text: Theme.say("The credential store does not work, so a key cannot be kept.") }
+                    Btn { visible: !!screen.key.stored; enabled: !screen.key.checking; text: Theme.say("Forget the key"); onClicked: Hub.settings.forgetKey() }
+                }
+                Line {
+                    visible: !!screen.key.available && screen.matches(title)
+                    title: Theme.say("Type a key")
+                    FilterField {
+                        id: typed
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 0
+                        echo: TextInput.Password
+                        placeholder: Theme.say("Steam Web API key")
+                        onAccepted: check.clicked()
+                    }
+                    Btn {
+                        id: check
+                        primary: true
+                        enabled: typed.text !== "" && !screen.key.checking
+                        text: Theme.say("Check and keep")
+                        onClicked: { Hub.settings.checkKey(typed.text); typed.text = "" }
+                    }
+                }
+                Text {
+                    visible: !!screen.key.checking
+                    x: screen.labelWidth + Theme.gap
+                    color: Theme.ink3
+                    font.pixelSize: Theme.small
+                    text: Theme.say("Asking Steam…")
+                }
+                Text {
+                    visible: !!screen.key.note
+                    x: screen.labelWidth + Theme.gap
+                    width: parent.width - x
+                    wrapMode: Text.WordWrap
+                    color: Theme.err
+                    font.pixelSize: Theme.body
+                    text: screen.key.note || ""
+                }
+                Line {
+                    title: Theme.say("Show mods Steam marks as mature")
+                    changed: !!screen.info.showMature
+                    onReset: screen.keep("showMature", "off")
+                    tip: Theme.say("Applies with a key only; the database has no such mark.")
+                    Toggle { title: Theme.say("Show mods Steam marks as mature"); on: !!screen.info.showMature; onFlipped: screen.keep("showMature", ["on", "off"][Number(!!screen.info.showMature)]) }
+                    Item { Layout.fillWidth: true }
+                }
+            }
+
+            Column {
+                width: parent.width
+                spacing: Theme.gapSmall
+                visible: screen.part === 4 || screen.finding !== ""
                 GroupTitle { visible: screen.finding === ""; text: Theme.say("When the game misbehaves") }
                 Line {
                     title: Theme.say("Game files")

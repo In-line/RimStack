@@ -161,6 +161,7 @@ pub(crate) fn every() -> Shapes {
     search(&app, &mut shapes);
     downloads(&app, &mut shapes);
     find(&app, &mut shapes);
+    workshop(&mut shapes);
     settings_once_set(&app, &mut shapes);
     shapes
 }
@@ -190,6 +191,7 @@ fn settings(app: &App, shapes: &mut Shapes) {
     app.version_warnings(1).unwrap();
     shapes.add("settings.report", &app.settings_report());
     shapes.add("settings.databases", &app.databases());
+    settings_key(shapes);
     let checked = std::collections::BTreeMap::from([(
         "game",
         crate::workspace::judge_folder("game", "/nowhere"),
@@ -522,4 +524,75 @@ fn downloads(app: &App, shapes: &mut Shapes) {
     };
     shapes.add("downloads.notesState", &state);
     shapes.add("downloads.commitsOf", &app.commits_of(roads));
+}
+
+fn settings_key(shapes: &mut Shapes) {
+    use crate::reports::KeyShown;
+    use crate::workspace::secret::Memory;
+    let (_tmp, app) = made_up();
+    let app = app.browsing_fixture(true);
+    let shown = |app: &App, checking, failure| KeyShown::of(app.key_state(), checking, failure);
+    shapes.add("settings.steamKey", &shown(&app, false, None));
+    app.check_and_keep("fixture").unwrap();
+    shapes.add("settings.steamKey", &shown(&app, true, None));
+    let refused = Some(rimstack_core::said!("Steam refused this key"));
+    shapes.add("settings.steamKey", &shown(&app, false, refused));
+    let why = rimstack_core::say!("No credential store is available to keep the key in");
+    let broken = app.with_vault(std::sync::Arc::new(Memory::broken(why)));
+    shapes.add("settings.steamKey", &shown(&broken, false, None));
+}
+
+fn workshop(shapes: &mut Shapes) {
+    use crate::workshop_data::view::{DetailsShown, RelatedShown};
+    use crate::workspace::browse::{Related, Shown};
+    use crate::workspace::download_list::ListShown;
+    use rimstack_core::sources::browse::HARMONY;
+    const EXTRAS: &str = "3100000002";
+    const ROYAL: &str = "3100000004";
+    let (_tmp, app) = made_up();
+    let app = app.browsing_fixture(true);
+    shapes.add("workshop.versions", &app.browse_defaults().versions);
+    shapes.add("workshop.sorts", &app.browse_defaults().sorts);
+    app.check_and_keep("fixture").unwrap();
+    shapes.add("workshop.sorts", &app.browse_defaults().sorts);
+    shapes.add("workshop.related", &RelatedShown::none());
+    shapes.add(
+        "workshop.related",
+        &RelatedShown::of(Related::NeededBy, HARMONY, "Fixture Harmony"),
+    );
+    app.add_to_list(EXTRAS, true);
+    let mut shown = app.browse_details(EXTRAS).unwrap();
+    shown.problem = Some(rimstack_core::said!("refused"));
+    fn details<'a>(shown: &'a Shown, preview_path: &'a str) -> DetailsShown<'a> {
+        const SHOTS: &[String] = &[];
+        DetailsShown {
+            shown,
+            preview_path,
+            screenshots: SHOTS,
+        }
+    }
+    let shots = ["/previews/b.img".to_string()];
+    let with_shots = DetailsShown {
+        shown: &shown,
+        preview_path: "/previews/a.img",
+        screenshots: &shots,
+    };
+    shapes.add("workshop.details", &with_shots);
+    shapes.add("workshop.details", &details(&shown, "/previews/a.img"));
+    shapes.add(
+        "workshop.details",
+        &details(&app.browse_details(ROYAL).unwrap(), ""),
+    );
+    shapes.add(
+        "workshop.details",
+        &details(&app.browse_details(HARMONY).unwrap(), ""),
+    );
+    shapes.add(
+        "workshop.details",
+        &details(&app.browse_details("3100000003").unwrap(), ""),
+    );
+    shapes.add("workshop.list", &ListShown::empty());
+    let failed = rimstack_core::base::error::Error::refused(rimstack_core::said!("refused"));
+    app.apply_downloads(&[("3100000001".to_string(), Err(failed))]);
+    shapes.add("workshop.list", &app.list_shown());
 }

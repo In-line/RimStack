@@ -95,11 +95,14 @@ impl qobject::DownloadsData {
     }
 
     pub(super) fn subscribe_wanted(self: Pin<&mut Self>) {
-        let wanted = self
-            .looked_up
-            .as_ref()
-            .map_or(Vec::new(), |q| q.wanted.clone());
-        self.ask_steam(SteamAsk::Subscribe, wanted);
+        let app = self.app();
+        let count = app.listed_ids().len();
+        if count == 0 {
+            return;
+        }
+        self.task(say!("Subscribing to {} in Steam…", count), move || {
+            app.subscribe_listed()
+        });
     }
 
     pub(super) fn subscribe(self: Pin<&mut Self>, workshop_id: &QString) {
@@ -112,16 +115,14 @@ impl qobject::DownloadsData {
     }
 
     pub(super) fn download_wanted(self: Pin<&mut Self>) {
-        let wanted = self
-            .looked_up
-            .as_ref()
-            .map_or(Vec::new(), |q| q.wanted.clone());
-        if wanted.is_empty() {
+        let app = self.app();
+        let count = app.listed_ids().len();
+        if count == 0 {
             return;
         }
-        let app = self.app();
-        let doing = say!("Downloading {} with SteamCMD…", wanted.len());
-        self.task(doing, move || app.download_with_steamcmd(&wanted));
+        self.task(say!("Downloading {} with SteamCMD…", count), move || {
+            app.download_listed()
+        });
     }
 
     pub(super) fn update_from_git(mut self: Pin<&mut Self>, mod_id: i32) {

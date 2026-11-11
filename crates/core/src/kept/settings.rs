@@ -102,7 +102,7 @@ enum Holds {
 
 const SWITCH: Holds = Holds::Choice(&["on", "off"]);
 
-const KNOWN: [(&str, Holds); 23] = [
+const KNOWN: [(&str, Holds); 25] = [
     ("game", Holds::Text),
     ("config", Holds::Text),
     ("workshop", Holds::Text),
@@ -123,6 +123,8 @@ const KNOWN: [(&str, Holds); 23] = [
     ("fileHints", SWITCH),
     ("gitForWorkshop", SWITCH),
     ("selfCheck", SWITCH),
+    ("showMature", SWITCH),
+    ("steamKeyKept", SWITCH),
     ("updates", Holds::Choice(&["stable", "nightly"])),
     ("window", Holds::Text),
     ("windowMaximized", Holds::Choice(&["yes"])),
@@ -135,6 +137,9 @@ pub enum Switch {
     FileHints,
     GitForWorkshop,
     SelfCheck,
+    ShowMature,
+    /// Whether a key was put in the credential store, which is asked only while it is on.
+    SteamKeyKept,
 }
 
 impl Switch {
@@ -145,6 +150,8 @@ impl Switch {
             Switch::FileHints => "fileHints",
             Switch::GitForWorkshop => "gitForWorkshop",
             Switch::SelfCheck => "selfCheck",
+            Switch::ShowMature => "showMature",
+            Switch::SteamKeyKept => "steamKeyKept",
         }
     }
 
@@ -154,7 +161,7 @@ impl Switch {
             | Switch::VersionWarnings
             | Switch::SelfCheck
             | Switch::FileHints => true,
-            Switch::GitForWorkshop => false,
+            Switch::GitForWorkshop | Switch::ShowMature | Switch::SteamKeyKept => false,
         }
     }
 }

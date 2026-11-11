@@ -19,6 +19,8 @@ mod search_data;
 mod settings_data;
 mod textures_data;
 mod words;
+mod workshop_data;
+mod workshop_rows;
 mod workspace;
 
 pub use workspace::*;

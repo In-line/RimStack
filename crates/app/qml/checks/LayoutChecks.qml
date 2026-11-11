@@ -19,6 +19,8 @@ Item {
                 for (const section of [0, 1, 2, 3, 4, 6])
                     add(size, scale, { section }, "section " + section)
                 add(size, scale, { section: 5 }, "find empty")
+                for (const browse of ["with the list", "with the details"])
+                    add(size, scale, { section: 1, browse }, "the Browse view " + browse)
                 for (const tab of [1, 2])
                     add(size, scale, { tab }, "section 0 tab " + tab)
                 for (const popup of popups)
@@ -30,6 +32,13 @@ Item {
             for (const scale of scales) {
                 add(size, scale, { section: 5, find: "results" }, "find results")
                 add(size, scale, { section: 5, find: "none" }, "find none")
+                add(size, scale, { section: 6, part: 3 }, "Settings key part")
+            }
+        for (const size of sizes)
+            for (const scale of scales) {
+                add(size, scale, { section: 6, part: 3, keyed: true }, "Settings key part with a key")
+                for (const browse of ["with the list", "with the details"])
+                    add(size, scale, { section: 1, browse, keyed: true }, "the Browse view in key mode " + browse)
             }
         const only = Hub.argument("--only")
         return all.filter(scene => scene.label.indexOf(only) >= 0)
@@ -37,9 +46,24 @@ Item {
     property int at: 0
     property int settled: 0
     property bool grabbing: false
+    property bool keyed: false
 
     function busy() {
         return Hub.mods.rescanning || Hub.saves.busy || Hub.logs.busy || Hub.textures.busy || Hub.find.running
+        const key = Hub.settings.steamKey || ({})
+        const waiting = checks.keyed && !(Hub.workshop.keyMode && key.stored)
+        return Hub.mods.rescanning || Hub.saves.busy || Hub.logs.busy || Hub.textures.busy || Hub.workshop.searching || Hub.workshop.detailsBusy || key.checking || waiting || (checks.keyed && !!Hub.workshop.details && Hub.workshop.details.screenshots.length === 0)
+    }
+
+    function settingsOf(item) {
+        for (const child of item.children) {
+            if (child.parts !== undefined && child.finding !== undefined)
+                return child
+            const found = settingsOf(child)
+            if (found)
+                return found
+        }
+        return null
     }
 
     function shownSize() {
@@ -117,12 +141,14 @@ Item {
     function scan(scene) {
         const popup = scene.popup !== "" ? checks.window.openable[scene.popup] : null
         const root = scene.first !== undefined ? checks.welcome(checks.window.contentItem) : popup ? popup.contentItem.parent : checks.window.contentItem
+        Notices.shown = []
         const problems = look(root, root.mapToItem(null, 0, 0, root.width, root.height))
         const wanted = Hub.argument("--picture")
         if (wanted !== "" && scene.label.startsWith(wanted))
             checks.grabbing = (root === checks.window.contentItem ? root.children[0] : root).grabToImage(result => {
                 result.saveToFile(Hub.argument("--picture-to"))
                 checks.grabbing = false
+                checks.advance(scene)
             })
         console.log("check " + (problems.length === 0 ? "ok   " : "FAIL ") + "nothing overlaps or spills in " + scene.label + ", shown at " + shownSize())
         for (const problem of problems.slice(0, 8))
@@ -135,6 +161,9 @@ Item {
         Theme.stored.textScale = scene.scale
         checks.window.width = scene.size[0] || checks.window.smallest.width
         checks.window.height = scene.size[1] || checks.window.smallest.height
+        checks.keyed = scene.keyed === true
+        if (checks.keyed && !Hub.workshop.keyMode)
+            Hub.settings.checkKey("made-up-key")
         checks.window.section = scene.section
         if (scene.find === "results") {
             Hub.find.filterResults("")
@@ -142,6 +171,12 @@ Item {
             Hub.find.search()
         } else if (scene.find === "none")
             Hub.find.filterResults("no such text anywhere")
+        Mods.browsing = scene.browse !== undefined
+        if (scene.browse === "with the details") {
+            Hub.workshop.add("3100000002", true)
+            Hub.workshop.select("3100000002")
+        } else if (scene.browse !== undefined)
+            Hub.workshop.select("")
         Mods.tab = scene.tab
         checks.window.firstRun = scene.first !== undefined
         const popup = scene.popup !== "" ? checks.window.openable[scene.popup] : null
@@ -183,11 +218,22 @@ Item {
         Qt.exit(checks.failed > 0 ? 1 : 0)
     }
 
+    // After a picture is taken, so it shows this scene and not the next.
+    function advance(scene) {
+        leave(scene)
+        at += 1
+        settled = 0
+        if (at < scenes.length)
+            arrange(scenes[at])
+    }
+
     Timer {
         interval: 150
         repeat: true
         running: true
         onTriggered: {
+            if (checks.grabbing)
+                return
             checks.settled += 1
             if (checks.at === checks.scenes.length) {
                 if (!checks.grabbing) {
@@ -210,12 +256,15 @@ Item {
                 checks.settled = 0
                 return
             }
+            const settings = scene.part !== undefined ? checks.settingsOf(checks.window.contentItem) : null
+            if (settings && settings.part !== scene.part) {
+                settings.part = scene.part
+                checks.settled = 0
+                return
+            }
             checks.scan(scene)
-            checks.leave(scene)
-            checks.at += 1
-            checks.settled = 0
-            if (checks.at < checks.scenes.length)
-                checks.arrange(checks.scenes[checks.at])
+            if (!checks.grabbing)
+                checks.advance(scene)
         }
     }
 }

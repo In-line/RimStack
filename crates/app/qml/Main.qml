@@ -63,6 +63,7 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
+        Hub.workshop.told.connect(Notices.say)
         const size = Number(Hub.settings.report.interfaceScale || 1)
         if (size !== 1 && size > 0) {
             Theme.stored.textScale = Math.round(Theme.stored.textScale * size * 20) / 20
@@ -242,7 +243,8 @@ ApplicationWindow {
                 ["RimWorld folder", 0], ["Config and saves folder", 0], ["Workshop mods folder", 0], ["Play starts the game: through Steam or directly", 0], ["Launch arguments", 0], ["Git for Workshop mods", 0],
                 [Theme.say("Theme"), 1], [Theme.say("Language"), 1], [Theme.say("Colours"), 1], [Theme.say("Font"), 1], [Theme.say("Text size"), 1], [Theme.say("Mod rows"), 1], [Theme.say("Motion"), 1], [Theme.say("Contrast"), 1], [Theme.say("First-run hints"), 1], [Theme.say("Workshop pages open in"), 1],
                 [Theme.say("Community databases"), 2], [Theme.say("Game version mismatch"), 2], [Theme.say("Patch and def hints"), 2], [Theme.say("Mods marked as working"), 2],
-                [Theme.say("Verify game files with Steam"), 3], [Theme.say("Set mod settings aside"), 3], [Theme.say("List from before RimStack"), 3], [Theme.say("RimStack's data folder"), 3], [Theme.say("Version and licence"), 3],
+                [Theme.say("Steam Web API key"), 3], [Theme.say("Show mods Steam marks as mature"), 3],
+                [Theme.say("Verify game files with Steam"), 4], [Theme.say("Set mod settings aside"), 4], [Theme.say("List from before RimStack"), 4], [Theme.say("RimStack's data folder"), 4], [Theme.say("Version and licence"), 4],
             ].map(setting => ({ name: Theme.say(setting[0]), group: Theme.say("Setting"), run: () => settings(setting[1]) }))
             return found.concat([
                 { name: Theme.say("Keyboard shortcuts"), group: Theme.say("Help"), keys: "?", run: () => keysSheet.open() },
@@ -278,6 +280,7 @@ ApplicationWindow {
 
                 { name: Theme.say("Read the mod folders again"), group: Theme.say("Mods"), run: () => Hub.mods.rescan(), when: !Theme.demo },
                 { name: Theme.say("Check for updates"), group: Theme.say("Downloads"), run: () => { window.section = 1; Hub.downloads.checkUpdates() }, when: !Theme.demo },
+                { name: Theme.say("Browse the Workshop"), group: Theme.say("Downloads"), run: Mods.browse, when: !Theme.demo },
                 { name: Theme.say("Update community rules"), group: Theme.say("Sorting"), run: () => Hub.settings.downloadCommunity(), when: !Theme.demo && !Hub.settings.communityCurrent },
                 { name: Theme.say("Read the saves again"), group: Theme.say("Saves"), run: () => { window.section = 3; Hub.saves.reread() }, when: !Theme.demo },
                 { name: Theme.say("Read the log again"), group: Theme.say("Logs"), run: () => { window.section = 4; Qt.callLater(() => logsLoader.item.load()) }, when: !Theme.demo },
@@ -294,7 +297,7 @@ ApplicationWindow {
                 { name: Theme.say("Settings: game and folders"), group: Theme.say("Go to"), run: () => settings(0) },
                 { name: Theme.say("Settings: appearance"), group: Theme.say("Go to"), run: () => settings(1) },
                 { name: Theme.say("Settings: sorting"), group: Theme.say("Go to"), run: () => settings(2) },
-                { name: Theme.say("Settings: RimStack"), group: Theme.say("Go to"), run: () => settings(3) },
+                { name: Theme.say("Settings: RimStack"), group: Theme.say("Go to"), run: () => settings(4) },
 
                 { name: Theme.say("Theme: dark"), group: Theme.say("View"), run: () => Theme.stored.theme = "dark", when: Theme.name !== "dark" },
                 { name: Theme.say("Theme: OLED"), group: Theme.say("View"), run: () => Theme.stored.theme = "oled", when: Theme.name !== "oled" },

@@ -11,6 +11,7 @@ Rectangle {
     property string icon
     property string keys
     property bool wanted: false
+    property int echo: TextInput.Normal
     readonly property real lead: icon !== "" ? Theme.icon + Theme.gap : 0
     readonly property real inset: clear.visible ? clear.width + 2 * Theme.gap : Theme.gapMedium
     property var terms: []
@@ -115,6 +116,7 @@ Rectangle {
         anchors.leftMargin: field.lead + (field.terms.length > 0 ? shown.width + Theme.gapLarge : Theme.gapMedium)
         anchors.rightMargin: foundText.visible ? field.width - foundText.x + Theme.gap : field.inset
         verticalAlignment: TextInput.AlignVCenter
+        echoMode: field.echo
         color: Theme.ink
         selectionColor: Theme.accent
         font.pixelSize: Theme.body

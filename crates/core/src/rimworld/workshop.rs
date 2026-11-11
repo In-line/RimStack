@@ -70,7 +70,7 @@ pub fn ids_in(text: &str) -> Vec<String> {
     found
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Details {
     pub id: String,
     pub title: String,
@@ -78,6 +78,121 @@ pub struct Details {
     pub updated: u64,
     /// 0 when Steam does not say.
     pub size: u64,
+    pub preview_url: String,
+    pub description: String,
+    pub subscriptions: u64,
+    pub favorited: u64,
+    pub banned: bool,
+    /// A Steam id, not a name.
+    pub creator: String,
+    /// The game the item is for; 0 when Steam does not say.
+    pub app_id: u64,
+    pub collection: bool,
+    /// Only where the key was used.
+    pub votes: Option<Votes>,
+    /// Image addresses of the extra previews, in Steam's order; only where the key was used.
+    pub screenshots: Vec<String>,
+    pub content_descriptors: Vec<u32>,
+    /// A collection's items, or a mod's required items; only where the key was used.
+    pub children: Vec<String>,
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Votes {
+    pub up: u64,
+    pub down: u64,
+    /// Steam's own, 0 to 1.
+    pub score: f32,
+}
+
+const COLLECTION_FILE_TYPE: u64 = 2;
+
+/// Steam writes 64-bit values as text and 32-bit ones as numbers, and the keyless call writes
+/// everything as text.
+pub(crate) fn number(value: &Value) -> Option<u64> {
+    value.as_u64().or_else(|| value.as_str()?.parse().ok())
+}
+
+fn id_text(value: &Value) -> Option<String> {
+    match value {
+        Value::String(s) => Some(s.clone()),
+        Value::Number(n) => Some(n.to_string()),
+        _ => None,
+    }
+}
+
+fn texts(file: &Value, key: &str, inner: &str) -> Vec<String> {
+    let list = file.get(key).and_then(Value::as_array);
+    let one = |item: &Value| item.get(inner).and_then(id_text);
+    list.map_or_else(Vec::new, |list| list.iter().filter_map(one).collect())
+}
+
+/// An item Steam does not know has a `result` other than 1 and nothing else of use.
+pub(crate) fn details_of(file: &Value) -> Option<Details> {
+    if file.get("result").and_then(number).is_some_and(|r| r != 1) {
+        return None;
+    }
+    let text = |key: &str| {
+        file.get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let count = |key: &str| file.get(key).and_then(number).unwrap_or(0);
+    let children = texts(file, "children", "publishedfileid");
+    let description = match text("file_description") {
+        d if d.is_empty() => text("description"),
+        d => d,
+    };
+    let votes = file.get("vote_data").map(|v| Votes {
+        up: v.get("votes_up").and_then(number).unwrap_or(0),
+        down: v.get("votes_down").and_then(number).unwrap_or(0),
+        score: v.get("score").and_then(Value::as_f64).unwrap_or(0.0) as f32,
+    });
+    // `preview_type` 0 is an image; the others are videos and models.
+    let image = |p: &Value| {
+        p.get("preview_type").and_then(number).unwrap_or(0) == 0
+            && p.get("youtubevideoid")
+                .and_then(Value::as_str)
+                .is_none_or(str::is_empty)
+    };
+    let screenshots =
+        file.get("previews")
+            .and_then(Value::as_array)
+            .map_or_else(Vec::new, |list| {
+                let url = |p: &Value| Some(p.get("url")?.as_str()?.to_string());
+                list.iter().filter(|p| image(p)).filter_map(url).collect()
+            });
+    let descriptors = file
+        .get("content_descriptorids")
+        .and_then(Value::as_array)
+        .map_or_else(Vec::new, |list| {
+            let one = |v: &Value| number(v).and_then(|n| u32::try_from(n).ok());
+            list.iter().filter_map(one).collect()
+        });
+    Some(Details {
+        id: id_text(file.get("publishedfileid")?)?,
+        title: file.get("title")?.as_str()?.to_string(),
+        updated: count("time_updated"),
+        size: count("file_size"),
+        preview_url: text("preview_url"),
+        description,
+        subscriptions: count("subscriptions"),
+        favorited: count("favorited"),
+        banned: file.get("banned").is_some_and(|b| {
+            b.as_bool()
+                .unwrap_or_else(|| number(b).is_some_and(|n| n != 0))
+        }),
+        creator: file.get("creator").and_then(id_text).unwrap_or_default(),
+        app_id: count("consumer_app_id").max(count("consumer_appid")),
+        collection: count("file_type") == COLLECTION_FILE_TYPE,
+        votes,
+        screenshots,
+        content_descriptors: descriptors,
+        children,
+        tags: texts(file, "tags", "tag"),
+    })
 }
 
 pub fn parse_details(json: &str) -> Result<Vec<Details>, Error> {
@@ -87,19 +202,7 @@ pub fn parse_details(json: &str) -> Result<Vec<Details>, Error> {
         .pointer("/response/publishedfiledetails")
         .and_then(Value::as_array)
         .ok_or_else(|| Error::format(said!("Steam's answer has no file list")))?;
-    let details = |file: &Value| -> Option<Details> {
-        Some(Details {
-            id: file.get("publishedfileid")?.as_str()?.to_string(),
-            title: file.get("title")?.as_str()?.to_string(),
-            updated: file.get("time_updated")?.as_u64()?,
-            // Steam writes the size as text.
-            size: file
-                .get("file_size")
-                .and_then(|v| v.as_u64().or_else(|| v.as_str()?.parse().ok()))
-                .unwrap_or(0),
-        })
-    };
-    Ok(files.iter().filter_map(details).collect())
+    Ok(files.iter().filter_map(details_of).collect())
 }
 
 /// Blocks on the network. Steam is slow per item, so chunks of 100 go out in parallel.
@@ -238,9 +341,28 @@ mod tests {
     }
 
     #[test]
+    fn details_carry_what_the_browser_shows() {
+        let json = r#"{"response":{"publishedfiledetails":[
+            {"publishedfileid":"7","result":1,"creator":"76561198000000000","file_size":"12","preview_url":"https://x/p.jpg","title":"T","description":"[b]hi[/b]","time_updated":5,"banned":1,"subscriptions":300,"favorited":4,"tags":[{"tag":"Mod"}]}]}}"#;
+        let d = &parse_details(json).unwrap()[0];
+        assert_eq!(
+            (
+                d.preview_url.as_str(),
+                d.description.as_str(),
+                d.creator.as_str()
+            ),
+            ("https://x/p.jpg", "[b]hi[/b]", "76561198000000000")
+        );
+        assert_eq!(
+            (d.subscriptions, d.favorited, d.banned, d.size),
+            (300, 4, true, 12)
+        );
+    }
+
+    #[test]
     fn details_skip_items_steam_does_not_know() {
         let json = r#"{"response":{"result":1,"resultcount":2,"publishedfiledetails":[
-            {"publishedfileid":"2009463077","result":1,"title":"Harmony","time_updated":1756914561,"file_size":"5729526"},
+            {"publishedfileid":"2009463077","result":1,"title":"Harmony","time_updated":1756914561,"file_size":"5729526","consumer_app_id":294100,"file_type":2},
             {"publishedfileid":"1","result":9}]}}"#;
         let found = parse_details(json).unwrap();
         assert_eq!(
@@ -249,7 +371,16 @@ mod tests {
                 id: "2009463077".into(),
                 title: "Harmony".into(),
                 updated: 1756914561,
-                size: 5729526
+                size: 5729526,
+                preview_url: String::new(),
+                description: String::new(),
+                subscriptions: 0,
+                favorited: 0,
+                banned: false,
+                creator: String::new(),
+                app_id: 294100,
+                collection: true,
+                ..Details::default()
             }]
         );
         assert!(parse_details("<html>").is_err());

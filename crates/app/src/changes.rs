@@ -32,6 +32,11 @@ impl Changes {
     pub const FIND: Self = Self(1 << 19);
     /// A batch of mods' files was read in the background.
     pub const FACTS: Self = Self(1 << 20);
+    pub const DOWNLOAD_LIST: Self = Self(1 << 21);
+    /// The Steam key was kept, forgotten or refused.
+    pub const KEY: Self = Self(1 << 22);
+    /// What Browse searches through changed: the key, or whether mature mods are shown.
+    pub const SOURCE: Self = Self(1 << 23);
 
     pub fn contains(self, any_of: Self) -> bool {
         self.0 & any_of.0 != 0

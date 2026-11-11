@@ -1,5 +1,7 @@
 //! Renaming a field here renames what QML must read; each type's test lists its fields.
 
+use crate::workspace::KeyState;
+use rimstack_core::base::sentence::Sentence;
 use serde::Serialize;
 
 /// What was asked, done, or why not: `{ …what came of it }` or `{ problem }`.
@@ -58,6 +60,7 @@ pub struct SettingsReport {
     pub git_for_workshop: bool,
     pub git: Option<String>,
     pub self_check: bool,
+    pub show_mature: bool,
     pub nightly_updates: bool,
     pub logs_kept: usize,
     pub logs_kept_now: usize,
@@ -70,6 +73,7 @@ pub struct SettingsReport {
     pub config_folder: Option<String>,
     pub game_log: Option<String>,
     pub steamcmd_folder: String,
+    pub steamcmd_refused: Option<rimstack_core::base::sentence::Sentence>,
     pub settings_file: String,
     pub diagnostics_file: String,
     pub version: String,
@@ -175,5 +179,29 @@ mod tests {
             crate::qml::values::as_shown(&done),
             serde_json::json!({ "file": "/a" })
         );
+    }
+}
+
+/// What Settings shows of the Steam key: never the key.
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyShown {
+    pub stored: bool,
+    pub available: bool,
+    pub refused: bool,
+    pub checking: bool,
+    pub note: Option<Sentence>,
+}
+
+impl KeyShown {
+    /// A failure of the last check or forget comes before what the store says.
+    pub fn of(state: KeyState, checking: bool, failure: Option<Sentence>) -> Self {
+        KeyShown {
+            stored: state.stored,
+            available: state.available,
+            refused: state.refused,
+            checking,
+            note: failure.or(state.note),
+        }
     }
 }

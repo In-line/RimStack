@@ -176,7 +176,7 @@ fn cxx_name_in(attributes: &str) -> Option<&str> {
     rest.split('"').next()
 }
 
-const UNFILLED: [(&str, &str); 19] = [
+const UNFILLED: [(&str, &str); 21] = [
     ("logs.since", "a clean launch before the last"),
     (
         "mods.details.megabytes",
@@ -226,6 +226,8 @@ const UNFILLED: [(&str, &str); 19] = [
     ),
     ("mods.overview.communityMods", "the community's rules"),
     ("mods.overview.communityTime", "the community's rules"),
+    ("settings.report.steamcmdRefused", "macOS"),
+    ("workshop.list.action.stuck", "macOS without Steam"),
 ];
 
 #[test]
@@ -244,7 +246,7 @@ fn every_field_is_seen_filled_but_those_the_made_up_install_cannot_fill() {
 }
 
 /// A model's cells, read by role: the roles are its fields.
-const NOT_RECORDS: [&str; 2] = ["mod_rows.data", "find.data"];
+const NOT_RECORDS: [&str; 3] = ["mod_rows.data", "find.data", "workshop_rows.data"];
 
 #[test]
 fn every_value_handed_to_qml_has_its_shape_written() {

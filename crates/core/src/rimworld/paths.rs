@@ -28,6 +28,8 @@ pub struct Paths {
     /// The folder holding `Config/` and `Saves/`.
     pub config: Option<PathBuf>,
     pub workshop: Option<PathBuf>,
+    /// Whether a Steam folder was found.
+    pub steam: bool,
     /// Short form, `1.6`, from `<game>/Version.txt`.
     pub game_version: Option<String>,
     /// As `<game>/Version.txt` gives it: `1.6.4871 rev598`.
@@ -428,6 +430,7 @@ pub fn detect_on(os: Os, home: &Path, env: Env, overrides: &Overrides) -> Paths 
         game,
         config,
         workshop,
+        steam: !roots.is_empty(),
         game_version,
         full_game_version,
     }

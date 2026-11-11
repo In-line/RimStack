@@ -432,6 +432,21 @@ impl qobject::ModsData {
                 self.preview_sort();
                 true
             }
+            "subscribe" => {
+                let app = self.app();
+                crate::jobs::run(
+                    "add missing mod to the download list",
+                    self.qt_thread(),
+                    move || app.add_missing_to_list(&target).note(),
+                    |me, note| {
+                        if let Some((said, failed)) = note {
+                            let tone = if failed { "err" } else { "ok" };
+                            me.told(crate::words::said(&said), QString::from(tone));
+                        }
+                    },
+                );
+                true
+            }
             _ => false,
         }
     }

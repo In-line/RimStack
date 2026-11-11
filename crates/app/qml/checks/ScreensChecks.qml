@@ -70,6 +70,130 @@ Item {
             }
         },
         {
+            section: 1,
+            what: "Browse opened with a search lists the mods that match, from the made-up database",
+            ready: () => {
+                if (!checks.browsed) {
+                    checks.browsed = true
+                    Mods.browseText = "harmony"
+                    Mods.browse()
+                }
+                return Mods.browsing && !Hub.workshop.searching && Hub.workshop.total > 0
+            },
+            ok: () => Hub.workshop.ready && Hub.workshop.total === 1 && Hub.workshop.problem === ""
+        },
+        {
+            section: 1,
+            what: "a card selected shows its details, with the requirement the database does not know",
+            ready: () => {
+                if (!checks.picked) {
+                    checks.picked = true
+                    Hub.workshop.select("3100000002")
+                }
+                return !Hub.workshop.detailsBusy && !!Hub.workshop.details
+            },
+            ok: () => Hub.workshop.details.id === "3100000002" && Hub.workshop.details.requires.length === 2 && Hub.workshop.details.unknownRequirements.length === 1
+        },
+        {
+            section: 1,
+            what: "Add with what it requires fills the download list beside the results",
+            ready: () => {
+                if (!checks.added) {
+                    checks.added = true
+                    Hub.workshop.add("3100000002", true)
+                }
+                return Hub.workshop.list.count > 0
+            },
+            ok: () => {
+                Hub.workshop.select("")
+                Mods.browsing = false
+                return Hub.workshop.list.count === 3 && Hub.workshop.list.rows.every(row => row.reason !== "")
+            }
+        },
+        {
+            section: 6,
+            what: "Settings keeps a made-up Steam Web API key once Steam accepts it, and shows it kept",
+            ready: () => {
+                if (!checks.keyTyped) {
+                    checks.keyTyped = true
+                    Hub.settings.checkKey("made-up-key")
+                }
+                return !!Hub.settings.steamKey && Hub.settings.steamKey.stored && !Hub.settings.steamKey.checking
+            },
+            ok: () => Hub.settings.steamKey.available && !Hub.settings.steamKey.refused && !Hub.settings.steamKey.note
+        },
+        {
+            section: 1,
+            what: "Browse in key mode offers Steam's sorts with one chosen, and the game versions",
+            ready: () => {
+                if (!checks.keyBrowsed) {
+                    checks.keyBrowsed = true
+                    Mods.browseText = ""
+                    Mods.browse()
+                }
+                return Mods.browsing && !Hub.workshop.searching && Hub.workshop.keyMode && Hub.workshop.total > 1
+            },
+            ok: () => {
+                const sorts = checks.listed(Hub.workshop.sorts)
+                checks.firstIds = checks.ids()
+                return sorts.length === 6 && sorts.filter(sort => sort.chosen).length === 1 && sorts[0].chosen && checks.listed(Hub.workshop.versions).length > 0
+            }
+        },
+        {
+            section: 1,
+            what: "choosing Most subscribed puts the results in another order and marks that sort",
+            ready: () => {
+                if (!checks.keySorted) {
+                    checks.keySorted = true
+                    Hub.workshop.search("", Hub.workshop.version, Hub.workshop.kind, "subscribed")
+                }
+                return !Hub.workshop.searching && Hub.workshop.total > 1
+            },
+            ok: () => checks.ids().join() !== checks.firstIds.join() && checks.listed(Hub.workshop.sorts).filter(sort => sort.chosen).map(sort => sort.id).join() === "subscribed"
+        },
+        {
+            section: 1,
+            what: "the Collections choice shows the collection and nothing else",
+            ready: () => {
+                if (!checks.keyCollected) {
+                    checks.keyCollected = true
+                    Hub.workshop.showCollections(true)
+                }
+                return !Hub.workshop.searching && Hub.workshop.collections
+            },
+            ok: () => checks.ids().length === 1 && Hub.workshop.rows.data(Hub.workshop.rows.index(0, 0), 258) === "Fixture Collection"
+        },
+        {
+            section: 1,
+            what: "details in key mode show the votes and a row of screenshots",
+            ready: () => {
+                if (!checks.keyDetailed) {
+                    checks.keyDetailed = true
+                    Hub.workshop.showCollections(false)
+                    Hub.workshop.select("3100000002")
+                }
+                return !Hub.workshop.searching && !Hub.workshop.detailsBusy && !!Hub.workshop.details && Hub.workshop.details.screenshots.length > 0
+            },
+            ok: () => {
+                const shown = Hub.workshop.details
+                Hub.workshop.select("")
+                Mods.browsing = false
+                return shown.id === "3100000002" && !!shown.votesSaid && shown.screenshots.length === 3
+            }
+        },
+        {
+            section: 6,
+            what: "Forget the key takes it away again",
+            ready: () => {
+                if (!checks.keyForgotten) {
+                    checks.keyForgotten = true
+                    Hub.settings.forgetKey()
+                }
+                return !Hub.settings.steamKey.stored && !Hub.settings.steamKey.checking
+            },
+            ok: () => Hub.settings.steamKey.available
+        },
+        {
             section: 6,
             what: "Settings shows the folders in use, worked out in Rust",
             ready: () => true,
@@ -180,8 +304,8 @@ Item {
             section: 5,
             what: "a hit chosen shows its file around it, the line marked",
             ready: () => {
-                if (!checks.picked) {
-                    checks.picked = true
+                if (!checks.hitPicked) {
+                    checks.hitPicked = true
                     Hub.find.select(2)
                 }
                 return !!Hub.find.preview
@@ -249,10 +373,31 @@ Item {
         }
     ]
     property bool searched: false
-    property bool picked: false
+    property bool hitPicked: false
     property bool stopped: false
     property bool shown: false
     property bool typed: false
+    property bool browsed: false
+    property bool keyTyped: false
+    property bool keyBrowsed: false
+    property bool keySorted: false
+    property bool keyCollected: false
+    property bool keyDetailed: false
+    property bool keyForgotten: false
+    property var firstIds: []
+    function ids() {
+        const rows = Hub.workshop.rows
+        const found = []
+        for (let at = 0; at < 100; at++) {
+            const id = rows.data(rows.index(at, 0), 257)
+            if (!id)
+                break
+            found.push(id)
+        }
+        return found
+    }
+    property bool picked: false
+    property bool added: false
     property bool changed: false
     property string before
     // Changes a setting on one tick and says it is ready on the next, so bindings settle first.
@@ -295,6 +440,7 @@ Item {
                 return
             checks.check(step.what, step.ok())
             checks.at += 1
+            checks.waited = 0
         }
     }
 

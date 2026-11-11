@@ -85,6 +85,7 @@ pub fn effects(name: &str) -> Changes {
             "game" | "config" | "workshop" => Changes::FOLDERS,
             "language" => Changes::LANGUAGE,
             "gitForWorkshop" => Changes::UPDATES,
+            "showMature" => Changes::SOURCE,
             "logsKept" => Changes::LOGS,
             "communityRules" | "fileHints" | "versionWarnings" | "versionAsideFor" => {
                 Changes::PROBLEMS
@@ -152,6 +153,7 @@ impl App {
             git_for_workshop: settings.switch(Switch::GitForWorkshop),
             git: self.git().clone(),
             self_check: settings.switch(Switch::SelfCheck),
+            show_mature: settings.switch(Switch::ShowMature),
             nightly_updates: settings.nightly_updates(),
             logs_kept: settings.logs_kept().unwrap_or(10),
             logs_kept_now: rimstack_core::rimworld::logs::kept(&logs).len(),
@@ -177,6 +179,7 @@ impl App {
                 .join("steamcmd")
                 .to_string_lossy()
                 .into_owned(),
+            steamcmd_refused: rimstack_core::sources::redownload::refusal(),
             settings_file: self.settings_file().to_string_lossy().into_owned(),
             diagnostics_file: self.diagnostics_file().to_string_lossy().into_owned(),
             version: build_label(),
@@ -411,6 +414,13 @@ impl App {
         self.keep_setting("databasesOff", &off.join(","))
     }
 
+    /// Browse searches the index the same download writes, so it is fetched even where the names
+    /// are switched off until the index exists.
+    fn names_wanted(&self) -> bool {
+        self.database_on("names")
+            || !rimstack_core::rimworld::workshopindex::file_in(self.data_dir()).exists()
+    }
+
     pub fn download_databases(&self) -> Result<(), Error> {
         let data = self.data_dir();
         let mut failed: Vec<Error> = Vec::new();
@@ -433,7 +443,7 @@ impl App {
         if self.database_on("replacements") {
             failed.extend(replacements::download(&replacements::file_in(data)).err());
         }
-        if self.database_on("names") {
+        if self.names_wanted() {
             let file = workshopdb::file_in(data);
             match workshopdb::download(&file) {
                 Ok(fresh) => self.workshop_names.put(super::written(file), fresh),
@@ -588,6 +598,21 @@ mod tests {
         assert_eq!(app.settings().get("databasesOff"), Some("rules"));
         let on: Vec<bool> = app.databases().iter().map(|d| d.on).collect();
         assert_eq!(on, [false, true, true, true]);
+    }
+
+    #[test]
+    fn the_index_is_fetched_with_the_names_off_until_it_exists() {
+        let (_tmp, app) = installed();
+        app.use_database("names", false).unwrap();
+        assert!(app.names_wanted());
+        rimstack_core::rimworld::workshopindex::Index::new(Vec::new())
+            .store(&rimstack_core::rimworld::workshopindex::file_in(
+                app.data_dir(),
+            ))
+            .unwrap();
+        assert!(!app.names_wanted());
+        app.use_database("names", true).unwrap();
+        assert!(app.names_wanted());
     }
 
     #[test]

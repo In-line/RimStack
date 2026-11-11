@@ -1,7 +1,9 @@
+pub mod browse;
 pub mod changes;
 pub mod downloads;
 pub mod git;
 pub mod maintenance;
+pub mod previews;
 pub mod redownload;
 pub mod release;
 pub mod replacements;

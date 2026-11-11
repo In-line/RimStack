@@ -35,6 +35,9 @@ pub mod qobject {
         #[qproperty(QVariant, release)]
         #[qproperty(bool, release_busy, cxx_name = "releaseBusy")]
         #[qproperty(QString, problem)]
+        /// `{ stored, available, refused, checking, note }`; `note` says why the key cannot be
+        /// kept or used, or why the last check failed, and is null for none.
+        #[qproperty(QVariant, steam_key, cxx_name = "steamKey")]
         type SettingsData = super::SettingsDataRust;
     }
 
@@ -107,6 +110,16 @@ pub mod qobject {
         #[cxx_name = "useFont"]
         fn use_font(self: Pin<&mut SettingsData>, family: &QString) -> QString;
 
+        /// Asks Steam with the typed key, then keeps it in the credential store if Steam accepts
+        /// it. Off the window's thread; `steamKey.checking` is true meanwhile.
+        #[qinvokable]
+        #[cxx_name = "checkKey"]
+        fn check_key(self: Pin<&mut SettingsData>, typed: &QString);
+
+        #[qinvokable]
+        #[cxx_name = "forgetKey"]
+        fn forget_key(self: Pin<&mut SettingsData>);
+
         #[qinvokable]
         #[cxx_name = "downloadCommunity"]
         fn download_community(self: Pin<&mut SettingsData>);
@@ -173,6 +186,12 @@ pub struct SettingsDataRust {
     release: QVariant,
     release_busy: bool,
     problem: QString,
+    steam_key: QVariant,
+    key_checking: bool,
+    key_known: Option<crate::workspace::KeyState>,
+    /// What the last check or forget failed with; kept until the next one.
+    key_failure: Option<rimstack_core::base::sentence::Sentence>,
+    key_reading: crate::jobs::Lane,
     app: crate::hub::Given,
 }
 
@@ -222,7 +241,13 @@ impl qobject::SettingsData {
         crate::hub::hear(&app, self.qt_thread(), Self::heard);
         self.as_mut().rust_mut().app = crate::hub::Given::of(app);
         self.as_mut().on_theme_changed(|me| me.recolour()).release();
-        self.heard(Changes::SETTINGS | Changes::LANGUAGE | Changes::THEME | Changes::COMMUNITY);
+        self.heard(
+            Changes::SETTINGS
+                | Changes::LANGUAGE
+                | Changes::THEME
+                | Changes::COMMUNITY
+                | Changes::KEY,
+        );
     }
 
     fn heard(mut self: Pin<&mut Self>, changes: Changes) {
@@ -239,8 +264,81 @@ impl qobject::SettingsData {
             self.as_mut().set_words(to_qml(&app.speak()));
         }
         if changes.contains(Changes::THEME) {
-            self.recolour();
+            self.as_mut().recolour();
         }
+        if changes.contains(Changes::KEY) {
+            self.as_mut().read_key();
+        } else if changes.contains(Changes::LANGUAGE)
+            && let Some(state) = self.key_known.clone()
+        {
+            self.show_key(state);
+        }
+    }
+
+    fn read_key(self: Pin<&mut Self>) {
+        let app = self.app();
+        self.key_reading.run(
+            "steam key state",
+            self.qt_thread(),
+            move |_| app.key_state(),
+            |mut me, state| me.as_mut().show_key(state),
+        );
+    }
+
+    fn show_key(mut self: Pin<&mut Self>, state: crate::workspace::KeyState) {
+        let shown = crate::reports::KeyShown::of(
+            state.clone(),
+            self.key_checking,
+            self.key_failure.clone(),
+        );
+        self.as_mut().rust_mut().get_mut().key_known = Some(state);
+        self.as_mut().set_steam_key(to_qml(&shown));
+    }
+
+    fn check_key(mut self: Pin<&mut Self>, typed: &QString) {
+        if self.key_checking {
+            return;
+        }
+        let typed = typed.to_string();
+        let me = self.as_mut().rust_mut().get_mut();
+        me.key_checking = true;
+        me.key_failure = None;
+        if let Some(state) = self.key_known.clone() {
+            self.as_mut().show_key(state);
+        }
+        let app = self.app();
+        crate::jobs::run(
+            "steam key check",
+            self.qt_thread(),
+            move || app.check_and_keep(&typed).err(),
+            |mut me, failure| {
+                let inner = me.as_mut().rust_mut().get_mut();
+                inner.key_checking = false;
+                inner.key_failure = failure;
+                me.read_key();
+            },
+        );
+    }
+
+    fn forget_key(mut self: Pin<&mut Self>) {
+        if self.key_checking {
+            return;
+        }
+        let me = self.as_mut().rust_mut().get_mut();
+        me.key_checking = true;
+        me.key_failure = None;
+        let app = self.app();
+        crate::jobs::run(
+            "steam key forget",
+            self.qt_thread(),
+            move || app.forget_key().err(),
+            |mut me, failure| {
+                let inner = me.as_mut().rust_mut().get_mut();
+                inner.key_checking = false;
+                inner.key_failure = failure;
+                me.read_key();
+            },
+        );
     }
 
     fn recolour(mut self: Pin<&mut Self>) {

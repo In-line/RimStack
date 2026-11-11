@@ -145,7 +145,7 @@ on_fixture() {
     mkdir -p "$tmp/settings-$check/RimStack"
     printf '{ "language": "%s", "setupDone": "yes" }' "$language" > "$tmp/settings-$check/RimStack/settings.json"
     RIMSTACK_GAME="$tmp/screens/game" RIMSTACK_WORKSHOP="$tmp/screens/workshop" RIMSTACK_CONFIG="$tmp/screens/config" \
-        XDG_DATA_HOME="$tmp/data-$check" XDG_CONFIG_HOME="$tmp/settings-$check" \
+        XDG_DATA_HOME="$tmp/data-$check" XDG_CONFIG_HOME="$tmp/settings-$check" RIMSTACK_FIXTURE=1 \
         QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 timeout "$seconds" "$app" "--check=$check" >| "$tmp/$check.log" 2>&1 && ok=0 || ok=$?
 }
 on_fixture screens 90

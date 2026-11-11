@@ -24,7 +24,7 @@ Column {
         primary: true
         text: Theme.plural(Mods.fixable, "Activate the {} needed mod", "Activate the {} needed mods")
         tip: Theme.say("Activates every needed mod that is installed, each where its rules put it. One Undo takes them all back.")
-        onClicked: Mods.fixAll()
+        onClicked: Hub.mods.fixAll()
     }
     Btn {
         visible: !Theme.demo && !Hub.search.active

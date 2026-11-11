@@ -15,7 +15,6 @@ Item {
     readonly property var found: downloads.queue || ({})
     readonly property var queue: found.items || []
     readonly property var repositories: found.repositories || []
-    readonly property var wanted: found.wanted || []
     readonly property bool steamcmd: downloads.steamcmd
     readonly property var needed: Mods.overview.toGet || []
     readonly property var info: Hub.settings.report
@@ -62,8 +61,15 @@ Item {
         font.pixelSize: Theme.body
     }
 
+    Loader {
+        anchors.fill: parent
+        active: Mods.browsing
+        sourceComponent: BrowseView {}
+    }
+
     Flickable {
         id: scroller
+        visible: !Mods.browsing
         anchors.fill: parent
         contentHeight: page.implicitHeight + 2 * Theme.gapWide
         clip: true
@@ -100,6 +106,12 @@ Item {
                         tip: Theme.say("Looks up what is pasted beside it: paste a link or an id first.")
                         onClicked: screen.downloads.lookUp(pasted.text)
                     }
+                    Btn {
+                        icon: "search"
+                        text: Theme.say("Browse the Workshop")
+                        tip: Theme.say("Search the Workshop here and collect the mods to download.")
+                        onClicked: Mods.browse()
+                    }
                 }
             }
 
@@ -107,25 +119,6 @@ Item {
                 visible: screen.queue.length + screen.repositories.length > 0 || !!(screen.found.problem || screen.found.note)
                 title: Theme.say("Look up")
                 note: screen.queue.length + screen.repositories.length > 0 ? screen.queue.length + screen.repositories.length : ""
-                actions: [
-                    Btn {
-                        visible: screen.wanted.length > 0
-                        icon: "plus"
-                        text: Theme.say("Subscribe in Steam")
-                        tip: Theme.say("Steam, which must be running, subscribes to each and downloads it; it keeps them up to date afterwards.")
-                        onClicked: screen.downloads.subscribeWanted()
-                    },
-                    Btn {
-                        visible: screen.wanted.length > 0 && screen.steamcmd
-                        icon: "download"
-                        text: Theme.say("Download with SteamCMD…")
-                        tip: Theme.fill("Into the game's own Mods folder, {}, without subscribing: Steam will not update these.", (screen.info.localMods || ""))
-                        onClicked: Notices.ask({
-                            title: Theme.plural(screen.wanted.length, "Download {} mod with SteamCMD", "Download {} mods with SteamCMD"),
-                            lines: [Theme.say("Each is downloaded and copied into the game's own Mods folder:"), { path: screen.info.localMods || "" }, Theme.say("Steam does not update mods installed this way.")],
-                            label: Theme.say("Download"), run: () => screen.downloads.downloadWanted() })
-                    }
-                ]
                 Text { visible: screen.queue.length === 0 && !!(screen.found.problem || screen.found.note); width: parent.width; wrapMode: Text.WordWrap; color: screen.found.problem ? Theme.err : Theme.ink2; font.pixelSize: Theme.body; text: screen.found.problem || screen.found.note || "" }
                 Repeater {
                     model: screen.repositories
@@ -171,6 +164,13 @@ Item {
                         Btn { visible: !!item.modelData.title && !item.modelData.installed; icon: "external-link"; text: Theme.say("Workshop page"); onClicked: Theme.openWorkshop(item.modelData.id) }
                     }
                 }
+            }
+
+            Card {
+                visible: Hub.workshop.list.count > 0
+                title: Theme.say("Download list")
+                note: Hub.workshop.list.sizeSaid || ""
+                ListPane { width: parent.width }
             }
 
             Flow {
@@ -255,17 +255,18 @@ Item {
                     title: Theme.say("SteamCMD")
                     status: [
                         Chip { visible: screen.steamcmd; tone: Theme.ok; icon: "check"; text: Theme.say("Installed") },
-                        Chip { visible: !screen.steamcmd; text: Theme.say("Not installed") }
+                        Chip { visible: !screen.steamcmd && !screen.info.steamcmdRefused; text: Theme.say("Not installed") }
                     ]
                     Text { width: parent.width; wrapMode: Text.WordWrap; color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.say("Fetches a mod without subscribing."); Tip { text: Theme.say("Valve's own downloader, fetched from Valve into RimStack's data folder. It downloads Workshop mods without a Steam account, into the game's Mods folder. It runs with a home folder of its own, so it cannot touch Steam's settings.") } }
+                    Text { visible: !!screen.info.steamcmdRefused; width: parent.width; wrapMode: Text.WordWrap; color: Theme.ink3; font.pixelSize: Theme.small; text: screen.info.steamcmdRefused || "" }
                     actions: [
                         Btn {
-                            visible: !screen.steamcmd
+                            visible: !screen.steamcmd && !screen.info.steamcmdRefused
                             text: Theme.say("Install…")
                             onClicked: Notices.ask({
                                 title: Theme.say("Install SteamCMD"),
                                 lines: [Theme.say("Valve's own downloader is fetched from Valve into"), { path: screen.info.steamcmdFolder || "" }, Theme.say("It runs with a home folder of its own there, apart from Steam's settings.")],
-                                label: Theme.say("Install"), run: () => screen.downloads.installSteamcmd() })
+                                label: Theme.say("Install"), run: screen.downloads.installSteamcmd })
                         }
                     ]
                 }
@@ -415,11 +416,10 @@ Item {
                 Keys.onDownPressed: go(at + 1)
                 Keys.onReturnPressed: if (shown[at]) screen.showMod(shown[at].modId)
                 Keys.onEnterPressed: if (shown[at]) screen.showMod(shown[at].modId)
-                Keys.onPressed: event => {
-                    if (event.key !== Qt.Key_N || !shown[at] || shown[at].git)
-                        return
-                    Theme.openChangeNotes(shown[at].id)
-                    event.accepted = true
+                Shortcut {
+                    sequence: "N"
+                    enabled: changedRows.activeFocus && !!changedRows.shown[changedRows.at] && !changedRows.shown[changedRows.at].git
+                    onActivated: Theme.openChangeNotes(changedRows.shown[changedRows.at].id)
                 }
                 Repeater {
                     id: rows

@@ -829,8 +829,10 @@ settings.report: object
   setWorkshop: nothing or text
   settingsFile: text
   setupDone: bool
+  showMature: bool
   steamcmd: bool
   steamcmdFolder: text
+  steamcmdRefused: nothing
   version: text
   versionAsideFor: text
   versionWarnings: bool
@@ -845,6 +847,12 @@ settings.startLanguage: object
   problem: absent or text
 settings.startOwnTheme: object
   file: text
+settings.steamKey: object
+  available: bool
+  checking: bool
+  note: nothing or text
+  refused: bool
+  stored: bool
 settings.windowStart: object
   height: number
   visibility: number
@@ -925,3 +933,79 @@ textures.shared: list
     name: text
     used: text
     yourChoice: bool
+workshop.details: object
+  author: nothing or text
+  badge: nothing or text
+  banned: bool
+  canAdd: bool
+  description: text
+  dlc: list
+    []: object
+      id: text
+      name: text
+  favorites: number
+  id: text
+  installed: bool
+  loaded: bool
+  onList: bool
+  previewPath: text
+  previewUrl: text
+  problem: nothing or text
+  requires: list
+    []: object
+      author: text
+      badge: text
+      canAdd: bool
+      id: text
+      installed: bool
+      onList: bool
+      title: text
+      versions: list
+        []: text
+  screenshots: list
+    []: text
+  size: number
+  sizeSaid: text
+  subscribers: number
+  title: text
+  unknownRequirements: list
+    []: text
+  unknownSaid: nothing or text
+  updated: number
+  updatedSaid: text
+  versions: list
+    []: text
+  votesSaid: text
+workshop.list: object
+  action: object
+    download: bool
+    enabled: bool
+    installSteamcmd: bool
+    label: text
+    stuck: nothing
+    subscribe: bool
+    subscribeEnabled: bool
+  count: number
+  failures: bool
+  rows: list
+    []: object
+      failed: nothing or text
+      id: text
+      reason: text
+      size: nothing or number
+      sizeSaid: nothing or text
+      title: text
+  sizeSaid: nothing or text
+workshop.related: object
+  active: bool
+  id: text
+  said: nothing or text
+  title: text
+  which: text
+workshop.sorts: list
+  []: object
+    chosen: bool
+    id: text
+    label: text
+workshop.versions: list
+  []: text

@@ -21,6 +21,8 @@ pub mod qobject {
         type DownloadsData = crate::downloads_data::qobject::DownloadsData;
         include!("rimstack-app/src/find_data.cxxqt.h");
         type FindData = crate::find_data::qobject::FindData;
+        include!("rimstack-app/src/workshop_data.cxxqt.h");
+        type WorkshopData = crate::workshop_data::qobject::WorkshopData;
 
         include!("cxx-qt-lib/qstring.h");
         type QString = cxx_qt_lib::QString;
@@ -43,6 +45,7 @@ pub mod qobject {
         #[qproperty(*mut TexturesData, textures, READ, CONSTANT)]
         #[qproperty(*mut DownloadsData, downloads, READ, CONSTANT)]
         #[qproperty(*mut FindData, find, READ, CONSTANT)]
+        #[qproperty(*mut WorkshopData, workshop, READ, CONSTANT)]
         type Hub = super::HubRust;
     }
 
@@ -69,7 +72,7 @@ use cxx_qt::{CxxQtThread, CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use qobject::{
     DownloadsData, FindData, GameData, ListsData, LogsData, ModsData, SavesData, SearchData,
-    SettingsData, TexturesData,
+    SettingsData, TexturesData, WorkshopData,
 };
 use rimstack_core::base::locks::Held;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -86,6 +89,7 @@ pub struct HubRust {
     textures: *mut TexturesData,
     downloads: *mut DownloadsData,
     find: *mut FindData,
+    workshop: *mut WorkshopData,
     owned_settings: UniquePtr<SettingsData>,
     owned_mods: UniquePtr<ModsData>,
     owned_saves: UniquePtr<SavesData>,
@@ -96,6 +100,7 @@ pub struct HubRust {
     owned_textures: UniquePtr<TexturesData>,
     owned_downloads: UniquePtr<DownloadsData>,
     owned_find: UniquePtr<FindData>,
+    owned_workshop: UniquePtr<WorkshopData>,
 }
 
 impl Default for HubRust {
@@ -111,6 +116,7 @@ impl Default for HubRust {
             textures: std::ptr::null_mut(),
             downloads: std::ptr::null_mut(),
             find: std::ptr::null_mut(),
+            workshop: std::ptr::null_mut(),
             owned_settings: UniquePtr::null(),
             owned_mods: UniquePtr::null(),
             owned_saves: UniquePtr::null(),
@@ -121,6 +127,7 @@ impl Default for HubRust {
             owned_textures: UniquePtr::null(),
             owned_downloads: UniquePtr::null(),
             owned_find: UniquePtr::null(),
+            owned_workshop: UniquePtr::null(),
         }
     }
 }
@@ -235,6 +242,10 @@ impl cxx_qt::Initialize for qobject::Hub {
         (hub.find, hub.owned_find) = made(crate::find_data::qobject::make_find_data(), |it| {
             it.connect(app.clone())
         });
+        (hub.workshop, hub.owned_workshop) =
+            made(crate::workshop_data::qobject::make_workshop_data(), |it| {
+                it.connect(app.clone(), demo)
+            });
     }
 }
 

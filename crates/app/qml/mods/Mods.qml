@@ -119,13 +119,21 @@ Item {
     function applyFix(modId, fix) {
         if (Hub.mods.fix(modId, fix.action, fix.target))
             return
-        if (fix.page)
-            Qt.openUrlExternally(Theme.workshopVia + fix.page)
-        else
+        if (fix.page) {
+            browseText = fix.target
+            browse()
+        } else
             Theme.openWorkshop(fix.target)
     }
 
-    function fixAll() { Hub.mods.fixAll() }
+    property bool browsing: false
+    property string browseText: ""
+    // Toggled so a Browse left open in Downloads starts again with `browseText`.
+    function browse() {
+        browsing = false
+        browsing = true
+        showSection(1)
+    }
     function winAll(otherId) { Hub.mods.winOver(selectedId, otherId) }
 
     // No warning about the game version while the game stays on `version`;

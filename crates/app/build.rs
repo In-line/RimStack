@@ -68,6 +68,10 @@ fn main() {
                 "qml/FilterField.qml",
                 "qml/GroupTitle.qml",
                 "qml/NameList.qml",
+                "qml/browse/BrowseView.qml",
+                "qml/browse/BrowseDetails.qml",
+                "qml/browse/ResultCard.qml",
+                "qml/browse/ListPane.qml",
                 "qml/mods/ModsScreen.qml",
                 "qml/mods/ModsPrefs.qml",
                 "qml/mods/ModList.qml",
@@ -132,6 +136,8 @@ fn main() {
         "src/textures_data.rs",
         "src/downloads_data.rs",
         "src/find_data.rs",
+        "src/workshop_rows.rs",
+        "src/workshop_data.rs",
     ]);
     let msvc = std::env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|env| env == "msvc");
     // SAFETY: one more source for the same compiler, nothing set that the generated code relies on.
