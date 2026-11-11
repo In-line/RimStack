@@ -31,7 +31,7 @@ Rectangle {
             width: parent.width
             height: inside.implicitHeight
             radius: Theme.cornerLarge
-            color: Theme.panel
+            color: Theme.card
             Column { id: inside; width: parent.width }
         }
     }

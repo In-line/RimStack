@@ -29,6 +29,7 @@ Rectangle {
     border.width: Theme.outline
     border.color: toned ? Qt.rgba(tone.r, tone.g, tone.b, frame) : Qt.rgba(Theme.fieldLine.r, Theme.fieldLine.g, Theme.fieldLine.b, frame)
     FocusRing {}
+    Halo { tone: Theme.accent; visible: btn.primary && btn.enabled }
     Accessible.role: Accessible.Button
     Accessible.ignored: !visible
     Accessible.name: spoken !== "" ? spoken : text !== "" ? text : tip !== "" ? tip : icon

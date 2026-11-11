@@ -278,7 +278,7 @@ Item {
                 Layout.bottomMargin: Theme.gap
                 implicitHeight: sinceText.implicitHeight + 2 * Theme.gapMedium
                 radius: Theme.cornerLarge
-                color: Theme.panel
+                color: Theme.card
                 RowLayout {
                     anchors.fill: parent
                     anchors.margins: Theme.gapMedium

@@ -13,4 +13,5 @@ Rectangle {
     color: "transparent"
     border.width: 2
     border.color: onAccent ? Theme.onSelected : Theme.focus
+    Halo { tone: Theme.focus }
 }

@@ -44,7 +44,7 @@ Item {
                 anchors.rightMargin: Theme.gapSmall
                 anchors.topMargin: Theme.gapTiny
                 radius: Theme.corner
-                color: Theme.panel
+                color: Theme.card
             }
             RowLayout {
                 anchors.fill: parent

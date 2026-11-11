@@ -96,7 +96,7 @@ Item {
         height: parent.height - y
         radius: row.isHeader && !row.isSub && !row.again ? 1.5 : 0
         color: row.categoryColour
-        opacity: row.again ? 0.3 : 0.6
+        opacity: row.again ? 0.55 : 1
     }
 
     // The edge line keeps the tint from passing for the hover highlight.
@@ -105,7 +105,7 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: Theme.gap
         anchors.rightMargin: Theme.gapSmall
-        Rectangle { anchors.fill: parent; color: Theme.warn; opacity: 0.14 }
+        Rectangle { anchors.fill: parent; color: Theme.warn; opacity: 0.06 }
         Rectangle { width: 2; height: parent.height; color: Theme.warn }
     }
 
@@ -117,6 +117,18 @@ Item {
         readonly property bool conflicts: row.columns && !row.isHeader && !!Mods.conflictMarks[row.modId]
         color: row.current ? Theme.chosen : conflicts ? Theme.warn : row.movedFrom > 0 ? Theme.moved : Theme.hover
         opacity: row.current ? 1 : conflicts ? 0.12 : row.movedFrom > 0 ? 0.1 : hover.hovered && !row.isHeader ? 0.04 : 0
+    }
+    Loader {
+        active: row.current
+        x: Theme.gap
+        y: Theme.gapTiny
+        height: parent.height - 2 * Theme.gapTiny
+        sourceComponent: Rectangle {
+            implicitWidth: 3
+            radius: 1.5
+            color: Theme.focus
+            Halo { tone: Theme.focus }
+        }
     }
     HoverHandler { id: hover }
     Tip { text: !row.isHeader && nameText.truncated ? row.name : ""; over: hover.hovered && !row.overButton }
@@ -163,16 +175,15 @@ Item {
     }
     Loader {
         active: row.isHeader && !row.isSub && !row.again
-        anchors.fill: parent
+        x: Theme.gapWide
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Theme.gapTiny
         sourceComponent: Row {
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Theme.gapSmall
-            x: Theme.gapWide
             spacing: Theme.gapSmall
-            Text { width: Theme.sized(10); color: Theme.ink2; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
+            Text { width: Theme.sized(10); anchors.verticalCenter: parent.verticalCenter; color: Theme.ink2; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
             Icon { name: Theme.categoryIcons[row.category] || ""; color: row.categoryColour; anchors.verticalCenter: parent.verticalCenter }
-            Text { color: Theme.ink; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say(row.name); Tip { text: row.collapsed ? Theme.say("Click to show its mods") : Theme.say("Click to hide its mods") } }
-            Text { color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.count(row.count) }
+            Text { anchors.verticalCenter: parent.verticalCenter; color: Theme.ink; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: Theme.say(row.name); Tip { text: row.collapsed ? Theme.say("Click to show its mods") : Theme.say("Click to hide its mods") } }
+            Text { anchors.verticalCenter: parent.verticalCenter; color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.count(row.count) }
         }
     }
     Loader {
@@ -186,7 +197,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Theme.gapSmall
                 Text { width: Theme.sized(10); color: Theme.ink3; font.pixelSize: Theme.caption; text: row.collapsed ? "▸" : "▾" }
-                Text { color: Theme.ink3; font.pixelSize: Theme.caption; text: Theme.say(row.name) + "  " + Theme.count(row.count) + "  " + Theme.say("out of category order") }
+                Text { color: Theme.ink3; font.pixelSize: Theme.caption; text: Theme.say(row.name) + "  " + Theme.count(row.count) }
+                Text { color: Theme.warn; font.pixelSize: Theme.caption; text: Theme.say("out of category order") }
             }
             Rectangle {
                 anchors.left: stray.right
@@ -233,7 +245,15 @@ Item {
                 implicitHeight: Theme.sized(40)
                 radius: Theme.corner
                 color: Theme.ctl
-                Text { visible: !row.picture; anchors.centerIn: parent; color: Theme.ink3; font.pixelSize: Theme.title; font.weight: Font.DemiBold; text: row.name.charAt(0).toUpperCase() }
+                Rectangle {
+                    anchors.fill: parent
+                    visible: !row.picture
+                    radius: parent.radius
+                    color: Qt.rgba(row.categoryColour.r, row.categoryColour.g, row.categoryColour.b, 0.16)
+                    border.width: 1
+                    border.color: Qt.rgba(row.categoryColour.r, row.categoryColour.g, row.categoryColour.b, 0.28)
+                }
+                Text { visible: !row.picture; anchors.centerIn: parent; color: row.categoryColour; font.pixelSize: Theme.title; font.weight: Font.DemiBold; text: row.name.charAt(0).toUpperCase() }
                 // Read at the size shown and off the window's thread, so
                 // scrolling does not wait for it.
                 Image {

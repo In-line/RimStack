@@ -152,15 +152,14 @@ Item {
                 }
             }
 
-            Rectangle {
+            Notice {
                 visible: screen.confirmRemove
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.gapLarge
                 Layout.rightMargin: Theme.gapLarge
                 Layout.bottomMargin: Theme.gap
                 implicitHeight: Theme.sized(40)
-                radius: Theme.corner
-                color: Theme.dangerBg
+                tone: Theme.err
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: Theme.gapLarge

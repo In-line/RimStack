@@ -14,7 +14,7 @@ Rectangle {
     readonly property real natural: column.y + column.implicitHeight + Theme.gap + actionRow.implicitHeight + Theme.gapCard
     implicitHeight: Math.max(natural, minHeight)
     radius: Theme.cornerLarge
-    color: Theme.panel
+    color: Theme.card
     border.width: 1
     border.color: Theme.line
 

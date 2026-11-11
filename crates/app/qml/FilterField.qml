@@ -67,6 +67,7 @@ Rectangle {
     border.width: 1
     border.color: fieldInput.activeFocus ? Theme.focus : Theme.fieldLine
     Behavior on border.color { ColorAnimation { duration: Theme.quick } }
+    Halo { tone: Theme.focus; visible: fieldInput.activeFocus }
     Row {
         id: shown
         x: Theme.gapSmall + field.lead

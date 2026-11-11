@@ -48,7 +48,7 @@ Column {
         Column {
             Layout.fillWidth: true
             spacing: Theme.gapThin
-            CopyText { width: parent.width; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; text: Mods.info.name || "" }
+            CopyText { width: parent.width; font.pixelSize: Theme.heading; font.weight: Font.Bold; text: Mods.info.name || "" }
             Text { width: parent.width; elide: Text.ElideRight; color: Theme.ink2; font.pixelSize: Theme.body; text: Mods.info.author || "" }
             Flow {
                 width: parent.width

@@ -322,7 +322,20 @@ Item {
             ok: () => {
                 const shown = Qt.colorEqual(checks.window.color, "#f5f5f7")
                 Theme.stored.theme = "rim"
-                return shown && Qt.colorEqual(checks.window.color, "#1c1916")
+                return shown && Qt.colorEqual(checks.window.color, "#1c1b19")
+            }
+        },
+        {
+            section: Theme.sections.settings,
+            what: "a glow builds its rings only while it is shown",
+            ready: () => true,
+            ok: () => {
+                const host = Qt.createQmlObject("import QtQuick; import RimStack.Ui; Rectangle { property alias glow: glow; Halo { id: glow; visible: false } }", checks.window.contentItem)
+                const hidden = host.glow.children.length
+                host.glow.visible = true
+                const shown = host.glow.children.length
+                host.destroy()
+                return hidden === 1 && shown === 1 + Theme.haloRings
             }
         },
         {

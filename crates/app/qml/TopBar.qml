@@ -116,6 +116,9 @@ Rectangle {
             height: Theme.strip
             radius: Theme.corner
             color: Theme.ctlHi
+            border.width: 1
+            border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.7)
+            Halo { tone: Theme.accent }
             Behavior on x { enabled: thumb.settled; NumberAnimation { duration: Theme.calm; easing.type: Easing.OutCubic } }
             Behavior on width { enabled: thumb.settled; NumberAnimation { duration: Theme.calm; easing.type: Easing.OutCubic } }
         }

@@ -34,7 +34,7 @@ Column {
 
     Column {
         width: parent.width
-        Text { color: Theme.ink; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; text: Theme.demo ? Theme.say("Demo data") : Theme.say("Load order") }
+        Text { color: Theme.ink; font.pixelSize: Theme.heading; font.weight: Font.Bold; text: Theme.demo ? Theme.say("Demo data") : Theme.say("Load order") }
         Flow {
             width: parent.width
             topPadding: Theme.gapSmall

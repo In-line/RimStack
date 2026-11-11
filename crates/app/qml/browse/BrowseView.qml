@@ -12,7 +12,7 @@ Item {
 
     component Panel: Rectangle {
         radius: Theme.cornerLarge
-        color: Theme.panel
+        color: Theme.card
         border.width: 1
         border.color: Theme.line
     }
@@ -66,12 +66,11 @@ Item {
             }
         }
 
-        Rectangle {
+        Notice {
             visible: view.related.active
             Layout.fillWidth: true
             implicitHeight: bannerRow.implicitHeight + 2 * Theme.gapSmall
-            radius: Theme.corner
-            color: Theme.banner
+            tone: Theme.focus
             RowLayout {
                 id: bannerRow
                 anchors.fill: parent

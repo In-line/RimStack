@@ -20,7 +20,7 @@ Rectangle {
     }
     implicitHeight: body.implicitHeight + 2 * Theme.gapMedium
     radius: Theme.cornerLarge
-    color: Theme.panel
+    color: Theme.card
     border.width: 1
     border.color: Theme.line
     activeFocusOnTab: true

@@ -40,6 +40,8 @@ fn main() {
                 "qml/Btn.qml",
                 "qml/AskSteam.qml",
                 "qml/FocusRing.qml",
+                "qml/Halo.qml",
+                "qml/Notice.qml",
                 "qml/Tip.qml",
                 "qml/Chip.qml",
                 "qml/Card.qml",

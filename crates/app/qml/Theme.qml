@@ -16,7 +16,7 @@ QtObject {
     readonly property bool light: palette.bright === true
     readonly property var custom: Hub.settings.ownColours || ({})
     readonly property Binding themeName: Binding { target: Hub.settings; property: "theme"; value: theme.name }
-    readonly property var colourNames: ["win", "panel", "bar", "ctl", "ctlHi", "line", "edge", "well", "seg", "chip", "hover", "ink", "ink2", "ink3", "brand", "fieldLine", "accent", "accentHi", "focus", "accentInk", "err", "warn", "ok", "moved", "banner", "dangerBg", "scrim"]
+    readonly property var colourNames: ["win", "panel", "bar", "ctl", "ctlHi", "line", "edge", "well", "seg", "chip", "hover", "ink", "ink2", "ink3", "brand", "fieldLine", "accent", "accentHi", "focus", "accentInk", "err", "warn", "ok", "moved", "banner", "dangerBg", "scrim", "card"]
 
     readonly property real scale: Math.max(0.85, Math.min(1.6, stored.textScale))
     readonly property int caption: Math.round(11 * scale)
@@ -54,6 +54,10 @@ QtObject {
     readonly property int gapPage: 20
     readonly property int quick: stored.reduceMotion ? 0 : 140
     readonly property int calm: stored.reduceMotion ? 0 : 220
+    readonly property int haloRings: 4
+    readonly property real haloStep: 1.5
+    readonly property real haloTop: 0.3
+    readonly property real haloFall: 0.62
     readonly property bool contrast: stored.highContrast
     readonly property color chosen: colour("chosen")
     readonly property color onSelected: raised.onSelected || colour("ink")
@@ -81,17 +85,17 @@ QtObject {
 
     readonly property var palettes: ({
         dark: {
-            win: "#161822", panel: "#1c1f2c", bar: "#252939", ctl: "#33384e", ctlHi: "#434964", line: "#2f3449", edge: "#0c0d14",
+            win: "#1c1f2c", panel: "#161822", bar: "#111319", ctl: "#33384e", ctlHi: "#434964", line: "#2f3449", edge: "#0c0d14",
             well: "#10121a", seg: "#13151e", chip: "#18c9d3ff", hover: "#dfe6ff", ink: "#eef0f7", ink2: "#b1b6c8", ink3: "#989db2",
             brand: "#dcbc8e", fieldLine: "#6b7294", accent: "#4161d6", accentHi: "#4a6adc", focus: "#7f9bff", accentInk: "#ffffff",
-            err: "#ff7075", warn: "#f2b04e", ok: "#62d08f", moved: "#82b4ff", banner: "#1d2650", dangerBg: "#3b2029", chosen: "#253261", scrim: "#73060710",
+            err: "#ff7075", warn: "#f2b04e", ok: "#62d08f", moved: "#82b4ff", banner: "#1d2650", dangerBg: "#3b2029", chosen: "#253261", scrim: "#73060710", card: "#232738",
             high: { chosen: "#4161d6", onSelected: "#ffffff", onSelectedDim: "#ebffffff", ink2: "#e2e5f0", ink3: "#c6cadb", line: "#7a81a0", fieldLine: "#b8bdd6" },
         },
         oled: {
-            win: "#000000", panel: "#0b0b0a", bar: "#121211", ctl: "#22211f", ctlHi: "#32312e", line: "#262523", edge: "#000000",
+            win: "#0b0b0a", panel: "#000000", bar: "#121211", ctl: "#22211f", ctlHi: "#32312e", line: "#262523", edge: "#000000",
             well: "#060606", seg: "#0e0d0c", chip: "#1cfff6ea", hover: "#fff6ea", ink: "#f3efe8", ink2: "#aba7a0", ink3: "#928e87",
             brand: "#dfb98a", fieldLine: "#69655e", accent: "#0f7572", accentHi: "#12807c", focus: "#3fc4bc", accentInk: "#ffffff",
-            err: "#ff6b62", warn: "#f5b13f", ok: "#7fd070", moved: "#6cb0ff", banner: "#082624", dangerBg: "#2c1313", chosen: "#062f2e", scrim: "#8c000000",
+            err: "#ff6b62", warn: "#f5b13f", ok: "#7fd070", moved: "#6cb0ff", banner: "#082624", dangerBg: "#2c1313", chosen: "#062f2e", scrim: "#8c000000", card: "#161614",
             high: { chosen: "#0f7572", onSelected: "#ffffff", onSelectedDim: "#ebffffff", ink2: "#e5e1da", ink3: "#cac6be", line: "#77736b", fieldLine: "#bbb6ad" },
         },
         light: {
@@ -99,15 +103,16 @@ QtObject {
             win: "#f5f5f7", panel: "#ececef", bar: "#e3e3e7", ctl: "#d5d5da", ctlHi: "#ffffff", line: "#cdcdd3", edge: "#c3c3c9",
             well: "#ffffff", seg: "#dadade", chip: "#12000000", hover: "#000000", ink: "#1d1d1f", ink2: "#55555c", ink3: "#5c5c64",
             brand: "#7a4d22", fieldLine: "#85858f", accent: "#1f63c2", accentHi: "#2a70d4", focus: "#1f63c2", accentInk: "#ffffff",
-            err: "#ab241e", warn: "#824b00", ok: "#14682a", moved: "#1558b0", banner: "#d7e5fb", dangerBg: "#f7dcda", chosen: "#c6d5ec", scrim: "#40000000",
+            err: "#ab241e", warn: "#824b00", ok: "#14682a", moved: "#1558b0", banner: "#d7e5fb", dangerBg: "#f7dcda", chosen: "#c6d5ec", scrim: "#40000000", card: "#ffffff",
             high: { chosen: "#1f63c2", onSelected: "#ffffff", onSelectedDim: "#ebffffff", ink2: "#26262a", ink3: "#3a3a40", line: "#6d6d77", fieldLine: "#4a4a52" },
         },
         rim: {
-            win: "#1c1916", panel: "#23201c", bar: "#2b2722", ctl: "#3b352d", ctlHi: "#4b4439", line: "#3a342c", edge: "#110f0d",
-            well: "#151311", seg: "#181512", chip: "#14ffffff", hover: "#ffffff", ink: "#f2ebdd", ink2: "#bcb3a3", ink3: "#a0988a",
-            brand: "#e2bb7c", fieldLine: "#7d7465", accent: "#2870ab", accentHi: "#2b76b3", focus: "#7db4dc", accentInk: "#ffffff",
-            err: "#ff7b6b", warn: "#f2b04a", ok: "#8fce7a", moved: "#8fc3ea", banner: "#22303a", dangerBg: "#3d2320", chosen: "#203749", scrim: "#66000000",
-            high: { chosen: "#2870ab", onSelected: "#ffffff", onSelectedDim: "#ebffffff", ink2: "#e6dfd0", ink3: "#cfc7b8", line: "#8a8172", fieldLine: "#c2b9a8" },
+            win: "#1c1b19", panel: "#161513", bar: "#121110", ctl: "#2d2b27", ctlHi: "#3b3833", line: "#34322d", edge: "#0f0e0d",
+            well: "#131211", seg: "#141311", chip: "#14ffffff", hover: "#ffffff", ink: "#ede9e2", ink2: "#b9b3a9", ink3: "#9c968b",
+            brand: "#e2bb7c", fieldLine: "#6f6a61", accent: "#5466c8", accentHi: "#5c6fd4", focus: "#a3b0f5", accentInk: "#ffffff",
+            err: "#ff7b6b", warn: "#f2b04a", ok: "#8fce7a", moved: "#a3b0f5", banner: "#22263f", dangerBg: "#3d2320", chosen: "#272c4c", scrim: "#66000000",
+            card: "#24231f",
+            high: { chosen: "#5466c8", onSelected: "#ffffff", onSelectedDim: "#ebffffff", ink2: "#e6dfd0", ink3: "#cfc7b8", line: "#8a8172", fieldLine: "#c2b9a8" },
         },
     })
     readonly property var themeNames: ["rim", "dark", "oled", "light"]
@@ -122,6 +127,7 @@ QtObject {
 
     readonly property color win: colour("win")
     readonly property color panel: colour("panel")
+    readonly property color card: colour("card")
     readonly property color bar: colour("bar")
     readonly property color ctl: colour("ctl")
     readonly property color ctlHi: colour("ctlHi")
@@ -153,10 +159,10 @@ QtObject {
     readonly property var categoryIcons: ["plug", "gamepad-2", "library", "package", "wrench", "image", "layout-dashboard", "clock", "arrow-down-to-line"]
     // The first nine are the categories' own colours, in order.
     readonly property var swatches: [
-        ["Violet", "#9a8fc2", "#6d5fa8"], ["Slate", "#8d99a6", "#5f6b78"], ["Blue", "#6fa3c7", "#3f7da6"],
-        ["Green", "#86b06b", "#4f8a36"], ["Amber", "#d2a94e", "#9a7a1c"], ["Coral", "#c98277", "#a8574b"],
-        ["Teal", "#7fb8b0", "#3f8a80"], ["Sand", "#c9a36a", "#8a6a2a"], ["Grey", "#a3a3ad", "#6f6f78"],
-        ["Rose", "#d58fb3", "#a44f7c"], ["Lime", "#b5c95a", "#6f8420"], ["Sky", "#7cc4e8", "#2f86b3"], ["Orange", "#e09a5c", "#a8621e"],
+        ["Violet", "#a58cf0", "#6d5fa8"], ["Slate", "#aab5c6", "#5f6b78"], ["Blue", "#6f8ff0", "#3f7da6"],
+        ["Green", "#6fd08a", "#4f8a36"], ["Sky", "#4cc6f2", "#2f86b3"], ["Rose", "#ee82bb", "#a44f7c"],
+        ["Teal", "#3fcab6", "#3f8a80"], ["Lime", "#b6d84e", "#6f8420"], ["Grey", "#b0b0ba", "#6f6f78"],
+        ["Amber", "#d2a94e", "#9a7a1c"], ["Coral", "#c98277", "#a8574b"], ["Sand", "#c9a36a", "#8a6a2a"], ["Orange", "#e09a5c", "#a8621e"],
     ]
     function swatch(name) {
         const found = swatches.find(s => s[0] === name)

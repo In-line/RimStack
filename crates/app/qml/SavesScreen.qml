@@ -147,7 +147,7 @@ Item {
                             implicitWidth: Theme.sized(104)
                             implicitHeight: Theme.sized(62)
                             radius: Theme.corner
-                            color: Theme.panel
+                            color: Theme.card
                             border.width: row.modelData.preview ? 0 : 1
                             border.color: Theme.line
                             clip: true

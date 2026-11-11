@@ -104,7 +104,7 @@ ListView {
         width: list.width - list.barRoom
         height: Theme.control
         color: list.columns ? Theme.win : Theme.panel
-        Rectangle { x: 2; width: 3; height: parent.height; color: Theme.categoryColours[list.topCategory] || Theme.ink3; opacity: 0.6 }
+        Rectangle { x: 2; width: 3; height: parent.height; color: Theme.categoryColours[list.topCategory] || Theme.ink3 }
         Row {
             x: Theme.gapWide + Theme.sized(10) + Theme.gapSmall
             anchors.verticalCenter: parent.verticalCenter

@@ -71,7 +71,7 @@ Item {
             Layout.rightMargin: Theme.gapLarge
             Layout.preferredHeight: Theme.header
             spacing: Theme.gap
-            Text { id: activeTitle; color: Theme.ink; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; text: Theme.say("Active") }
+            Text { id: activeTitle; color: Theme.ink; font.pixelSize: Theme.heading; font.weight: Font.Bold; text: Theme.say("Active") }
             Text {
                 id: activeCount
                 color: Theme.ink3
@@ -147,15 +147,14 @@ Item {
                 onClicked: Mods.menuRequested(more, 0, more.height + 2, activePane.moreEntries())
             }
         }
-        Rectangle {
+        Notice {
             visible: Hub.mods.dirty && !Hub.mods.previewing && !Theme.demo
             Layout.fillWidth: true
             Layout.leftMargin: Theme.gapLarge
             Layout.rightMargin: Theme.gapLarge
             Layout.bottomMargin: Theme.gap
             implicitHeight: Theme.sized(34)
-            radius: Theme.corner
-            color: Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, 0.12)
+            tone: Theme.warn
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.gapLarge
@@ -168,15 +167,14 @@ Item {
                 Btn { primary: true; text: Theme.say("Save"); onClicked: Mods.save() }
             }
         }
-        Rectangle {
+        Notice {
             visible: activePane.versionLine
             Layout.fillWidth: true
             Layout.leftMargin: Theme.gapLarge
             Layout.rightMargin: Theme.gapLarge
             Layout.bottomMargin: Theme.gap
             implicitHeight: banner.implicitHeight + 2 * Theme.gapSmall
-            radius: Theme.corner
-            color: Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, 0.12)
+            tone: Theme.warn
             GridLayout {
                 id: banner
                 readonly property bool stacked: Theme.icon + said.implicitWidth + does.fullWidth + 2 * columnSpacing > width
@@ -225,15 +223,14 @@ Item {
             Btn { text: Theme.say("Use the file's"); tip: Theme.say("Replaces the list here with the one now in ModsConfig.xml"); onClicked: Hub.mods.keepFile(true) }
             Btn { text: Theme.say("Keep mine"); tip: Theme.say("Keeps the list here; the next Save overwrites ModsConfig.xml"); onClicked: Hub.mods.keepFile(false) }
         }
-        Rectangle {
+        Notice {
             visible: Hub.mods.sortNote !== ""
             Layout.fillWidth: true
             Layout.leftMargin: Theme.gapLarge
             Layout.rightMargin: Theme.gapLarge
             Layout.bottomMargin: Theme.gap
             implicitHeight: sortBar.implicitHeight + 2 * Theme.gapSmall
-            radius: Theme.corner
-            color: Theme.banner
+            tone: Theme.focus
             RowLayout {
                 id: sortBar
                 anchors.fill: parent
