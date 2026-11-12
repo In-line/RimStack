@@ -79,6 +79,7 @@ fn main() {
                 "qml/browse/Stars.qml",
                 "qml/browse/Tick.qml",
                 "qml/browse/ListPane.qml",
+                "qml/browse/InstallSteamcmd.qml",
                 "qml/mods/ModsScreen.qml",
                 "qml/mods/ModsPrefs.qml",
                 "qml/mods/ModList.qml",

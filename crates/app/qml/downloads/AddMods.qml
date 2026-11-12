@@ -96,13 +96,15 @@ Column {
     Card {
         title: Theme.say("Download list")
         note: Hub.workshop.list.sizeSaid || ""
-        ListPane { width: parent.width }
+        ListPane { width: parent.width; offersInstall: false }
     }
 
     Card {
         title: Theme.say("SteamCMD")
+        key: "downloads-steamcmd"
         actions: Chip { visible: adding.downloads.steamcmd; tone: Theme.ok; icon: "check"; text: Theme.say("Installed") }
         Text { width: parent.width; wrapMode: Text.WordWrap; color: Theme.ink3; font.pixelSize: Theme.small; text: Theme.say("Fetches a mod without subscribing."); Tip { text: Theme.say("Valve's own downloader, fetched from Valve into RimStack's data folder. It downloads Workshop mods without a Steam account, into the game's Mods folder. It runs with a home folder of its own, so it cannot touch Steam's settings.") } }
         Text { visible: !!adding.info.steamcmdRefused; width: parent.width; wrapMode: Text.WordWrap; color: Theme.ink3; font.pixelSize: Theme.small; text: adding.info.steamcmdRefused || "" }
+        InstallSteamcmd {}
     }
 }

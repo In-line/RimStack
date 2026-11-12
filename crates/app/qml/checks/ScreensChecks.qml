@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtTest
 import RimStack.Ui
 
 Item {
@@ -8,6 +9,27 @@ Item {
     property int failed: 0
     property int at: 0
     property int waited: 0
+
+    TestEvent { id: events }
+
+    function keyed(item, key) {
+        if (item.key === key && item.visible)
+            return item
+        for (const child of item.children) {
+            const found = keyed(child, key)
+            if (found)
+                return found
+        }
+        return null
+    }
+
+    function tapArrow(key) {
+        const card = keyed(window.contentItem, key)
+        const arrow = card ? named(card, "foldArrow") : null
+        if (arrow)
+            events.mouseClick(arrow, arrow.width / 2, arrow.height / 2, Qt.LeftButton, Qt.NoModifier, -1)
+        return card
+    }
 
     function named(item, name) {
         if (item.objectName === name)
@@ -85,6 +107,18 @@ Item {
                 Hub.mods.ignoreProblem(needed.packageId, needed.ignore, false)
                 return needed.ignore !== "" && ignored && count() === before
             }
+        },
+        {
+            section: Theme.sections.downloads,
+            what: "a card with a button in its head folds with a press on its arrow",
+            ready: () => !!checks.keyed(checks.window.contentItem, "downloads-steamcmd"),
+            ok: () => checks.tapArrow("downloads-steamcmd")?.folded === true
+        },
+        {
+            section: Theme.sections.downloads,
+            what: "and opens again with another",
+            ready: () => true,
+            ok: () => checks.tapArrow("downloads-steamcmd")?.folded === false
         },
         {
             section: Theme.sections.workshop,

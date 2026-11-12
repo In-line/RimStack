@@ -7,6 +7,8 @@ ColumnLayout {
     id: pane
     readonly property var list: Hub.workshop.list
     readonly property var info: Hub.settings.report
+    property bool offersInstall: true
+    readonly property bool asksInstall: offersInstall && list.action.installSteamcmd
     spacing: Theme.gap
 
     Text {
@@ -45,7 +47,7 @@ ColumnLayout {
     }
     Text { visible: !!pane.list.action.stuck; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.ink3; font.pixelSize: Theme.small; text: pane.list.action.stuck || "" }
     Flow {
-        visible: pane.list.count > 0 || pane.list.action.installSteamcmd
+        visible: pane.list.count > 0 || pane.asksInstall
         Layout.fillWidth: true
         spacing: Theme.gap
         Btn {
@@ -62,24 +64,14 @@ ColumnLayout {
         }
         Btn {
             visible: pane.list.action.subscribe
-            primary: !pane.list.action.download && !pane.list.action.installSteamcmd
+            primary: !pane.list.action.download && !pane.asksInstall
             enabled: pane.list.action.subscribeEnabled
             icon: "plus"
             text: Theme.say("Subscribe in Steam")
             tip: Theme.say("Steam must be running. It subscribes to each and downloads it, then keeps them up to date.")
             onClicked: Hub.downloads.subscribeWanted()
         }
-        Btn {
-            visible: pane.list.action.installSteamcmd
-            primary: true
-            enabled: pane.list.action.enabled
-            icon: "download"
-            text: pane.list.action.label
-            onClicked: Notices.ask({
-                title: Theme.say("Install SteamCMD"),
-                lines: [Theme.say("Valve's own downloader is fetched from Valve into"), { path: pane.info.steamcmdFolder || "" }, Theme.say("It runs with a home folder of its own there, apart from Steam's settings.")],
-                label: Theme.say("Install"), run: Hub.downloads.installSteamcmd })
-        }
+        InstallSteamcmd { visible: pane.asksInstall }
         Btn { visible: pane.list.failures; icon: "refresh-cw"; text: Theme.say("Retry"); tip: Theme.say("Forgets what went wrong, so the next download tries these again."); onClicked: Hub.workshop.retry() }
         Btn { visible: pane.list.count > 0; text: Theme.say("Empty the list"); onClicked: Hub.workshop.empty() }
     }
