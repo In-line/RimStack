@@ -518,13 +518,22 @@ fn downloads(app: &App, shapes: &mut Shapes) {
         checked: true,
         behind: Some(2),
         problem: Some(rimstack_core::said!("refused")),
+        refused: None,
+    };
+    let due = Checkout {
+        problem: None,
+        ..checkout.clone()
+    };
+    let refused = Checkout {
+        refused: Some(rimstack_core::said!("refused")),
+        ..due.clone()
     };
     let updates = Updates {
         checked: Some(1),
         asked: Some(1),
         answered: 1,
         items: vec![behind(true), behind(false)],
-        checkouts: vec![checkout],
+        checkouts: vec![checkout, due, refused],
         problem: Some(rimstack_core::said!("refused")),
     };
     let asked = HashSet::from(["1".to_string()]);
@@ -542,6 +551,8 @@ fn downloads(app: &App, shapes: &mut Shapes) {
     };
     let queue = Queue {
         items: vec![asked(Some("Ann.B")), asked(None)],
+        installed: vec![asked(Some("Cy"))],
+        collections: vec!["Ann's pack".into()],
         repositories: vec![Repository {
             link: "https://github.com/ann/roads".into(),
             name: "ann/roads".into(),

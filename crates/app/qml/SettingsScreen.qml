@@ -268,6 +268,31 @@ Item {
 
                 GroupTitle { visible: screen.finding === ""; text: Theme.say("Updates") }
                 Line {
+                    title: Theme.say("Update by themselves")
+                    tip: Theme.say("Steam is asked about the installed Workshop mods (only their Workshop ids are sent) and Git about each checkout, as often as chosen. Steam then downloads the newer versions, and each checkout with no local changes is updated, except while the game runs.")
+                    changed: !!screen.info.autoUpdates
+                    onReset: screen.keep("autoUpdates", "off")
+                    Toggle {
+                        title: Theme.say("Update by themselves")
+                        on: !!screen.info.autoUpdates
+                        onFlipped: screen.keep("autoUpdates", screen.info.autoUpdates ? "off" : "on")
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                Line {
+                    title: Theme.say("How often")
+                    tip: Theme.say("The time between two checks for updates made by themselves.")
+                    changed: !!screen.info.updateEverySet
+                    onReset: screen.keep("updateEvery", "")
+                    Choice {
+                        title: Theme.say("How often")
+                        options: screen.info.updateEvery || []
+                        current: screen.info.updateEveryAt || 0
+                        Component.onCompleted: picked.connect(Hub.settings.keepUpdateEvery)
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                Line {
                     title: Theme.say("Git")
                     tip: Theme.say("A mod that is a Git checkout is asked for updates, and updated, with the git program on this computer.")
                     Text { Layout.fillWidth: true; color: screen.info.git ? Theme.ink : Theme.err; font.pixelSize: Theme.body; text: screen.info.git ? Theme.fill("Installed, version {}", screen.info.git) : Theme.say("Not installed: Git checkouts cannot be checked or updated") }

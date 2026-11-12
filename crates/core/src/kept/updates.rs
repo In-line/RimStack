@@ -22,6 +22,9 @@ pub struct Remote {
     pub behind: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub problem: Option<String>,
+    /// Why the last update of the checkout did not apply, as `Sentence::to_kept` writes it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refused: Option<String>,
 }
 
 impl LastCheck {
@@ -29,6 +32,19 @@ impl LastCheck {
     pub fn read(file: &Path) -> Self {
         let kept = crate::base::atomic_file::read_json(file).map(serde_json::from_value);
         kept.and_then(Result::ok).unwrap_or_default()
+    }
+
+    /// A refusal stays while the remote is as far ahead as when it was refused:
+    /// an update tried again would meet it again.
+    pub fn keep_refusals(&mut self, before: &BTreeMap<String, Remote>) {
+        for (folder, now) in &mut self.checkouts {
+            let Some(then) = before.get(folder) else {
+                continue;
+            };
+            if then.refused.is_some() && then.behind == now.behind {
+                now.refused.clone_from(&then.refused);
+            }
+        }
     }
 
     pub fn write(&self, file: &Path) -> Result<(), crate::base::error::Error> {
@@ -67,6 +83,7 @@ mod tests {
                     Remote {
                         behind: Some(3),
                         problem: None,
+                        refused: Some("local changes".into()),
                     },
                 ),
                 (
@@ -74,6 +91,7 @@ mod tests {
                     Remote {
                         behind: None,
                         problem: Some("offline".into()),
+                        refused: None,
                     },
                 ),
             ]),
@@ -90,6 +108,35 @@ mod tests {
             (older.checked, older.now["9"], older.checkouts["/m"].behind),
             (Some(5), 4, Some(0))
         );
+    }
+
+    #[test]
+    fn a_refusal_lasts_until_the_remote_moves() {
+        let refused = |behind| Remote {
+            behind: Some(behind),
+            problem: None,
+            refused: Some("local changes".into()),
+        };
+        let before = BTreeMap::from([
+            ("/same".to_string(), refused(2)),
+            ("/moved".to_string(), refused(2)),
+        ]);
+        let fresh = |behind| Remote {
+            behind: Some(behind),
+            ..Remote::default()
+        };
+        let mut check = LastCheck {
+            checkouts: BTreeMap::from([
+                ("/same".to_string(), fresh(2)),
+                ("/moved".to_string(), fresh(3)),
+                ("/new".to_string(), fresh(1)),
+            ]),
+            ..LastCheck::default()
+        };
+        check.keep_refusals(&before);
+        assert_eq!(check.checkouts["/same"], refused(2));
+        assert_eq!(check.checkouts["/moved"].refused, None);
+        assert_eq!(check.checkouts["/new"].refused, None);
     }
 
     #[test]

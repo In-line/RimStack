@@ -177,7 +177,7 @@ fn cxx_name_in(attributes: &str) -> Option<&str> {
     rest.split('"').next()
 }
 
-const UNFILLED: [(&str, &str); 21] = [
+const UNFILLED: [(&str, &str); 23] = [
     ("logs.since", "a clean launch before the last"),
     (
         "mods.details.megabytes",
@@ -224,6 +224,14 @@ const UNFILLED: [(&str, &str); 21] = [
     (
         "mods.detailsOf.requires.[].modId",
         "never given: the list takes no action",
+    ),
+    (
+        "downloads.updates.checkoutsDue.[].problem",
+        "a checkout with a problem is not due",
+    ),
+    (
+        "downloads.updates.checkoutsDue.[].refused",
+        "a checkout an update refused is not due",
     ),
     ("mods.overview.communityMods", "the community's rules"),
     ("mods.overview.communityTime", "the community's rules"),

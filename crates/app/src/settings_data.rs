@@ -53,6 +53,11 @@ pub mod qobject {
         #[qinvokable]
         fn keep(self: Pin<&mut SettingsData>, name: &QString, value: &QString) -> bool;
 
+        /// `at` is the place of the choice in the report's `updateEvery`.
+        #[qinvokable]
+        #[cxx_name = "keepUpdateEvery"]
+        fn keep_update_every(self: Pin<&mut SettingsData>, at: i32);
+
         /// Judges a typed folder after a pause in the typing, off the window's thread, and uses it when it is fine.
         #[qinvokable]
         #[cxx_name = "checkFolder"]
@@ -163,6 +168,7 @@ use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QUrl, QVariant};
 use rimstack_core::base::window::Area;
+use rimstack_core::kept::settings::UPDATE_EVERY;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -348,6 +354,13 @@ impl qobject::SettingsData {
             .keep_setting(&name.to_string(), &value.to_string());
         self.as_mut().set_problem(crate::words::why_not(&kept));
         kept.is_ok()
+    }
+
+    fn keep_update_every(self: Pin<&mut Self>, at: i32) {
+        let chosen = usize::try_from(at).ok().and_then(|at| UPDATE_EVERY.get(at));
+        if let Some(minutes) = chosen {
+            self.keep(&QString::from("updateEvery"), &QString::from(*minutes));
+        }
     }
 
     fn check_folder(mut self: Pin<&mut Self>, name: &QString, typed: &QString) {

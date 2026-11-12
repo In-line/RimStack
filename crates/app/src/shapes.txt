@@ -13,6 +13,15 @@ downloads.notesState: object
   refused: bool
   resume: number
 downloads.queue: object
+  collections: absent or list
+    []: text
+  installed: absent or list
+    []: object
+      id: text
+      installed: bool
+      megabytes: number
+      title: text
+      updated: number
   items: absent or list
     []: object
       id: text
@@ -81,18 +90,42 @@ downloads.updates: object
     []: object
       behind: number
       checked: bool
+      due: bool
       modId: number
       name: text
-      problem: text
+      problem: nothing or text
+      refused: nothing or text
+      said: text
+      standing: number
+      updatable: bool
       workshop: bool
-  checkoutsBehind: list
+  checkoutsDue: list
     []: object
       behind: number
       checked: bool
+      due: bool
       modId: number
       name: text
-      problem: text
+      problem: nothing
+      refused: nothing
+      said: text
+      standing: number
+      updatable: bool
       workshop: bool
+  checkoutsFailed: list
+    []: object
+      behind: number
+      checked: bool
+      due: bool
+      modId: number
+      name: text
+      problem: nothing or text
+      refused: nothing or text
+      said: text
+      standing: number
+      updatable: bool
+      workshop: bool
+  checkoutsSaid: text
   count: number
   inactive: list
     []: object
@@ -877,6 +910,8 @@ settings.release: object
   problem: absent or text
   version: absent or text
 settings.report: object
+  autoUpdates: bool
+  autoUpdatesAsked: bool
   backup: nothing or text
   communityRules: bool
   config: text
@@ -921,6 +956,11 @@ settings.report: object
   steamcmd: bool
   steamcmdFolder: text
   steamcmdRefused: nothing
+  updateEvery: list
+    []: text
+  updateEveryAt: number
+  updateEverySaid: text
+  updateEverySet: bool
   version: text
   versionAsideFor: text
   versionWarnings: bool

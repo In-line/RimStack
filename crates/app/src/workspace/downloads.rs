@@ -7,8 +7,8 @@ use rimstack_core::kept::settings::Switch;
 use rimstack_core::kept::updates::{self, LastCheck, Remote};
 use rimstack_core::mods::library::{Installed, Library, ModId};
 use rimstack_core::rimworld::{paths::Source, workshop};
-use rimstack_core::say;
 use rimstack_core::sources::downloads::{self, Asked, Behind, Replaceable, Repository};
+use rimstack_core::{say, say_n};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -22,11 +22,55 @@ pub struct Checkout {
     pub checked: bool,
     pub behind: Option<u64>,
     pub problem: Option<Sentence>,
+    pub refused: Option<Sentence>,
 }
 
 impl Checkout {
-    fn is_behind(&self) -> bool {
-        self.behind.is_some_and(|n| n > 0) || self.problem.is_some() || !self.checked
+    pub(crate) fn due(&self) -> bool {
+        !self.failed() && self.behind.is_some_and(|n| n > 0)
+    }
+
+    fn failed(&self) -> bool {
+        self.problem.is_some() || self.refused.is_some()
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutShown<'a> {
+    #[serde(flatten)]
+    pub row: &'a Checkout,
+    pub said: Sentence,
+    pub due: bool,
+    /// The colour QML gives it, by index: 0 not checked, 1 up to date, 2 behind, 3 failed.
+    pub standing: u8,
+    pub updatable: bool,
+}
+
+impl<'a> CheckoutShown<'a> {
+    fn of(row: &'a Checkout) -> Self {
+        let said = match (&row.refused, &row.problem, row.checked, row.behind) {
+            (Some(refused), _, _, _) => say!("Not updated: {}", refused.inside()),
+            (None, Some(problem), _, _) => say!("Not checked: {}", problem.inside()),
+            (None, None, false, _) => say!("Not checked"),
+            (None, None, true, Some(n)) if n > 0 => {
+                let n = usize::try_from(n).unwrap_or(usize::MAX);
+                say_n!(n, "{} commit behind", "{} commits behind")
+            }
+            (None, None, true, _) => say!("Up to date"),
+        };
+        CheckoutShown {
+            row,
+            said,
+            due: row.due(),
+            standing: match (row.failed(), row.due(), row.checked) {
+                (true, _, _) => 3,
+                (false, true, _) => 2,
+                (false, false, true) => 1,
+                (false, false, false) => 0,
+            },
+            updatable: !row.workshop && (row.due() || row.refused.is_some()),
+        }
     }
 }
 
@@ -57,8 +101,10 @@ pub struct UpdatesShown<'a> {
     pub count: usize,
     pub active: Vec<BehindShown<'a>>,
     pub inactive: Vec<BehindShown<'a>>,
-    pub checkouts: &'a [Checkout],
-    pub checkouts_behind: Vec<&'a Checkout>,
+    pub checkouts: Vec<CheckoutShown<'a>>,
+    pub checkouts_failed: Vec<CheckoutShown<'a>>,
+    pub checkouts_due: Vec<CheckoutShown<'a>>,
+    pub checkouts_said: Sentence,
 }
 
 pub fn updates_shown<'a>(updates: &'a Updates, asked: &HashSet<String>) -> UpdatesShown<'a> {
@@ -69,6 +115,10 @@ pub fn updates_shown<'a>(updates: &'a Updates, asked: &HashSet<String>) -> Updat
             asked: asked.contains(&row.id),
         })
         .collect()
+    };
+    let checkouts = |which: &dyn Fn(&Checkout) -> bool| {
+        let rows = updates.checkouts.iter().filter(|c| which(c));
+        rows.map(CheckoutShown::of).collect()
     };
     UpdatesShown {
         checked: updates.checked,
@@ -83,15 +133,23 @@ pub fn updates_shown<'a>(updates: &'a Updates, asked: &HashSet<String>) -> Updat
         count: updates.items.len(),
         active: shown(true),
         inactive: shown(false),
-        checkouts: &updates.checkouts,
-        checkouts_behind: updates.checkouts.iter().filter(|c| c.is_behind()).collect(),
+        checkouts: updates.checkouts.iter().map(CheckoutShown::of).collect(),
+        checkouts_failed: checkouts(&Checkout::failed),
+        checkouts_due: checkouts(&Checkout::due),
+        checkouts_said: match updates.checkouts.iter().filter(|c| c.due()).count() {
+            0 => say!("all up to date"),
+            due => say!("{} behind", due),
+        },
     }
 }
 
 #[derive(Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Queue {
+    /// What is not installed yet, those Steam said nothing of among them.
     pub items: Vec<Asked>,
+    pub installed: Vec<Asked>,
+    pub collections: Vec<String>,
     pub repositories: Vec<Repository>,
     pub note: Option<Sentence>,
     pub wanted: Vec<String>,
@@ -132,7 +190,8 @@ impl App {
             }
             Err(problem) => Some(problem.sentence().clone()),
         };
-        kept.checkouts = self.checkouts_asked(library);
+        let before = std::mem::replace(&mut kept.checkouts, self.checkouts_asked(library));
+        kept.keep_refusals(&before);
         self.keep_check(&kept);
         let mut report = self.updates_of(library, &kept);
         report.problem = problem;
@@ -154,10 +213,18 @@ impl App {
         let mut kept = self.last_check();
         let caught_up = Remote {
             behind: Some(0),
-            problem: None,
+            ..Remote::default()
         };
         let folder = folder.to_string_lossy().into_owned();
         kept.checkouts.insert(folder, caught_up);
+        self.keep_check(&kept);
+    }
+
+    pub fn checkout_refused(&self, folder: &Path, why: &Sentence) {
+        let mut kept = self.last_check();
+        let folder = folder.to_string_lossy().into_owned();
+        let remote = kept.checkouts.entry(folder).or_default();
+        remote.refused = Some(why.to_kept().to_string());
         self.keep_check(&kept);
     }
 
@@ -197,12 +264,12 @@ impl App {
                 let said = match rimstack_core::sources::git::behind(&m.path) {
                     Ok(count) => Remote {
                         behind: Some(count as u64),
-                        problem: None,
+                        ..Remote::default()
                     },
                     // Kept as a sentence, put in words when it is shown.
                     Err(problem) => Remote {
-                        behind: None,
                         problem: Some(problem.sentence().to_kept().to_string()),
+                        ..Remote::default()
                     },
                 };
                 (m.path.to_string_lossy().into_owned(), said)
@@ -223,6 +290,7 @@ impl App {
                     checked: said.is_some(),
                     behind: said.and_then(|s| s.behind),
                     problem: said.and_then(|s| s.problem.as_deref().map(Sentence::from_kept)),
+                    refused: said.and_then(|s| s.refused.as_deref().map(Sentence::from_kept)),
                 }
             })
             .collect()
@@ -243,9 +311,20 @@ impl App {
                 ..Queue::default()
             });
         }
-        let ids = workshop::expand_collections(&ids)?;
-        let mut answered = workshop::fetch_details(&ids)?;
+        let expanded = workshop::expand_collections(&ids)?;
+        let opened: Vec<String> = ids
+            .into_iter()
+            .filter(|id| !expanded.contains(id))
+            .collect();
+        let every: Vec<String> = expanded.iter().chain(&opened).cloned().collect();
+        let mut answered = workshop::fetch_details(&every)?;
+        let collections = opened
+            .iter()
+            .filter_map(|id| answered.iter().find(|d| &d.id == id))
+            .map(|d| d.title.clone())
+            .collect();
         answered.retain(|details| details.refusal().is_none());
+        let ids = expanded;
         self.library().as_ref().as_ref().map_err(Clone::clone)?;
         let installed = self.installed_workshop();
         let items = downloads::asked(&ids, &answered, &|id| installed.contains(id));
@@ -255,8 +334,11 @@ impl App {
             .filter_map(|item| Some((item.id.clone(), item.title.clone()?)))
             .collect();
         self.add_wanted_to_list(&titled);
+        let (installed, items) = items.into_iter().partition(|item| item.installed);
         Ok(Queue {
             items,
+            installed,
+            collections,
             repositories,
             note: None,
             wanted,
@@ -318,12 +400,14 @@ mod tests {
         let row = &report.checkouts[0];
         assert_eq!((row.mod_id, row.checked, row.behind), (id, false, None));
         let shown = updates_shown(&report, &HashSet::new());
-        assert_eq!(shown.checkouts_behind.len(), 1, "not asked yet");
+        let (failed, due) = (shown.checkouts_failed.len(), shown.checkouts_due.len());
+        assert_eq!((failed, due), (0, 0), "not asked yet");
+        assert_eq!(shown.checkouts[0].said.to_string(), "Not checked");
 
         let mut kept = LastCheck::default();
         let remote = Remote {
             behind: Some(2),
-            problem: None,
+            ..Remote::default()
         };
         kept.checkouts
             .insert(roads.to_string_lossy().into_owned(), remote);
@@ -333,17 +417,18 @@ mod tests {
             (row.checked, row.behind, row.workshop),
             (true, Some(2), false)
         );
+        let shown = updates_shown(&report, &HashSet::new());
+        assert_eq!(shown.checkouts_due.len(), 1);
+        assert_eq!(shown.checkouts_said.to_string(), "1 behind");
         assert_eq!(crate::qml::values::as_shown(&row)["modId"], id.to_qml());
         drop(loaded);
 
         app.checkout_updated(&roads);
         let caught_up = app.kept_updates().unwrap();
         assert_eq!(caught_up.checkouts[0].behind, Some(0));
-        assert!(
-            updates_shown(&caught_up, &HashSet::new())
-                .checkouts_behind
-                .is_empty()
-        );
+        let shown = updates_shown(&caught_up, &HashSet::new());
+        assert!(shown.checkouts_due.is_empty() && shown.checkouts[0].standing == 1);
+        assert_eq!(shown.checkouts_said.to_string(), "all up to date");
     }
 
     #[test]

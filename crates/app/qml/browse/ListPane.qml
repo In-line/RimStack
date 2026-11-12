@@ -45,6 +45,7 @@ ColumnLayout {
     }
     Text { visible: !!pane.list.action.stuck; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.ink3; font.pixelSize: Theme.small; text: pane.list.action.stuck || "" }
     Flow {
+        visible: pane.list.count > 0 || pane.list.action.installSteamcmd
         Layout.fillWidth: true
         spacing: Theme.gap
         Btn {

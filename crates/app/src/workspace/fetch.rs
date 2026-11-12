@@ -89,9 +89,11 @@ impl App {
             Err(problem) => return Done::told(Err(problem)),
         };
         let updated = git::update(&folder);
-        if updated.is_ok() {
-            self.checkout_updated(&folder);
+        match &updated {
+            Ok(_) => self.checkout_updated(&folder),
+            Err(problem) => self.checkout_refused(&folder, problem.sentence()),
         }
+        self.publish(crate::changes::Changes::UPDATES);
         Done::of_a_write(match updated {
             Ok(commit) => Ok(say!("Updated {}: {}", name, commit)),
             Err(problem) => Err(Error::new(

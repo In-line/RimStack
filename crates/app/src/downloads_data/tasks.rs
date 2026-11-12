@@ -1,6 +1,6 @@
 //! One at a time, in the order asked: two would write the same SteamCMD folder.
 
-use super::{Work, qobject};
+use super::{Waiting, qobject};
 use crate::changes::Changes;
 use crate::qml::values::to_qml;
 use crate::workspace::fetch::{Done, SteamAsk};
@@ -12,36 +12,45 @@ use rimstack_core::mods::library::ModId;
 use rimstack_core::say;
 
 impl qobject::DownloadsData {
-    fn task(
+    fn task(self: Pin<&mut Self>, doing: Sentence, work: impl FnOnce() -> Done + Send + 'static) {
+        self.lined_up(doing, None, work);
+    }
+
+    fn lined_up(
         mut self: Pin<&mut Self>,
         doing: Sentence,
+        updating: Option<i32>,
         work: impl FnOnce() -> Done + Send + 'static,
     ) {
         if self.demo {
             return;
         }
-        let doing = crate::words::put(&doing);
-        let work: Work = Box::new(work);
+        let waits = Waiting {
+            doing: crate::words::put(&doing),
+            updating,
+            work: Box::new(work),
+        };
         match self.task_running {
-            true => self
-                .as_mut()
-                .rust_mut()
-                .get_mut()
-                .waiting
-                .push_back((doing, work)),
-            false => self.start(&doing, work),
+            true => self.as_mut().rust_mut().get_mut().waiting.push_back(waits),
+            false => self.start(waits),
         }
     }
 
-    fn start(mut self: Pin<&mut Self>, doing: &str, work: Work) {
+    fn start(mut self: Pin<&mut Self>, waits: Waiting) {
         self.as_mut().set_task_running(true);
-        self.as_mut().set_task_note(QString::from(doing));
-        crate::jobs::run("download task", self.qt_thread(), work, |mut me, done| {
-            me.as_mut().finish(done);
-            if let Some((doing, work)) = me.as_mut().rust_mut().get_mut().waiting.pop_front() {
-                me.start(&doing, work);
-            }
-        });
+        self.as_mut().set_task_note(QString::from(&waits.doing));
+        self.as_mut().set_updating(waits.updating.unwrap_or(-1));
+        crate::jobs::run(
+            "download task",
+            self.qt_thread(),
+            waits.work,
+            |mut me, done| {
+                me.as_mut().finish(done);
+                if let Some(next) = me.as_mut().rust_mut().get_mut().waiting.pop_front() {
+                    me.start(next);
+                }
+            },
+        );
     }
 
     fn finish(mut self: Pin<&mut Self>, done: Done) {
@@ -94,6 +103,51 @@ impl qobject::DownloadsData {
         self.ask_steam(SteamAsk::Download, ids);
     }
 
+    pub(super) fn apply(self: Pin<&mut Self>) {
+        let ids: Vec<String> = self
+            .checked
+            .items
+            .iter()
+            .map(|row| row.id.clone())
+            .filter(|id| !self.asked_of_steam.contains(id))
+            .collect();
+        let checkouts: Vec<ModId> = self
+            .checked
+            .checkouts
+            .iter()
+            .filter(|c| c.due() && !c.workshop)
+            .map(|c| c.mod_id)
+            .collect();
+        if ids.is_empty() && checkouts.is_empty() {
+            return;
+        }
+        let app = self.app();
+        let any_checkout = !checkouts.is_empty();
+        crate::jobs::run(
+            "updates applied",
+            self.qt_thread(),
+            move || {
+                let running = any_checkout && app.game_running();
+                let asked = !ids.is_empty();
+                let took = asked && app.ask_steam(SteamAsk::Download, &ids).note.is_ok();
+                (running, asked, took, ids)
+            },
+            move |mut me, (running, asked, took, ids)| {
+                me.as_mut().set_steam_waits(asked && !took);
+                if took {
+                    me.as_mut().rust_mut().get_mut().asked_of_steam.extend(ids);
+                    let checked = std::mem::take(&mut me.as_mut().rust_mut().get_mut().checked);
+                    me.as_mut().show_updates(checked);
+                }
+                if !running {
+                    for id in checkouts {
+                        me.as_mut().update_from_git(id.to_qml());
+                    }
+                }
+            },
+        );
+    }
+
     pub(super) fn subscribe_wanted(self: Pin<&mut Self>) {
         let app = self.app();
         let count = app.listed_ids().len();
@@ -125,13 +179,12 @@ impl qobject::DownloadsData {
         });
     }
 
-    pub(super) fn update_from_git(mut self: Pin<&mut Self>, mod_id: i32) {
+    pub(super) fn update_from_git(self: Pin<&mut Self>, mod_id: i32) {
         let Some(id) = ModId::from_qml(mod_id) else {
             return;
         };
-        self.as_mut().set_updating(mod_id);
         let app = self.app();
-        self.as_mut().task(say!("Updating from Git…"), move || {
+        self.lined_up(say!("Updating from Git…"), Some(mod_id), move || {
             app.update_checkout(id)
         });
     }

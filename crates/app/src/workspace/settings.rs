@@ -8,7 +8,8 @@ use rimstack_core::base::error::Error;
 use rimstack_core::base::locks::Shared;
 use rimstack_core::base::sentence::Sentence;
 use rimstack_core::base::translate::{LOCALE, detected};
-use rimstack_core::kept::{owntheme, settings::Switch};
+use rimstack_core::kept::owntheme;
+use rimstack_core::kept::settings::{Switch, UPDATE_EVERY};
 use rimstack_core::mods::community;
 use rimstack_core::rimworld::workshopdb;
 use rimstack_core::sources::replacements;
@@ -78,6 +79,18 @@ fn shipped(name: &str) -> Option<&'static str> {
         .iter()
         .find(|(n, _)| *n == name)
         .map(|(_, words)| *words)
+}
+
+fn every(minutes: u64) -> Sentence {
+    match minutes {
+        1 => say!("Every minute"),
+        60 => say!("Every hour"),
+        n => say_n!(
+            usize::try_from(n).unwrap_or(0),
+            "Every {} minute",
+            "Every {} minutes"
+        ),
+    }
 }
 
 pub fn effects(name: &str) -> Changes {
@@ -153,6 +166,18 @@ impl App {
             file_hints: settings.switch(Switch::FileHints),
             dim_left_out: settings.switch(Switch::DimLeftOut),
             git_for_workshop: settings.switch(Switch::GitForWorkshop),
+            auto_updates: settings.switch(Switch::AutoUpdates),
+            auto_updates_asked: settings.get(Switch::AutoUpdates.name()).is_some(),
+            update_every: UPDATE_EVERY
+                .iter()
+                .map(|m| every(m.parse().unwrap_or(0)))
+                .collect(),
+            update_every_at: UPDATE_EVERY
+                .iter()
+                .position(|m| m.parse() == Ok(settings.update_every_minutes()))
+                .unwrap_or(0),
+            update_every_said: every(settings.update_every_minutes()),
+            update_every_set: settings.get("updateEvery").is_some(),
             git: self.git().clone(),
             self_check: settings.switch(Switch::SelfCheck),
             show_mature: settings.switch(Switch::ShowMature),
@@ -641,6 +666,32 @@ mod tests {
         app.keep_setting("fileHints", "on").unwrap();
         assert!(heard.lock().unwrap().contains(Changes::PROBLEMS));
         assert!(app.keep_setting("noSuchSetting", "x").is_err());
+    }
+
+    #[test]
+    fn updating_by_itself_is_offered_until_answered_either_way() {
+        let (_tmp, app) = installed();
+        let report = app.settings_report();
+        assert!(!report.auto_updates && !report.auto_updates_asked);
+        for (answer, on) in [("on", true), ("off", false)] {
+            app.keep_setting("autoUpdates", answer).unwrap();
+            let report = app.settings_report();
+            assert_eq!((report.auto_updates, report.auto_updates_asked), (on, true));
+        }
+    }
+
+    #[test]
+    fn the_time_between_update_checks_is_one_of_those_offered() {
+        let (_tmp, app) = installed();
+        let report = app.settings_report();
+        assert_eq!(UPDATE_EVERY[report.update_every_at], "10");
+        assert_eq!(report.update_every_said.to_string(), "Every 10 minutes");
+        assert!(!report.update_every_set);
+        app.keep_setting("updateEvery", "60").unwrap();
+        let report = app.settings_report();
+        assert_eq!(report.update_every_said.to_string(), "Every hour");
+        assert_eq!(report.update_every[0].to_string(), "Every minute");
+        assert!(report.update_every_set);
     }
 
     #[test]
