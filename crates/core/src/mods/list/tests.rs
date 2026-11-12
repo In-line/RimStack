@@ -30,7 +30,7 @@ fn m(name: &str, author: &str, category: Category) -> Mod {
     }
 }
 
-fn sample() -> GroupedList {
+pub(super) fn sample() -> GroupedList {
     GroupedList::new(vec![
         m("Harmony", "pardeike", Category::Loaders),
         m("Core", "Ludeon", Category::Game),
@@ -278,7 +278,7 @@ fn source_terms_tell_the_workshop_from_git_checkouts_and_the_game() {
     assert!(names(&list).is_empty());
 }
 
-fn shown(list: &GroupedList) -> usize {
+pub(super) fn shown(list: &GroupedList) -> usize {
     let rows = list.rows().iter();
     rows.filter(|r| matches!(r, Row::Mod { .. })).count()
 }
@@ -792,7 +792,7 @@ fn a_mod_goes_below_another_only_when_that_one_loads_after_it() {
     assert_eq!(list.below(id(100), id(999)), None);
 }
 
-fn read_with(files: &[(&str, &str)]) -> Arc<Facts> {
+pub(super) fn read_with(files: &[(&str, &str)]) -> Arc<Facts> {
     let tmp = tempfile::tempdir().unwrap();
     for (file, text) in files {
         let path = tmp.path().join(file);
@@ -803,7 +803,7 @@ fn read_with(files: &[(&str, &str)]) -> Arc<Facts> {
     Arc::new(Facts::read(folders, &HashSet::new()))
 }
 
-fn installed_list() -> GroupedList {
+pub(super) fn installed_list() -> GroupedList {
     let mods = (0..3).map(|n| {
         let mut one = m(&format!("Mod {n}"), "x", Category::Content);
         one.installed = Some(id(n));

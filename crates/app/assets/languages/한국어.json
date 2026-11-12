@@ -1115,6 +1115,7 @@
  "Updating from Git…": "Git에서 업데이트 중…",
  "Updating…": "업데이트 중…",
  "Use": "사용",
+ "Use ! to exclude, as in !tag:hud": "!를 붙이면 제외합니다. 예: !tag:hud",
  "Use its list": "해당 목록 사용",
  "Use that list": "저 목록 사용",
  "Use the copied list": "복사한 목록 사용",

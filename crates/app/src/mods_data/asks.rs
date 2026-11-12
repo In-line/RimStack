@@ -6,7 +6,8 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QVariant};
 use rimstack_core::mods::columns;
 use rimstack_core::mods::library::ModId;
-use rimstack_core::mods::list::Row;
+use rimstack_core::mods::list::offers::Counted;
+use rimstack_core::mods::list::{Row, flag};
 
 /// -1 for none.
 fn held(found: Option<usize>) -> i32 {
@@ -18,6 +19,20 @@ fn held_id(found: Option<ModId>) -> i32 {
 }
 
 impl qobject::ModsData {
+    pub(super) fn filter_offers(&self, typed: &QString, text: &QString) -> QVariant {
+        let count = |n: i32| usize::try_from(n).unwrap_or_default();
+        let counted = Counted {
+            errors: count(self.errors),
+            warnings: count(self.warnings),
+            conflicts: count(self.conflicts),
+            updated: self.order.list(Side::Active).flagged(flag::UPDATED),
+        };
+        let offers = self
+            .order
+            .filter_offers(&typed.to_string(), &text.to_string(), &counted);
+        to_qml(&offers)
+    }
+
     pub(super) fn needed_ids(&self, keys: &[String]) -> Vec<ModId> {
         let app = self.app();
         let loaded = app.library();

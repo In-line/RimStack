@@ -1154,6 +1154,7 @@
  "Updating from Git…": "Обновление из Git…",
  "Updating…": "Обновление…",
  "Use": "Использовать",
+ "Use ! to exclude, as in !tag:hud": "! исключает, например !tag:hud",
  "Use its list": "Использовать его список",
  "Use that list": "Использовать тот список",
  "Use the copied list": "Использовать скопированный список",

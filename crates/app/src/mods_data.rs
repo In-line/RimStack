@@ -286,6 +286,10 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "subMenu"]
         fn sub_menu(self: &ModsData, active: bool, row: i32) -> QVariant;
+        /// `{ offers: [{ term, about }], widest }` for `typed`, the word being written in `text`.
+        #[qinvokable]
+        #[cxx_name = "filterOffers"]
+        fn filter_offers(self: &ModsData, typed: &QString, text: &QString) -> QVariant;
         /// `{ tree, assemblies }`.
         #[qinvokable]
         #[cxx_name = "filesOf"]
@@ -525,13 +529,7 @@ impl qobject::ModsData {
             })
             .release();
         self.as_mut()
-            .on_unsaved_changed(|me| me.count_sort_moves())
-            .release();
-        self.as_mut()
             .on_files_read_changed(|me| me.count_sort_moves())
-            .release();
-        self.as_mut()
-            .on_previewing_changed(|me| me.count_sort_moves())
             .release();
         self.as_mut()
             .on_filter_changed(|mut me| {
@@ -734,6 +732,7 @@ impl qobject::ModsData {
         self.as_mut().set_overview(overview);
         self.as_mut().set_fresh(fresh);
         self.as_mut().set_orders(orders);
+        self.as_mut().count_sort_moves();
         self.as_mut().summarize_selection();
         self.describe();
     }

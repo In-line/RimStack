@@ -39,7 +39,7 @@ Rectangle {
     readonly property bool editing: fieldInput.activeFocus
 
     function isTerm(word) {
-        return /^(is|has|in|tag|author|patches):.+$/.test(word)
+        return /^!?(is|has|in|tag|author|patches):.+$/.test(word)
     }
     function compose() {
         syncing = true

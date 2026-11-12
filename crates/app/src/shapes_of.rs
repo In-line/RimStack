@@ -262,6 +262,10 @@ fn mods(app: &App, shapes: &mut Shapes) {
     shapes.add("mods.summary", &app.summary());
     shapes.add("mods.overview", &order.overview(app));
     shapes.add("mods.fresh", &order.fresh(app, Side::Inactive));
+    shapes.add(
+        "mods.filterOffers",
+        &order.filter_offers("", "", &Default::default()),
+    );
     for at in 0..order.list(Side::Active).mods().len() {
         if let Some(gone) = order.not_installed(app, Side::Active, at) {
             shapes.add("mods.notInstalled", &gone);

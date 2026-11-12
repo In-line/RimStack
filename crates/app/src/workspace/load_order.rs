@@ -6,6 +6,7 @@ use rimstack_core::kept::{activated, launches};
 use rimstack_core::mods::describe::Trouble;
 use rimstack_core::mods::library::{Library, ModId};
 pub use rimstack_core::mods::list::Side;
+use rimstack_core::mods::list::offers::{self, Counted, Offers};
 use rimstack_core::mods::list::{Category, GroupedList, LeftOut, Mod, SortKey, flag};
 use rimstack_core::mods::{demo, sort_reasons};
 use rimstack_core::rimworld::paths::Source;
@@ -330,6 +331,11 @@ impl LoadOrder {
                 inactive
             ),
         }
+    }
+
+    pub fn filter_offers(&self, typed: &str, text: &str, counted: &Counted) -> Offers {
+        let mods = self.active.mods().iter().chain(self.inactive.mods());
+        offers::offers(typed, text, counted, mods.map(|m| m.tags.as_slice()))
     }
 
     pub fn recheck(&mut self, app: &App) {

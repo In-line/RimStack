@@ -470,7 +470,33 @@ Item {
         Mods.select(-1, false)
         Mods.prefs.inactiveOrder = "name"
         Mods.prefs.headings = 0
-        check("a save is written off the window's thread", Mods.save(() => { check("the changed list is saved", !Hub.mods.dirty && Mods.saveProblem === ""); Qt.exit(failed > 0 ? 1 : 0) }) && Hub.mods.saving)
+        const kin = [...Array(Math.max(0, Mods.active.count - 1)).keys()].find(i => Mods.about(Mods.nthMod(Mods.active, i)).category === Mods.about(Mods.nthMod(Mods.active, i + 1)).category)
+        const later = kin === undefined ? -1 : Mods.nthMod(Mods.active, kin + 1), earlier = kin === undefined ? -1 : Mods.nthMod(Mods.active, kin)
+        const ruled = () => {
+            if (later >= 0) {
+                const shown = Hub.mods.sortPending
+                Mods.previewSort()
+                const found = Hub.mods.previewing ? Hub.mods.sortMoveCount : 0
+                check("a rule of your own counts in the moves Sort shows", shown > 0 && shown === found)
+                Mods.endSort(false)
+                Hub.mods.removeRule(later, earlier)
+            }
+            check("a save is written off the window's thread", Mods.save(() => { check("the changed list is saved", !Hub.mods.dirty && Mods.saveProblem === ""); Qt.exit(failed > 0 ? 1 : 0) }) && Hub.mods.saving)
+        }
+        checks.afterSortCount = () => {
+            if (later >= 0)
+                Hub.mods.addRule(later, earlier)
+            checks.afterSortCount = ruled
+            sortCounted.start()
+        }
+        sortCounted.start()
+    }
+
+    property var afterSortCount: null
+    Timer {
+        id: sortCounted
+        interval: 1000
+        onTriggered: checks.afterSortCount()
     }
 
     property int frames: 0

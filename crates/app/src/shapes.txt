@@ -558,6 +558,12 @@ mods.filesOf: object
     []: object
       files: number
       folder: text
+mods.filterOffers: object
+  offers: list
+    []: object
+      about: text
+      term: text
+  widest: text
 mods.findMods: list
   []: object
     active: bool

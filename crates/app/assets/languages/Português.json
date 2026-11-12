@@ -1149,6 +1149,7 @@
  "Updating from Git…": "Atualizando pelo Git…",
  "Updating…": "Atualizando…",
  "Use": "Usar",
+ "Use ! to exclude, as in !tag:hud": "Use ! para excluir, como em !tag:hud",
  "Use its list": "Usar sua lista",
  "Use that list": "Usar essa lista",
  "Use the copied list": "Usar a lista copiada",

@@ -1,5 +1,6 @@
-use crate::mods::facts::{Facts, Has};
+use crate::mods::facts::Facts;
 use crate::mods::library::ModId;
+use filter::Filter;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -265,24 +266,6 @@ fn haystack(m: &Mod) -> String {
     format!("{} {}", m.name, m.author).to_lowercase()
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-struct Filter {
-    words: Vec<String>,
-    authors: Vec<String>,
-    tags: Vec<String>,
-    local: bool,
-    workshop: bool,
-    git: bool,
-    code: bool,
-    patches: Vec<String>,
-    has: Vec<Has>,
-    defines: Vec<String>,
-    patches_def: Vec<String>,
-    flags: u16,
-    only: Option<Side>,
-    both: bool,
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum LeftOut {
     Dimmed,
@@ -320,92 +303,6 @@ pub mod flag {
     pub const NEW: u16 = 128;
     pub const CHANGED: u16 = 256;
     pub const IN_SEARCH: u16 = 512;
-}
-
-impl Filter {
-    fn parse(text: &str) -> Self {
-        let mut filter = Self::default();
-        for term in text.to_lowercase().split_whitespace() {
-            match term.split_once(':') {
-                Some(("author", name)) if !name.is_empty() => filter.authors.push(name.to_string()),
-                Some(("tag", label)) if !label.is_empty() => filter.tags.push(label.to_string()),
-                Some(("is", "local")) => filter.local = true,
-                Some(("is", "workshop")) => filter.workshop = true,
-                Some(("is", "git")) => filter.git = true,
-                Some(("is", "active")) => filter.ask(Side::Active),
-                Some(("is", "inactive")) => filter.ask(Side::Inactive),
-                Some(("has", "code")) => filter.code = true,
-                Some(("patches", method)) if !method.is_empty() => {
-                    filter.patches.push(method.to_string())
-                }
-                Some(("has", what)) if Has::named(what).is_some() => {
-                    filter.has.extend(Has::named(what))
-                }
-                Some(("defines", name)) if !name.is_empty() => {
-                    filter.defines.push(name.to_string())
-                }
-                Some(("patchesdef", name)) if !name.is_empty() => {
-                    filter.patches_def.push(name.to_string())
-                }
-                Some(("is", "error")) => filter.flags |= flag::ERROR,
-                Some(("is", "warning")) => filter.flags |= flag::WARNING,
-                Some(("is", "conflict")) => filter.flags |= flag::CONFLICT,
-                Some(("is", "updated")) => filter.flags |= flag::UPDATED,
-                Some(("is", "notinsave")) => filter.flags |= flag::NOT_IN_SAVE,
-                Some(("is", "recent")) => filter.flags |= flag::RECENT,
-                Some(("is", "duplicate")) => filter.flags |= flag::DUPLICATE,
-                Some(("is", "new")) => filter.flags |= flag::NEW,
-                Some(("is", "changed")) => filter.flags |= flag::CHANGED,
-                Some(("in", "search")) => filter.flags |= flag::IN_SEARCH,
-                _ => filter.words.push(term.to_string()),
-            }
-        }
-        filter
-    }
-
-    fn ask(&mut self, side: Side) {
-        self.both |= self.only.is_some_and(|asked| asked != side);
-        self.only = Some(side);
-    }
-
-    fn shuts(&self, side: Option<Side>) -> bool {
-        self.both || side.zip(self.only).is_some_and(|(side, only)| side != only)
-    }
-
-    fn is_empty(&self) -> bool {
-        *self == Self::default()
-    }
-
-    fn needs_facts(&self) -> bool {
-        !(self.has.is_empty() && self.defines.is_empty() && self.patches_def.is_empty())
-    }
-
-    fn admits(&self, m: &Mod, haystack: &str, flags: u16, facts: Option<&Facts>) -> bool {
-        if flags & self.flags != self.flags {
-            return false;
-        }
-        let read = |facts: &Facts| {
-            self.has.iter().all(|&what| facts.has(what))
-                && self.defines.iter().all(|name| facts.defines(name))
-                && self.patches_def.iter().all(|name| facts.patches_def(name))
-        };
-        if self.needs_facts() && !facts.is_some_and(read) {
-            return false;
-        }
-        let author = || m.author.to_lowercase();
-        let tagged = |wanted: &String| m.tags.iter().any(|t| t.to_lowercase().starts_with(wanted));
-        self.words.iter().all(|w| haystack.contains(w))
-            && self.authors.iter().all(|a| author().contains(a))
-            && self.tags.iter().all(tagged)
-            && (!self.local || m.local)
-            && (!self.workshop || m.workshop)
-            && (!self.git || m.git)
-            && (!self.code || m.code)
-            && self
-                .patches
-                .iter()
-                .all(|p| m.patched.iter().any(|at| at.contains(p)))
-    }
 }
 
 impl GroupedList {
@@ -449,9 +346,13 @@ impl GroupedList {
     /// Changing the order forgets it.
     pub fn set_flags(&mut self, flags: Vec<u16>) {
         self.flags = flags;
-        if self.filter.flags != 0 {
+        if self.filter.reads_flags() {
             self.rebuild();
         }
+    }
+
+    pub fn flagged(&self, mark: u16) -> usize {
+        self.flags.iter().filter(|flags| *flags & mark != 0).count()
     }
 
     /// `None` puts it in category order, under headings.
@@ -783,7 +684,9 @@ pub fn edge_of_run(mods: &[Mod], at: usize, top: bool) -> usize {
     }
 }
 
+mod filter;
 mod moves;
 mod navigate;
+pub mod offers;
 #[cfg(test)]
 mod tests;

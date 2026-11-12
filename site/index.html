@@ -445,7 +445,7 @@ footer { margin: 72px 0 40px; padding-top: 22px; border-top: 1px solid var(--lin
 <p>Right-click a row (or press the <kbd>Menu</kbd> key) for the mod's menu: copy its name or package id, open its pages, add a tag, ignore a warning, copy a Workshop mod to the game's own Mods folder to freeze it, unsubscribe, or move it to the bin.</p>
 
 <h3 id="mods-filter">Filters</h3>
-<p><kbd>Ctrl</kbd> <kbd>F</kbd> filters both lists. Type part of a name, or one of these. The box suggests them as you type:</p>
+<p><kbd>Ctrl</kbd> <kbd>F</kbd> filters both lists. Type part of a name, or one of these; each one narrows the lists further. The box suggests them as you type:</p>
 <div class="tablewrap"><table>
   <thead><tr><th>Filter</th><th>Shows the mods</th></tr></thead>
   <tbody>
@@ -466,7 +466,8 @@ footer { margin: 72px 0 40px; padding-top: 22px; border-top: 1px solid var(--lin
     <tr><td><code>has:defs</code> <code>has:patches</code> <code>has:textures</code> <code>has:sounds</code> <code>has:languages</code></td><td>that hold XML defs, XML patches, textures, sounds or translations (inactive mods are read in the background)</td></tr>
     <tr><td><code>defines:</code> <code>patchesdef:</code></td><td>that define, or patch, this defName exactly</td></tr>
     <tr><td><code>patches:</code></td><td>that patch this method of the game</td></tr>
-    <tr><td><code>tag:</code> · <code>author:</code></td><td>with this tag · by this author</td></tr>
+    <tr><td><code>tag:</code> · <code>author:</code></td><td>with this tag · by this author; after <code>tag:</code> the box offers your tags</td></tr>
+    <tr><td><code>!</code> before any of them, or a word</td><td>without it: <code>!tag:hud !is:workshop</code> leaves out mods tagged HUD and Workshop mods</td></tr>
   </tbody>
 </table></div>
 
