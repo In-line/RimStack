@@ -15,6 +15,10 @@ build:
 run *args: build
     {{app}} {{args}}
 
+# Open the last build with the QML read from crates/app/qml: a QML edit shows at the next start, with no build
+live *args:
+    RIMSTACK_QML=target/qml-live {{app}} {{args}}
+
 # Open on 2,300 made-up mods instead of the installed ones
 demo *args: build
     {{app}} --demo {{args}}
