@@ -445,7 +445,7 @@ footer { margin: 72px 0 40px; padding-top: 22px; border-top: 1px solid var(--lin
 <p>Right-click a row (or press the <kbd>Menu</kbd> key) for the mod's menu: copy its name or package id, open its pages, add a tag, ignore a warning, copy a Workshop mod to the game's own Mods folder to freeze it, unsubscribe, or move it to the bin.</p>
 
 <h3 id="mods-filter">Filters</h3>
-<p><kbd>Ctrl</kbd> <kbd>F</kbd> filters both lists. Type part of a name, or one of these. The box suggests them as you type:</p>
+<p><kbd>Ctrl</kbd> <kbd>F</kbd> filters both lists. Type part of a name, or one of these; each one narrows the lists further. The box suggests them as you type:</p>
 <div class="tablewrap"><table>
   <thead><tr><th>Filter</th><th>Shows the mods</th></tr></thead>
   <tbody>
@@ -455,16 +455,19 @@ footer { margin: 72px 0 40px; padding-top: 22px; border-top: 1px solid var(--lin
     <tr><td><code>is:new</code></td><td>installed since the game was last started</td></tr>
     <tr><td><code>is:recent</code></td><td>updated by Steam in the last week</td></tr>
     <tr><td><code>is:updated</code></td><td>with a newer version, after checking for updates</td></tr>
-    <tr><td><code>is:active</code></td><td>in the active list only</td></tr>
-    <tr><td><code>is:inactive</code></td><td>in the inactive list only</td></tr>
+    <tr><td><code>is:active</code></td><td>in the active list; the inactive one is dimmed or hidden (Settings → Appearance)</td></tr>
+    <tr><td><code>is:inactive</code></td><td>in the inactive list; the load order is dimmed or hidden (Settings → Appearance)</td></tr>
     <tr><td><code>is:workshop</code></td><td>from the Workshop</td></tr>
     <tr><td><code>is:local</code></td><td>in the game's Mods folder</td></tr>
     <tr><td><code>is:git</code></td><td>a git checkout</td></tr>
     <tr><td><code>is:duplicate</code></td><td>installed more than once</td></tr>
     <tr><td><code>is:notinsave</code></td><td>active, and not in the newest save</td></tr>
     <tr><td><code>has:code</code></td><td>that ship compiled code</td></tr>
+    <tr><td><code>has:defs</code> <code>has:patches</code> <code>has:textures</code> <code>has:sounds</code> <code>has:languages</code></td><td>that hold XML defs, XML patches, textures, sounds or translations (inactive mods are read in the background)</td></tr>
+    <tr><td><code>defines:</code> <code>patchesdef:</code></td><td>that define, or patch, this defName exactly</td></tr>
     <tr><td><code>patches:</code></td><td>that patch this method of the game</td></tr>
-    <tr><td><code>tag:</code> · <code>author:</code></td><td>with this tag · by this author</td></tr>
+    <tr><td><code>tag:</code> · <code>author:</code></td><td>with this tag · by this author; after <code>tag:</code> the box offers your tags</td></tr>
+    <tr><td><code>!</code> before any of them, or a word</td><td>without it: <code>!tag:hud !is:workshop</code> leaves out mods tagged HUD and Workshop mods</td></tr>
   </tbody>
 </table></div>
 

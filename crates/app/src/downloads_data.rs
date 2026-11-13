@@ -29,6 +29,7 @@ pub mod qobject {
         #[qproperty(QVariant, notes_state, cxx_name = "notesState")]
         #[qproperty(QVariant, replacements)]
         #[qproperty(bool, steamcmd)]
+        #[qproperty(bool, steam_waits, cxx_name = "steamWaits")]
         #[qproperty(QString, task_note, cxx_name = "taskNote")]
         #[qproperty(bool, task_running, cxx_name = "taskRunning")]
         /// The checkout being brought up to its remote, by mod id; -1 for none.
@@ -114,12 +115,15 @@ use core::pin::Pin;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QVariant};
 use rimstack_core::base::error::Error;
+use rimstack_core::kept::settings::Switch;
 use rimstack_core::mods::library::ModId;
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 
 mod notes;
 mod tasks;
+
+const TICK: std::time::Duration = std::time::Duration::from_secs(60);
 
 pub struct DownloadsDataRust {
     updates: QVariant,
@@ -134,6 +138,7 @@ pub struct DownloadsDataRust {
     notes_state: QVariant,
     replacements: QVariant,
     steamcmd: bool,
+    steam_waits: bool,
     task_note: QString,
     task_running: bool,
     updating: i32,
@@ -145,11 +150,16 @@ pub struct DownloadsDataRust {
     changed: SinceLaunch,
     fetched: ChangeNotes,
     asked_of_steam: HashSet<String>,
-    waiting: VecDeque<(String, Work)>,
+    waiting: VecDeque<Waiting>,
     since_reading: crate::jobs::Lane,
+    tried: u64,
 }
 
-type Work = Box<dyn FnOnce() -> Done + Send>;
+struct Waiting {
+    doing: String,
+    updating: Option<i32>,
+    work: Box<dyn FnOnce() -> Done + Send>,
+}
 
 impl Default for DownloadsDataRust {
     fn default() -> Self {
@@ -166,6 +176,7 @@ impl Default for DownloadsDataRust {
             notes_state: QVariant::default(),
             replacements: QVariant::default(),
             steamcmd: false,
+            steam_waits: false,
             task_note: QString::default(),
             task_running: false,
             updating: -1,
@@ -179,6 +190,7 @@ impl Default for DownloadsDataRust {
             asked_of_steam: HashSet::new(),
             waiting: VecDeque::new(),
             since_reading: crate::jobs::Lane::default(),
+            tried: 0,
         }
     }
 }
@@ -199,11 +211,39 @@ impl qobject::DownloadsData {
         self.as_mut()
             .on_since_only_changed(|me| me.show_since())
             .release();
-        self.heard(Changes::LIBRARY | Changes::SETTINGS);
+        self.as_mut().heard(Changes::LIBRARY | Changes::SETTINGS);
+        let thread = self.qt_thread();
+        crate::jobs::spawn("update checks", move || {
+            loop {
+                std::thread::sleep(TICK);
+                if thread.queue(|me| me.tick()).is_err() {
+                    return;
+                }
+            }
+        });
+    }
+
+    fn by_itself(&self) -> bool {
+        self.app().settings().switch(Switch::AutoUpdates)
+    }
+
+    fn tick(mut self: Pin<&mut Self>) {
+        if !self.by_itself() || self.updates_busy {
+            return;
+        }
+        let every = self.app().settings().update_every_minutes() * 60;
+        let last = self.checked.checked.unwrap_or(0).max(self.tried);
+        if crate::workspace::now_secs().saturating_sub(last) >= every {
+            self.as_mut().rust_mut().get_mut().tried = crate::workspace::now_secs();
+            self.check_updates();
+        }
     }
 
     fn heard(mut self: Pin<&mut Self>, changes: Changes) {
         let app = self.app();
+        if changes.contains(Changes::SETTINGS) {
+            self.as_mut().tick();
+        }
         if changes.contains(Changes::LIBRARY | Changes::SETTINGS | Changes::COMMUNITY) {
             self.as_mut().set_replacements(to_qml(&app.replaceable()));
             self.as_mut().set_steamcmd(app.steamcmd().is_some());
@@ -263,7 +303,12 @@ impl qobject::DownloadsData {
             |mut me, checked| {
                 me.as_mut().set_updates_busy(false);
                 match checked {
-                    Ok(updates) => me.show_updates(updates),
+                    Ok(updates) => {
+                        me.as_mut().show_updates(updates);
+                        if me.by_itself() {
+                            me.apply();
+                        }
+                    }
                     Err(problem) => me.show_updates(Updates {
                         problem: Some(problem.sentence().clone()),
                         ..Updates::default()

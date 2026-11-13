@@ -63,6 +63,23 @@ struct Known {
 pub struct Game {
     draws: HashSet<String>,
     types: HashMap<String, Known>,
+    ships: HashSet<String>,
+}
+
+fn beside(dir: &Path) -> HashSet<String> {
+    std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|entry| {
+            let path = entry.path();
+            let name = path.file_stem()?.to_string_lossy().to_lowercase();
+            let is_dll = path
+                .extension()
+                .is_some_and(|x| x.eq_ignore_ascii_case("dll"));
+            is_dll.then_some(name)
+        })
+        .collect()
 }
 
 fn entry_points(layout: &Layout, names: &[&str]) -> Vec<usize> {
@@ -117,7 +134,11 @@ impl Game {
                 }
             }
         }
-        Some(Self { draws, types })
+        Some(Self {
+            draws,
+            types,
+            ships: HashSet::new(),
+        })
     }
 
     /// `Assembly-CSharp.dll` is in the game's folder from 1.7, or in
@@ -143,7 +164,14 @@ impl Game {
             .iter()
             .map(|p| p.join("Assembly-CSharp.dll"))
             .find(|f| f.is_file())?;
-        Self::read(&std::fs::read(dll).ok()?)
+        let mut game = Self::read(&std::fs::read(&dll).ok()?)?;
+        game.ships = beside(dll.parent()?);
+        Some(game)
+    }
+
+    /// By lower-case name.
+    pub fn ships(&self) -> &HashSet<String> {
+        &self.ships
     }
 
     pub(crate) fn drawing_types(&self) -> &HashSet<String> {
@@ -200,6 +228,7 @@ impl Game {
         Self {
             draws: drawing(types, &HashSet::new()),
             types: types.iter().map(|t| (t.name.clone(), known(t))).collect(),
+            ships: HashSet::new(),
         }
     }
 }

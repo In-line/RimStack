@@ -15,6 +15,10 @@ build:
 run *args: build
     {{app}} {{args}}
 
+# Open the last build with the QML read from crates/app/qml: a QML edit shows at the next start, with no build
+live *args:
+    RIMSTACK_QML=target/qml-live {{app}} {{args}}
+
 # Open on 2,300 made-up mods instead of the installed ones
 demo *args: build
     {{app}} --demo {{args}}
@@ -25,14 +29,14 @@ fmt:
 
 # Clippy on every target, then qmllint on the QML
 lint: build
-    cargo clippy -q --all-targets
+    cargo clippy --release -q --all-targets
     tools/lint-qml.sh
     @# 21 are known (items reached through a Loader, a Repeater or `parent`, and the app's own types, which qmllint cannot see into): a new one is a mistake.
     @test "$(tools/lint-qml.sh 2>&1 | grep -c '^Warning')" -le 21 || { echo "qmllint: more warnings than the 21 known"; exit 1; }
 
-# Both crates' tests; `just test list::` runs those matching a name
+# Both crates' tests, on the release build's profile; `just test list::` runs those matching a name
 test *filter:
-    cargo test --workspace -q {{filter}}
+    cargo test --release --workspace -q {{filter}}
 
 # The package for this system, into target/packages: an AppImage, a zip and installer, or a dmg
 package:

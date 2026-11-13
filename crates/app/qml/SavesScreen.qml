@@ -40,7 +40,7 @@ Item {
                 Layout.rightMargin: Theme.gapCard
                 Layout.preferredHeight: Theme.header
                 spacing: Theme.gap
-                Text { color: Theme.ink; font.pixelSize: Theme.title; font.weight: Font.DemiBold; text: Theme.say("Saves") }
+                Text { color: Theme.ink; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; text: Theme.say("Saves") }
                 Text { color: Theme.ink3; font.pixelSize: Theme.body; text: screen.reader.heading }
                 Rectangle {
                     visible: (screen.reader.folders || []).length > 1
@@ -130,7 +130,7 @@ Item {
                         anchors.leftMargin: Theme.gapLarge
                         anchors.rightMargin: Theme.gapCard
                         radius: Theme.corner
-                        color: row.current ? Theme.accent : Theme.hover
+                        color: row.current ? Theme.chosen : Theme.hover
                         opacity: row.current ? 1 : rowHover.hovered ? 0.05 : 0
                     }
                     Rectangle { visible: !row.current; anchors.bottom: parent.bottom; anchors.bottomMargin: -1; x: Theme.gapPage; width: parent.width - Theme.gapPage - row.endGap; height: 1; color: Theme.line; opacity: 0.6 }
@@ -147,7 +147,7 @@ Item {
                             implicitWidth: Theme.sized(104)
                             implicitHeight: Theme.sized(62)
                             radius: Theme.corner
-                            color: Theme.panel
+                            color: Theme.card
                             border.width: row.modelData.preview ? 0 : 1
                             border.color: Theme.line
                             clip: true

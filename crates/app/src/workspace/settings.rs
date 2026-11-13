@@ -1,13 +1,15 @@
 use super::App;
 use crate::changes::Changes;
 use crate::reports::{
-    Database, FolderVerdict, LastLaunch, ReleaseSaid, SettingsReport, ShortContrast, Summary,
+    Database, FolderVerdict, KeptCount, LastLaunch, ReleaseSaid, SettingsReport, ShortContrast,
+    Summary,
 };
 use rimstack_core::base::error::Error;
 use rimstack_core::base::locks::Shared;
 use rimstack_core::base::sentence::Sentence;
 use rimstack_core::base::translate::{LOCALE, detected};
-use rimstack_core::kept::{owntheme, settings::Switch};
+use rimstack_core::kept::owntheme;
+use rimstack_core::kept::settings::{Switch, UPDATE_EVERY};
 use rimstack_core::mods::community;
 use rimstack_core::rimworld::workshopdb;
 use rimstack_core::sources::replacements;
@@ -67,6 +69,7 @@ const SHIPPED: &[(&str, &str)] = &[
         "Русский",
         include_str!("../../assets/languages/Русский.json"),
     ),
+    ("한국어", include_str!("../../assets/languages/한국어.json")),
 ];
 
 const EVERY_TEXT: &str = include_str!("../../assets/words.json");
@@ -78,12 +81,25 @@ fn shipped(name: &str) -> Option<&'static str> {
         .map(|(_, words)| *words)
 }
 
+fn every(minutes: u64) -> Sentence {
+    match minutes {
+        1 => say!("Every minute"),
+        60 => say!("Every hour"),
+        n => say_n!(
+            usize::try_from(n).unwrap_or(0),
+            "Every {} minute",
+            "Every {} minutes"
+        ),
+    }
+}
+
 pub fn effects(name: &str) -> Changes {
     Changes::SETTINGS
         | match name {
             "game" | "config" | "workshop" => Changes::FOLDERS,
             "language" => Changes::LANGUAGE,
             "gitForWorkshop" => Changes::UPDATES,
+            "showMature" => Changes::SOURCE,
             "logsKept" => Changes::LOGS,
             "communityRules" | "fileHints" | "versionWarnings" | "versionAsideFor" => {
                 Changes::PROBLEMS
@@ -149,9 +165,23 @@ impl App {
             version_warnings: settings.switch(Switch::VersionWarnings),
             version_aside_for: owned("versionAsideFor"),
             file_hints: settings.switch(Switch::FileHints),
+            dim_left_out: settings.switch(Switch::DimLeftOut),
             git_for_workshop: settings.switch(Switch::GitForWorkshop),
+            auto_updates: settings.switch(Switch::AutoUpdates),
+            auto_updates_asked: settings.get(Switch::AutoUpdates.name()).is_some(),
+            update_every: UPDATE_EVERY
+                .iter()
+                .map(|m| every(m.parse().unwrap_or(0)))
+                .collect(),
+            update_every_at: UPDATE_EVERY
+                .iter()
+                .position(|m| m.parse() == Ok(settings.update_every_minutes()))
+                .unwrap_or(0),
+            update_every_said: every(settings.update_every_minutes()),
+            update_every_set: settings.get("updateEvery").is_some(),
             git: self.git().clone(),
             self_check: settings.switch(Switch::SelfCheck),
+            show_mature: settings.switch(Switch::ShowMature),
             nightly_updates: settings.nightly_updates(),
             logs_kept: settings.logs_kept().unwrap_or(10),
             logs_kept_now: rimstack_core::rimworld::logs::kept(&logs).len(),
@@ -177,6 +207,7 @@ impl App {
                 .join("steamcmd")
                 .to_string_lossy()
                 .into_owned(),
+            steamcmd_refused: rimstack_core::sources::redownload::refusal(),
             settings_file: self.settings_file().to_string_lossy().into_owned(),
             diagnostics_file: self.diagnostics_file().to_string_lossy().into_owned(),
             version: build_label(),
@@ -211,12 +242,43 @@ impl App {
             }
             Err(_) => 0,
         };
+        let folders = kept.map_or(1, |s| s.folders.len());
+        let snapshots = rimstack_core::kept::lists::count(&self.snapshots_dir());
+        let rules = self.user_rules().reading().len();
+        let community = (*self.community()).as_ref().map_or(0, |c| c.len());
+        let saved = match folders {
+            0 | 1 => Sentence::Number(saves as i64),
+            _ => say!("{} in {} RimSaves folders", saves, folders),
+        };
+        let counts = [
+            (say!("Saves"), saved),
+            (say!("Snapshots"), Sentence::Number(snapshots as i64)),
+            (say!("Own rules"), Sentence::Number(rules as i64)),
+            (
+                say!("Community rules"),
+                match community {
+                    0 => say!("Not downloaded"),
+                    n => say_n!(n, "{} mod", "{} mods"),
+                },
+            ),
+        ];
+        let noted = [
+            Some(say_n!(saves, "{} save", "{} saves")),
+            Some(say_n!(snapshots, "{} snapshot", "{} snapshots")),
+            (community > 0).then(|| say_n!(community, "rules for {} mod", "rules for {} mods")),
+        ];
         Summary {
             saves,
-            folders: kept.map_or(1, |s| s.folders.len()),
-            snapshots: rimstack_core::kept::lists::count(&self.snapshots_dir()),
+            folders,
+            snapshots,
             replacements,
-            rules: self.user_rules().reading().len(),
+            rules,
+            kept_note: Sentence::listed(noted.into_iter().flatten().collect()),
+            kept: counts
+                .into_iter()
+                .filter(|(_, value)| !value.is_empty())
+                .map(|(label, value)| KeptCount { label, value })
+                .collect(),
             last_launch: last.map(|l| LastLaunch {
                 time: l.time,
                 errors: l.errors,
@@ -411,6 +473,13 @@ impl App {
         self.keep_setting("databasesOff", &off.join(","))
     }
 
+    /// Browse searches the index the same download writes, so it is fetched even where the names
+    /// are switched off until the index exists.
+    fn names_wanted(&self) -> bool {
+        self.database_on("names")
+            || !rimstack_core::rimworld::workshopindex::file_in(self.data_dir()).exists()
+    }
+
     pub fn download_databases(&self) -> Result<(), Error> {
         let data = self.data_dir();
         let mut failed: Vec<Error> = Vec::new();
@@ -433,7 +502,7 @@ impl App {
         if self.database_on("replacements") {
             failed.extend(replacements::download(&replacements::file_in(data)).err());
         }
-        if self.database_on("names") {
+        if self.names_wanted() {
             let file = workshopdb::file_in(data);
             match workshopdb::download(&file) {
                 Ok(fresh) => self.workshop_names.put(super::written(file), fresh),
@@ -568,6 +637,28 @@ mod tests {
     }
 
     #[test]
+    fn the_kept_card_counts_saves_snapshots_and_rules() {
+        let (_tmp, app) = installed();
+        let summary = app.summary();
+        let shown: Vec<(String, String)> = summary
+            .kept
+            .iter()
+            .map(|k| (k.label.to_string(), k.value.to_string()))
+            .collect();
+        assert_eq!(
+            shown,
+            [
+                ("Saves", "0"),
+                ("Snapshots", "0"),
+                ("Own rules", "0"),
+                ("Community rules", "Not downloaded"),
+            ]
+            .map(|(label, value)| (label.to_string(), value.to_string()))
+        );
+        assert_eq!(summary.kept_note.to_string(), "0 saves, 0 snapshots");
+    }
+
+    #[test]
     fn a_setting_tells_what_follows_from_it() {
         let (_tmp, app) = installed();
         let heard = heard(&app);
@@ -576,6 +667,32 @@ mod tests {
         app.keep_setting("fileHints", "on").unwrap();
         assert!(heard.lock().unwrap().contains(Changes::PROBLEMS));
         assert!(app.keep_setting("noSuchSetting", "x").is_err());
+    }
+
+    #[test]
+    fn updating_by_itself_is_offered_until_answered_either_way() {
+        let (_tmp, app) = installed();
+        let report = app.settings_report();
+        assert!(!report.auto_updates && !report.auto_updates_asked);
+        for (answer, on) in [("on", true), ("off", false)] {
+            app.keep_setting("autoUpdates", answer).unwrap();
+            let report = app.settings_report();
+            assert_eq!((report.auto_updates, report.auto_updates_asked), (on, true));
+        }
+    }
+
+    #[test]
+    fn the_time_between_update_checks_is_one_of_those_offered() {
+        let (_tmp, app) = installed();
+        let report = app.settings_report();
+        assert_eq!(UPDATE_EVERY[report.update_every_at], "10");
+        assert_eq!(report.update_every_said.to_string(), "Every 10 minutes");
+        assert!(!report.update_every_set);
+        app.keep_setting("updateEvery", "60").unwrap();
+        let report = app.settings_report();
+        assert_eq!(report.update_every_said.to_string(), "Every hour");
+        assert_eq!(report.update_every[0].to_string(), "Every minute");
+        assert!(report.update_every_set);
     }
 
     #[test]
@@ -588,6 +705,21 @@ mod tests {
         assert_eq!(app.settings().get("databasesOff"), Some("rules"));
         let on: Vec<bool> = app.databases().iter().map(|d| d.on).collect();
         assert_eq!(on, [false, true, true, true]);
+    }
+
+    #[test]
+    fn the_index_is_fetched_with_the_names_off_until_it_exists() {
+        let (_tmp, app) = installed();
+        app.use_database("names", false).unwrap();
+        assert!(app.names_wanted());
+        rimstack_core::rimworld::workshopindex::Index::new(Vec::new())
+            .store(&rimstack_core::rimworld::workshopindex::file_in(
+                app.data_dir(),
+            ))
+            .unwrap();
+        assert!(!app.names_wanted());
+        app.use_database("names", true).unwrap();
+        assert!(app.names_wanted());
     }
 
     #[test]

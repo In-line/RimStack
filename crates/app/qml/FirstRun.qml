@@ -31,7 +31,7 @@ Rectangle {
             width: parent.width
             height: inside.implicitHeight
             radius: Theme.cornerLarge
-            color: Theme.panel
+            color: Theme.card
             Column { id: inside; width: parent.width }
         }
     }
@@ -88,7 +88,7 @@ Rectangle {
                 Accessible.onToggleAction: choice.toggled()
                 Keys.onSpacePressed: choice.toggled()
                 FocusRing { corner: 3 }
-                Text { visible: choice.on; anchors.centerIn: parent; color: Theme.onSelected; font.pixelSize: Theme.caption; font.weight: Font.DemiBold; text: "✓" }
+                Text { visible: choice.on; anchors.centerIn: parent; color: Theme.accentInk; font.pixelSize: Theme.caption; font.weight: Font.DemiBold; text: "✓" }
             }
             Text {
                 id: said
@@ -148,7 +148,7 @@ Rectangle {
                         height: Theme.sized(22)
                         radius: Math.min(width, height) / 2
                         color: mark.index === page.step ? Theme.accent : mark.index < page.step ? Theme.ok : Theme.ctl
-                        Text { anchors.centerIn: parent; color: mark.index <= page.step ? Theme.onSelected : Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: mark.index < page.step ? "✓" : mark.index + 1 }
+                        Text { anchors.centerIn: parent; color: mark.index <= page.step ? Theme.accentInk : Theme.ink2; font.pixelSize: Theme.small; font.weight: Font.DemiBold; text: mark.index < page.step ? "✓" : mark.index + 1 }
                     }
                     Text { anchors.verticalCenter: parent.verticalCenter; color: mark.index === page.step ? Theme.ink : Theme.ink2; font.pixelSize: Theme.body; font.weight: mark.index === page.step ? Font.DemiBold : Font.Normal; text: Theme.say(mark.modelData) }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
@@ -177,7 +177,7 @@ Rectangle {
                 topPadding: Theme.gapHair
                 color: Theme.ink2
                 font.pixelSize: Theme.body
-                text: [Theme.say("Found automatically; changeable in Settings"), Theme.say("Fetched from GitHub on Start, and again only on request"), Theme.say("What Sort follows beside each mod's own rules"), Theme.say("Changeable in Settings at any time"), Theme.say("Nothing is written to the game before Save")][page.step]
+                text: [Theme.say("Found automatically; changeable in Settings"), Theme.say("Fetched from GitHub on Start, and again only on request"), Theme.say("What Sort follows besides each mod's own rules"), Theme.say("Changeable in Settings at any time"), Theme.say("Nothing is written to the game before Save")][page.step]
             }
 
             Block {
@@ -220,12 +220,13 @@ Rectangle {
                 Found { visible: !!page.info.git; what: "Git"; where: page.info.git ? Theme.fill("version {}", page.info.git) : ""; sentence: true }
                 Found { visible: !page.info.git; note: true; sentence: true; what: Theme.say("Git is not installed: a mod kept as a Git checkout cannot be checked or updated") }
                 Found { visible: !!page.info.steamcmd; what: "SteamCMD"; where: Theme.say("installed"); sentence: true; last: true }
-                Found { visible: !page.info.steamcmd; note: true; sentence: true; last: true; what: Theme.say("SteamCMD is not installed: Downloads can install it, to fetch a mod without subscribing") }
+                Found { visible: !page.info.steamcmd && !page.info.steamcmdRefused; note: true; sentence: true; last: true; what: Theme.say("SteamCMD is not installed: Downloads can install it, to fetch a mod without subscribing") }
+                Found { visible: !!page.info.steamcmdRefused; note: true; sentence: true; last: true; what: page.info.steamcmdRefused || "" }
             }
             Block {
                 visible: page.step === 1 && !!page.info.rimsortRules
                 title: Theme.say("Import from RimSort")
-                Tick { last: true; text: Theme.say("Own load order rules"); detail: Theme.say("(RimSort's file is only read)"); on: page.withRimSort; onToggled: page.withRimSort = !page.withRimSort }
+                Tick { last: true; text: Theme.say("Your load order rules"); detail: Theme.say("(RimSort's file is only read)"); on: page.withRimSort; onToggled: page.withRimSort = !page.withRimSort }
             }
             Block {
                 visible: page.step === 1
@@ -251,7 +252,7 @@ Rectangle {
                 Found { note: true; sentence: true; what: Theme.say("Each mod's own rules, and the code it uses or patches in another mod: always") }
                 Tick {
                     text: Theme.say("Community rules")
-                    detail: Theme.say("load-order rules kept by players, for mods whose files do not say enough")
+                    detail: Theme.say("load-order rules written by players, for mods whose files do not say enough")
                     on: !!page.info.communityRules
                     onToggled: Hub.settings.keep("communityRules", page.info.communityRules ? "off" : "on")
                 }
@@ -267,7 +268,7 @@ Rectangle {
                 visible: page.step === 2
                 title: Theme.say("Either way")
                 Found { note: true; sentence: true; what: Theme.say("Sort shows every move and the rule behind it before anything changes") }
-                Found { note: true; sentence: true; last: true; what: Theme.say("Hints left out of Sort still show in a mod's Load order tab") }
+                Found { note: true; sentence: true; last: true; what: Theme.say("Hints that Sort does not use still show in a mod's Load order tab") }
             }
             Block {
                 visible: page.step === 3 && page.info.official.length > 0
@@ -290,7 +291,7 @@ Rectangle {
                                 width: glance.width
                                 height: Theme.stored.comfortable ? Theme.sized(46) : Theme.row
                                 radius: Theme.corner
-                                color: chosen ? Theme.accent : "transparent"
+                                color: chosen ? Theme.chosen : "transparent"
                                 RowLayout {
                                     anchors.fill: parent
                                     anchors.leftMargin: Theme.gapMedium

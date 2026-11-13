@@ -36,7 +36,8 @@ Column {
                 visible: status === Image.Ready
                 asynchronous: true
                 fillMode: Image.PreserveAspectCrop
-                sourceSize.width: Theme.sized(192)
+                sourceSize.width: width * Screen.devicePixelRatio
+                sourceSize.height: height * Screen.devicePixelRatio
                 source: Mods.info.preview ? Theme.fileUrl(Mods.info.preview) : ""
             }
             Text { visible: !Mods.info.preview; anchors.centerIn: parent; color: Theme.brand; font.pixelSize: Theme.display; font.weight: Font.DemiBold; text: (Mods.info.name || "?").charAt(0).toUpperCase() }
@@ -47,7 +48,7 @@ Column {
         Column {
             Layout.fillWidth: true
             spacing: Theme.gapThin
-            CopyText { width: parent.width; font.pixelSize: Theme.heading; font.weight: Font.DemiBold; text: Mods.info.name || "" }
+            CopyText { width: parent.width; font.pixelSize: Theme.heading; font.weight: Font.Bold; text: Mods.info.name || "" }
             Text { width: parent.width; elide: Text.ElideRight; color: Theme.ink2; font.pixelSize: Theme.body; text: Mods.info.author || "" }
             Flow {
                 width: parent.width

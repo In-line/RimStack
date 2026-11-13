@@ -11,6 +11,7 @@ ListView {
     readonly property bool wide: columns && width >= Theme.sized(620)
     readonly property bool roomy: columns && width >= Theme.sized(440)
     readonly property real numberWidth: Theme.sized(28)
+    readonly property TextMetrics numbers: TextMetrics { font.pixelSize: Theme.small; text: "" + list.count }
     property real headingTail: 0
     readonly property real quickWidth: Math.max(headingTail, Theme.sized(wide ? 124 : 44))
     function roomBeside(shown, author) {
@@ -18,10 +19,10 @@ ListView {
         return width - barRoom - quickWidth - numberWidth - 2 * Theme.gapWide - 2 * Theme.gapLarge - taken
     }
     readonly property int nameRoom: Theme.sized(180)
-    readonly property int authorWidth: roomBeside(roomy ? Mods.columns.shown : [], Mods.columns.widths.author) >= nameRoom ? Mods.columns.widths.author : Theme.sized(86)
+    readonly property int authorWidth: roomBeside(roomy ? Mods.columns.shown : [], Mods.columns.widths.author) >= nameRoom ? Mods.columns.widths.author : Mods.columns.authorHeading.advanceWidth
     readonly property var fitting: {
         let shown = roomy ? Mods.columns.shown.slice() : []
-        for (const column of ["load", "author", "version"]) {
+        for (const column of ["size", "downloaded", "activated", "updated", "load", "author", "version"]) {
             if (roomBeside(shown, authorWidth) >= nameRoom)
                 break
             shown = shown.filter(other => other !== column)
@@ -34,6 +35,10 @@ ListView {
 
     clip: true
     reuseItems: true
+    states: State {
+        when: list.model.dimmed
+        PropertyChanges { list.opacity: 0.5 }
+    }
     acceptedButtons: Qt.NoButton
     boundsBehavior: Flickable.StopAtBounds
     Wheel {}
@@ -45,7 +50,8 @@ ListView {
         width: listView ? listView.width : 0
         height: Theme.sized(30)
         DropArea {
-            anchors.fill: parent
+            width: parent.width
+            height: list.height
             onEntered: Mods.drag.target = { model: end.listView.model, modIndex: end.listView.model.count, item: end }
             onExited: if (Mods.drag.target && Mods.drag.target.item === end) Mods.drag.target = null
             Rectangle { visible: parent.containsDrag; x: Theme.gapSmall; width: parent.width - 2 * Theme.gapSmall; height: 2; radius: Math.min(width, height) / 2; color: Theme.focus }
@@ -61,6 +67,19 @@ ListView {
         Mods.editRequested(event.key === Qt.Key_N ? "note" : "tags")
         event.accepted = true
     }
+    Shortcut {
+        sequences: [StandardKey.SelectAll]
+        enabled: list.activeFocus
+        onActivated: {
+            Mods.select(list.model.firstModId(), list.model.active)
+            Mods.selectThrough(list.model.lastModId(), list.model.active)
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+I"
+        enabled: list.activeFocus
+        onActivated: Mods.invertSelection(list.model.active)
+    }
     Keys.onReturnPressed: Mods.activateSelected(list.model)
     Keys.onEnterPressed: Mods.activateSelected(list.model)
     Rectangle { id: ring; parent: list; anchors.fill: parent; anchors.margins: Theme.gapLine; z: 4; radius: Theme.corner; color: "transparent"; border.width: 2; border.color: Theme.focus; visible: list.activeFocus }
@@ -68,13 +87,10 @@ ListView {
     property int tick: 0
     readonly property int topCategory: {
         const drawn = tick
-        if (drawn < 0 || count === 0 || !model.at(0).isHeader)
+        if (drawn < 0 || count === 0)
             return -1
         const top = indexAt(10, contentY + 1)
-        if (top < 0)
-            return -1
-        const row = model.at(top)
-        return row.isHeader && !row.isSub ? -1 : row.category
+        return top < 0 ? -1 : model.categoryAt(top)
     }
     Rectangle {
         parent: list
@@ -88,7 +104,7 @@ ListView {
         width: list.width - list.barRoom
         height: Theme.control
         color: list.columns ? Theme.win : Theme.panel
-        Rectangle { x: 2; width: 3; height: parent.height; color: Theme.categoryColours[list.topCategory] || Theme.ink3; opacity: 0.6 }
+        Rectangle { x: 2; width: 3; height: parent.height; color: Theme.categoryColours[list.topCategory] || Theme.ink3 }
         Row {
             x: Theme.gapWide + Theme.sized(10) + Theme.gapSmall
             anchors.verticalCenter: parent.verticalCenter
@@ -101,19 +117,6 @@ ListView {
     }
 
     property real kept: 0
-    // Rust lays the model out anew after a change; the list keeps its place over that reset.
-    property real keptOverReset: 0
-    Connections {
-        target: list.model
-        function onModelAboutToBeReset() { list.keptOverReset = list.contentY }
-        function onModelReset() {
-            const at = list.keptOverReset
-            Qt.callLater(() => {
-                list.contentY = at
-                list.returnToBounds()
-            })
-        }
-    }
     Connections {
         target: list.model
         function onRowsInserted() { list.tick++ }

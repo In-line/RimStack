@@ -81,6 +81,11 @@ Item {
         check("a click on a suggestion takes it and reaches nothing under it", Mods.filtered.startsWith("is:") && Mods.selectedId === selected)
         events.keyClick(Qt.Key_Escape, Qt.NoModifier, -1)
         check("Esc empties the filter and closes its suggestions", !filter.suggesting && filter.editing && Mods.filtered === "")
+        events.keyClick(Qt.Key_Exclam, Qt.NoModifier, -1)
+        check("a ! offers the terms that leave mods out", filter.suggesting)
+        events.mouseClick(filter, 40, filter.height + 4 + 6 + 13, Qt.LeftButton, Qt.NoModifier, -1)
+        check("and one taken is a term of its own", Mods.filtered.startsWith("!is:") && filter.typing === "" && filter.terms.length === 1)
+        events.keyClick(Qt.Key_Escape, Qt.NoModifier, -1)
         events.keyClick(Qt.Key_I, Qt.NoModifier, -1)
         away()
         events.keyClick(Qt.Key_Escape, Qt.NoModifier, -1)
@@ -224,6 +229,28 @@ Item {
             checks.drag(checks.inactiveList, 13 + 26 * 2, checks.activeList, row(5))
             checks.check("a mod dragged from the inactive list is activated where it was dropped", Mods.active.count === count + 1 && checks.nameAt(5) === taken)
 
+            const pair = [Mods.inactive.at(0).name, Mods.inactive.at(1).name]
+            Mods.select(Mods.inactive.modIdAt(0), false)
+            Mods.selectAlso(Mods.inactive.modIdAt(1), false)
+            checks.drag(checks.inactiveList, 13, checks.activeList, row(2))
+            checks.check("two selected mods dragged across are both activated where they were dropped", Mods.active.count === count + 3 && checks.nameAt(2) === pair[0] && checks.nameAt(3) === pair[1])
+            checks.check("and stay selected", Mods.selectedCount === 2 && Mods.selectedActive)
+            Mods.select(-1, false)
+
+            const found = Mods.inactive.at(0).name
+            Mods.filtered = "is:inactive"
+            const dimmed = Mods.active.dimmed && Mods.active.rows() === Mods.active.count
+            checks.drag(checks.inactiveList, 13, checks.activeList, row(4))
+            Mods.filtered = ""
+            checks.check("with is:inactive the load order stays, dimmed, and a mod dragged into it lands where it was dropped", dimmed && Mods.active.count === count + 4 && checks.nameAt(4) === found)
+
+            const last = Mods.inactive.at(0).name
+            Mods.filtered = "is:active is:changed"
+            checks.drag(checks.inactiveList, 13, checks.activeList, checks.activeList.height - 13)
+            Mods.filtered = ""
+            checks.activeList.forceLayout()
+            checks.check("a mod dropped on the empty part of the active list is activated at its end", Mods.active.count === count + 5 && checks.nameAt(Mods.active.count - 1) === last)
+
             events.mouseClick(checks.activeList, 120, row(3), Qt.RightButton, Qt.NoModifier, -1)
             checks.check("the right mouse button selects the mod and opens its menu", Mods.info.name === checks.nameAt(3) && checks.screen.menuOpen)
 
@@ -240,6 +267,61 @@ Item {
         onTriggered: {
             const moved = checks.inactiveList.contentY - before
             checks.check("one notch of the wheel scrolls the system's lines, not more", Math.abs(moved - Application.styleHints.wheelScrollLines * 40) < 2)
+            tipRow.start()
+        }
+    }
+    function tipIn(item, text) {
+        for (const child of item.children) {
+            if (child.over !== undefined && child.text === text)
+                return child
+            const found = checks.tipIn(child, text)
+            if (found)
+                return found
+        }
+        return null
+    }
+    Timer {
+        id: tipRow
+        property ModRow row
+        interval: 300
+        onTriggered: {
+            const list = checks.activeList
+            for (let at = 0; at < list.count && !row; at++) {
+                const item = list.itemAtIndex(at) as ModRow
+                if (item && !item.isHeader && item.modIndex >= 0 && !item.current && item.y >= list.contentY)
+                    row = item
+            }
+            events.mouseMove(row, row.width / 2, row.height / 2, -1, Qt.NoButton, Qt.NoModifier)
+            tipButton.start()
+        }
+    }
+    Timer {
+        id: tipButton
+        property Tip tip
+        interval: 300
+        onTriggered: {
+            tip = checks.tipIn(tipRow.row, Theme.say("Deactivate")) as Tip
+            checks.check("the pointer on a mod shows its buttons", tip !== null)
+            if (tip)
+                events.mouseMove(tip, tip.width / 2, tip.height / 2, -1, Qt.NoButton, Qt.NoModifier)
+            tipShown.start()
+        }
+    }
+    Timer {
+        id: tipShown
+        interval: 900
+        onTriggered: {
+            const tip = tipButton.tip
+            checks.check("resting on a button says what it does, below and in a tooltip", tip !== null && Notices.hint === tip.text && Notices.tipShown && Notices.tipped === tip)
+            events.mouseMove(checks.details, checks.details.width / 2, Theme.control, -1, Qt.NoButton, Qt.NoModifier)
+            tipGone.start()
+        }
+    }
+    Timer {
+        id: tipGone
+        interval: 300
+        onTriggered: {
+            checks.check("leaving the mod from its button takes the words and the tooltip away", Notices.hint !== Theme.say("Deactivate") && !Notices.tipShown && Notices.tipped === null)
             comparing.start()
         }
     }

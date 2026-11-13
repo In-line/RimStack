@@ -129,7 +129,7 @@ Rectangle {
                             width: trayMenu.availableWidth
                             spacing: Theme.gap
                             Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.ink; font.pixelSize: Theme.body; text: task.modelData.text }
-                            Btn { visible: !!task.modelData.cancel; text: Theme.say("Cancel"); tip: Theme.say("Stops after the mod it is on; what is done stays done"); onClicked: task.modelData.cancel() }
+                            Btn { visible: !!task.modelData.cancel; text: Theme.say("Cancel"); tip: Theme.say("Stops after the current mod; what is already done is kept"); onClicked: task.modelData.cancel() }
                         }
                     }
                 }

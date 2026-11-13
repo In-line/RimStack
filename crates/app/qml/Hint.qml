@@ -38,7 +38,7 @@ Popup {
             width: parent.width - 2 * Theme.gapLarge
             anchors.bottom: parent.bottom
             anchors.bottomMargin: Theme.gapMedium
-            Text { Layout.fillWidth: true; color: Theme.onSelectedDim; font.pixelSize: Theme.small; text: hint.step + " / 3" }
+            Text { Layout.fillWidth: true; color: Theme.accentInk; font.pixelSize: Theme.small; text: hint.step + " / 3" }
             Btn { text: Theme.say("Skip"); onClicked: Mods.endHints() }
             Btn { text: hint.step < 3 ? Theme.say("Next") : Theme.say("Done"); onClicked: hint.step < 3 ? Mods.hintStep = hint.step + 1 : Mods.endHints() }
         }

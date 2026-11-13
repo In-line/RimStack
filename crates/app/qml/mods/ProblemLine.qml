@@ -49,7 +49,7 @@ GridLayout {
             compact: true
             icon: "eye-off"
             spoken: Theme.say("Ignore this problem")
-            tip: Theme.say("No warning about this problem again; the mod's details can bring it back")
+            tip: Theme.say("No warning about this problem again; the mod's details can turn it back on")
             onClicked: {
                 // The line goes with the problem; the undo keeps its own copy.
                 const [packageId, key] = [line.packageId, line.ignore]

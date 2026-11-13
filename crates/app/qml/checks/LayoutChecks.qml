@@ -9,21 +9,40 @@ Item {
 
     readonly property var sizes: [[1440, 860], []]
     readonly property var scales: [1.6, 1.3, 1, 0.85]
-    readonly property var popups: ["keys", "search", "lists", "history", "tray", "play", "view", "columns", "ask"]
+    readonly property var popups: ["keys", "search", "lists", "history", "tray", "play", "view", "order", "columns", "ask"]
 
     readonly property var scenes: {
         const all = []
-        const add = (size, scale, what, where) => all.push(Object.assign({ size, scale, section: 0, tab: 0, popup: "", label: where + " at " + scale + " in " + (size.length > 0 ? size.join("x") : "the smallest window") }, what))
+        const add = (size, scale, what, where) => all.push(Object.assign({ size, scale, section: Theme.sections.mods, tab: 0, popup: "", label: where + " at " + scale + " in " + (size.length > 0 ? size.join("x") : "the smallest window") }, what))
         for (const size of sizes)
             for (const scale of scales) {
-                for (const section of [0, 1, 2, 3, 4, 5])
-                    add(size, scale, { section }, "section " + section)
+                for (const section of [Theme.sections.mods, Theme.sections.downloads, Theme.sections.textures, Theme.sections.saves, Theme.sections.logs, Theme.sections.settings])
+                    add(size, scale, { section }, "section " + Theme.sections.names[section])
+                add(size, scale, { section: Theme.sections.find }, "find empty")
+                for (const browse of ["with the list", "with the details", "with the filters"])
+                    add(size, scale, { section: Theme.sections.workshop, browse }, "the Browse view " + browse)
                 for (const tab of [1, 2])
-                    add(size, scale, { tab }, "section 0 tab " + tab)
+                    add(size, scale, { tab }, "Mods tab " + tab)
                 for (const popup of popups)
                     add(size, scale, { popup }, "the " + popup + " sheet")
                 for (const first of [0, 1, 2, 3, 4])
                     add(size, scale, { first }, "first run step " + first)
+            }
+        for (const scale of scales)
+            for (const browse of ["with the list", "with the details", "with the filters"])
+                add([2560, 1300], scale, { section: Theme.sections.workshop, browse }, "the Browse view " + browse)
+        for (const size of sizes)
+            for (const scale of scales) {
+                add(size, scale, { section: Theme.sections.find, find: "results" }, "find results")
+                add(size, scale, { section: Theme.sections.find, find: "none" }, "find none")
+                add(size, scale, { section: Theme.sections.find, find: "with the filters" }, "find with the filters")
+                add(size, scale, { section: Theme.sections.settings, part: 3 }, "Settings key part")
+            }
+        for (const size of sizes)
+            for (const scale of scales) {
+                add(size, scale, { section: Theme.sections.settings, part: 3, keyed: true }, "Settings key part with a key")
+                for (const browse of ["with the list", "with the details", "with the filters"])
+                    add(size, scale, { section: Theme.sections.workshop, browse, keyed: true }, "the Browse view in key mode " + browse)
             }
         const only = Hub.argument("--only")
         return all.filter(scene => scene.label.indexOf(only) >= 0)
@@ -31,9 +50,24 @@ Item {
     property int at: 0
     property int settled: 0
     property bool grabbing: false
+    property bool keyed: false
 
     function busy() {
-        return Hub.mods.rescanning || Hub.saves.busy || Hub.logs.busy || Hub.textures.busy
+        return Hub.mods.rescanning || Hub.saves.busy || Hub.logs.busy || Hub.textures.busy || Hub.find.running
+        const key = Hub.settings.steamKey || ({})
+        const waiting = checks.keyed && !(Hub.workshop.keyMode && key.stored)
+        return Hub.mods.rescanning || Hub.saves.busy || Hub.logs.busy || Hub.textures.busy || Hub.workshop.searching || Hub.workshop.detailsBusy || key.checking || waiting || (checks.keyed && !!Hub.workshop.details && Hub.workshop.details.screenshots.length === 0) || (!!Hub.workshop.details && Hub.workshop.details.description.some(part => !!part.note))
+    }
+
+    function settingsOf(item) {
+        for (const child of item.children) {
+            if (child.parts !== undefined && child.finding !== undefined)
+                return child
+            const found = settingsOf(child)
+            if (found)
+                return found
+        }
+        return null
     }
 
     function shownSize() {
@@ -111,12 +145,14 @@ Item {
     function scan(scene) {
         const popup = scene.popup !== "" ? checks.window.openable[scene.popup] : null
         const root = scene.first !== undefined ? checks.welcome(checks.window.contentItem) : popup ? popup.contentItem.parent : checks.window.contentItem
+        Notices.shown = []
         const problems = look(root, root.mapToItem(null, 0, 0, root.width, root.height))
         const wanted = Hub.argument("--picture")
         if (wanted !== "" && scene.label.startsWith(wanted))
             checks.grabbing = (root === checks.window.contentItem ? root.children[0] : root).grabToImage(result => {
                 result.saveToFile(Hub.argument("--picture-to"))
                 checks.grabbing = false
+                checks.advance(scene)
             })
         console.log("check " + (problems.length === 0 ? "ok   " : "FAIL ") + "nothing overlaps or spills in " + scene.label + ", shown at " + shownSize())
         for (const problem of problems.slice(0, 8))
@@ -129,7 +165,28 @@ Item {
         Theme.stored.textScale = scene.scale
         checks.window.width = scene.size[0] || checks.window.smallest.width
         checks.window.height = scene.size[1] || checks.window.smallest.height
+        checks.keyed = scene.keyed === true
+        if (checks.keyed && !Hub.workshop.keyMode)
+            Hub.settings.checkKey("made-up-key")
         checks.window.section = scene.section
+        Mods.findFilters = scene.find === "with the filters"
+        Hub.find.insideText = ""
+        Hub.find.fileTypes = "xml"
+        Hub.find.wrap = scene.find === "with the filters"
+        if (scene.find === "results" || scene.find === "with the filters") {
+            Hub.find.filterResults("")
+            Hub.find.text = "Fixture"
+            Hub.find.search()
+        } else if (scene.find === "none")
+            Hub.find.filterResults("no such text anywhere")
+        Mods.browseFilters = scene.browse === "with the filters"
+        Mods.browseList = scene.browse === "with the list"
+        if (scene.browse === "with the details") {
+            const item = Hub.argument("--select") || "3100000002"
+            Hub.workshop.add(item, true)
+            Hub.workshop.select(item)
+        } else if (scene.browse !== undefined)
+            Hub.workshop.select("")
         Mods.tab = scene.tab
         checks.window.firstRun = scene.first !== undefined
         const popup = scene.popup !== "" ? checks.window.openable[scene.popup] : null
@@ -171,11 +228,21 @@ Item {
         Qt.exit(checks.failed > 0 ? 1 : 0)
     }
 
+    function advance(scene) {
+        leave(scene)
+        at += 1
+        settled = 0
+        if (at < scenes.length)
+            arrange(scenes[at])
+    }
+
     Timer {
         interval: 150
         repeat: true
         running: true
         onTriggered: {
+            if (checks.grabbing)
+                return
             checks.settled += 1
             if (checks.at === checks.scenes.length) {
                 if (!checks.grabbing) {
@@ -187,18 +254,29 @@ Item {
             if (checks.settled < 3 || (checks.busy() && checks.settled < 60))
                 return
             const scene = checks.scenes[checks.at]
+            if ((scene.find === "results" || scene.find === "with the filters") && !Hub.find.preview) {
+                Hub.find.select(2)
+                Hub.find.insideText = "Fixture"
+                if (scene.find === "with the filters")
+                    Hub.find.fileTypes = "xml, a/b/c"
+                checks.settled = 0
+                return
+            }
             const first = scene.first !== undefined ? checks.welcome(checks.window.contentItem) : null
             if (first && first.step !== scene.first) {
                 first.step = scene.first
                 checks.settled = 0
                 return
             }
+            const settings = scene.part !== undefined ? checks.settingsOf(checks.window.contentItem) : null
+            if (settings && settings.part !== scene.part) {
+                settings.part = scene.part
+                checks.settled = 0
+                return
+            }
             checks.scan(scene)
-            checks.leave(scene)
-            checks.at += 1
-            checks.settled = 0
-            if (checks.at < checks.scenes.length)
-                checks.arrange(checks.scenes[checks.at])
+            if (!checks.grabbing)
+                checks.advance(scene)
         }
     }
 }

@@ -20,7 +20,6 @@ Column {
     TextMetrics { id: nameGroup; font: nameContains.font; text: Theme.say("Group") }
     readonly property var clashes: (Mods.info.losesTo || []).map(c => ({ loses: true, clash: c }))
         .concat((Mods.info.winsOver || []).map(c => ({ loses: false, clash: c })))
-    readonly property string linkColour: "<style>a { color: " + Theme.focus + "; }</style>"
     readonly property var problems: Mods.info.problems || []
     component SavedMark: Text {
         opacity: Number(Hub.mods.notesSaved)
@@ -77,13 +76,7 @@ Column {
     Card {
         visible: !!Mods.info.description
         title: Theme.say("Description")
-        CopyText {
-            width: parent.width
-            textFormat: TextEdit.RichText
-            text: side.linkColour + (Mods.info.descriptionRich || "")
-            onLinkActivated: (link) => Qt.openUrlExternally(link)
-            HoverHandler { enabled: parent.hoveredLink !== ""; cursorShape: Qt.PointingHandCursor }
-        }
+        DescriptionView { width: parent.width; parts: [({ html: Mods.info.descriptionRich || "", image: "" })] }
     }
 
     // The game keeps the texture of the mod that loads last.
@@ -113,7 +106,7 @@ Column {
                 Row {
                     spacing: Theme.gapSmall
                     Btn { text: Theme.say("Compare"); tip: Theme.say("Both mods' versions of each shared texture, side by side"); onClicked: Mods.compareWith(clash.other.modId) }
-                    Btn { visible: clash.loses; enabled: !Hub.mods.previewing; text: Theme.say("Win all"); tip: Theme.say("Adds an own rule: this mod loads after the other."); onClicked: Mods.winAll(clash.other.modId) }
+                    Btn { visible: clash.loses; enabled: !Hub.mods.previewing; text: Theme.say("Win all"); tip: Theme.say("Adds a rule of your own: this mod loads after the other."); onClicked: Mods.winAll(clash.other.modId) }
                 }
             }
         }
@@ -185,7 +178,7 @@ Column {
             Btn {
                 id: fileUnder
                 text: Theme.say("Change")
-                tip: Theme.say("RimStack files a mod by where it stands, what its folders hold and what its code is about. A category chosen here stands over that.")
+                tip: Theme.say("RimStack picks a mod's category from how other mods relate to it, what its folders hold and what its code does. A category chosen here is used instead.")
                 onClicked: Mods.menuRequested(fileUnder, 0, fileUnder.height + 2, Mods.categoryChoices(Mods.selectedId))
             }
         }

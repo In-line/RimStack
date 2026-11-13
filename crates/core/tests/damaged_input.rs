@@ -1,4 +1,4 @@
-use rimstack_core::mods::list::{Category, GroupedList, Mod};
+use rimstack_core::mods::list::{Category, GroupedList, Mod, offers};
 use rimstack_core::mods::rules::{Kind, Rule};
 use rimstack_core::{
     base::markup, base::vdf, kept::notes, kept::owntheme, mods::community, mods::ddsaudit,
@@ -102,6 +102,8 @@ const PIECES: &[&str] = &[
     "<v1.6>",
     "IfModActive",
     "tag:",
+    "!tag:",
+    "!",
     "is:",
     "author:",
     "patches:",
@@ -149,6 +151,10 @@ fn a_mod(name: &str, category: Category) -> Mod {
         patched: std::sync::Arc::from(Vec::<String>::new()),
         sub: String::new(),
         load_micros: None,
+        updated: None,
+        size: None,
+        downloaded: None,
+        activated: None,
         filed: category,
         chosen: false,
         held_by: String::new(),
@@ -203,6 +209,14 @@ fn the_filter_box_takes_any_text() {
         list.set_filter(made);
         let _ = list.matching();
         let _ = list.rows().len();
+        let typed = made.rsplit(' ').next().unwrap_or_default();
+        let tags = [made.split(',').map(String::from).collect::<Vec<_>>()];
+        let _ = offers::offers(
+            typed,
+            made,
+            &offers::Counted::default(),
+            tags.iter().map(Vec::as_slice),
+        );
     });
     assert!(failed.is_empty(), "panicked on {:?}", failed.first());
 }

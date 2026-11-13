@@ -12,18 +12,17 @@ Rectangle {
     property var inTheWay: []
     readonly property alias listsMenu: listsMenu
     readonly property alias beforePlay: beforePlay
-    readonly property var sections: ["Mods", "Downloads", "Textures", "Saves", "Logs", "Settings"]
     signal go(int section)
     signal search()
     signal pressPlay()
     signal play()
     signal useList(var ids)
     function pickSection(from) {
-        Mods.menuRequested(from, 0, from.height + 4, sections.map((name, at) => ({ text: Theme.say(name), off: at === section, run: () => go(at) })))
+        Mods.menuRequested(from, 0, from.height + 4, Theme.sections.names.map((name, at) => ({ text: Theme.say(name), off: at === section, run: () => go(at) })))
     }
     function step(by) {
         const at = section + by
-        if (at >= 0 && at < sections.length)
+        if (at >= 0 && at < Theme.sections.names.length)
             go(at)
     }
     readonly property bool tight: width < Theme.sized(960)
@@ -82,7 +81,7 @@ Rectangle {
             ListsMenu {
                 id: listsMenu
                 y: listsButton.height + 6
-                onUseList: ids => bar.useList(ids)
+                Component.onCompleted: useList.connect(bar.useList)
                 onNamed: name => Mods.prefs.listName = name
             }
         }
@@ -96,7 +95,7 @@ Rectangle {
         height: nav.height + 4
         radius: Theme.cornerLarge
         color: Theme.seg
-        border.width: 1
+        border.width: Theme.outline
         border.color: Theme.fieldLine
         activeFocusOnTab: true
         Accessible.role: Accessible.PageTabList
@@ -116,7 +115,10 @@ Rectangle {
             width: thumb.at ? thumb.at.width : 0
             height: Theme.strip
             radius: Theme.corner
-            color: Theme.accent
+            color: Theme.ctlHi
+            border.width: 1
+            border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.7)
+            Halo { tone: Theme.accent }
             Behavior on x { enabled: thumb.settled; NumberAnimation { duration: Theme.calm; easing.type: Easing.OutCubic } }
             Behavior on width { enabled: thumb.settled; NumberAnimation { duration: Theme.calm; easing.type: Easing.OutCubic } }
         }
@@ -126,13 +128,13 @@ Rectangle {
             spacing: Theme.gapLine
             Repeater {
                 id: tabs
-                model: bar.sections
+                model: Theme.sections.names
                 Rectangle {
                     id: tab
                     required property string modelData
                     required property int index
                     readonly property bool on: index === bar.section
-                    readonly property int badge: index === 1 ? bar.behind : 0
+                    readonly property int badge: index === Theme.sections.downloads ? bar.behind : 0
                     readonly property real inset: bar.tight ? Theme.gap : Theme.gapCard
                     readonly property real natural: tabLabel.implicitWidth + 2 * inset + (badge > 0 ? tabBadge.width + Theme.gapSmall : 0)
                     visible: on || !bar.folded
@@ -145,8 +147,8 @@ Rectangle {
                     Accessible.selected: on
                     Tip {
                         text: Theme.fill("{} · Ctrl + {}", Theme.say(tab.modelData), tab.index + 1) + "\n" + [Theme.say("The load order and every installed mod"), Theme.say("Workshop updates, looked-up mods and Git checkouts"),
-                               Theme.say("Faster-loading DDS textures and the files the game would refuse"), Theme.say("Saves and how their mods differ from the load order"),
-                               Theme.say("The game's log: errors and the mods they point at"), Theme.say("Folders, appearance, sorting and upkeep")][tab.index]
+                               Theme.say("Faster-loading DDS textures and the files the game would refuse"), Theme.say("Browse the Workshop's mods and subscribe in Steam"), Theme.say("Saves and how their mods differ from the load order"),
+                               Theme.say("The game's log: errors and the mods they point at"), Theme.say("Words and patterns in the files of the mods"), Theme.say("Folders, appearance, sorting and upkeep")][tab.index]
                     }
                     Rectangle {
                         id: tabBadge
@@ -157,14 +159,14 @@ Rectangle {
                         width: Math.max(Theme.tag, tabBadgeText.implicitWidth + 2 * Theme.gapSmall)
                         height: Theme.sized(16)
                         radius: height / 2
-                        color: tab.on ? Theme.accentInk : Theme.accent
-                        Text { id: tabBadgeText; anchors.centerIn: parent; color: tab.on ? Theme.accent : Theme.onSelected; font.pixelSize: Theme.caption; font.weight: Font.DemiBold; text: tab.badge }
+                        color: Theme.accent
+                        Text { id: tabBadgeText; anchors.centerIn: parent; color: Theme.accentInk; font.pixelSize: Theme.caption; font.weight: Font.DemiBold; text: tab.badge }
                     }
                     Text {
                         id: tabLabel
                         x: tab.inset
                         anchors.verticalCenter: parent.verticalCenter
-                        color: tab.on ? Theme.accentInk : Theme.ink2
+                        color: tab.on ? Theme.ink : Theme.ink2
                         font.pixelSize: Theme.body
                         font.weight: tab.on ? Font.DemiBold : Font.Medium
                         text: Theme.say(tab.modelData)

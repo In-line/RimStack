@@ -10,6 +10,9 @@ Rectangle {
     property string found
     property string icon
     property string keys
+    property bool wanted: false
+    property bool holdEscape: false
+    property int echo: TextInput.Normal
     readonly property real lead: icon !== "" ? Theme.icon + Theme.gap : 0
     readonly property real inset: clear.visible ? clear.width + 2 * Theme.gap : Theme.gapMedium
     property var terms: []
@@ -36,7 +39,7 @@ Rectangle {
     readonly property bool editing: fieldInput.activeFocus
 
     function isTerm(word) {
-        return /^(is|has|tag|author|patches):.+$/.test(word)
+        return /^!?(is|has|in|tag|author|patches):.+$/.test(word)
     }
     function compose() {
         syncing = true
@@ -64,6 +67,7 @@ Rectangle {
     border.width: 1
     border.color: fieldInput.activeFocus ? Theme.focus : Theme.fieldLine
     Behavior on border.color { ColorAnimation { duration: Theme.quick } }
+    Halo { tone: Theme.focus; visible: fieldInput.activeFocus }
     Row {
         id: shown
         x: Theme.gapSmall + field.lead
@@ -107,12 +111,14 @@ Rectangle {
     TextInput {
         id: fieldInput
         activeFocusOnTab: true
+        focus: field.wanted
         Accessible.role: Accessible.EditableText
         Accessible.name: field.placeholder
         anchors.fill: parent
         anchors.leftMargin: field.lead + (field.terms.length > 0 ? shown.width + Theme.gapLarge : Theme.gapMedium)
         anchors.rightMargin: foundText.visible ? field.width - foundText.x + Theme.gap : field.inset
         verticalAlignment: TextInput.AlignVCenter
+        echoMode: field.echo
         color: Theme.ink
         selectionColor: Theme.accent
         font.pixelSize: Theme.body
@@ -131,7 +137,7 @@ Rectangle {
             field.compose()
         }
         Keys.onEscapePressed: {
-            field.text = ""
+            field.text = field.holdEscape && field.text || ""
             field.escaped()
         }
         TapHandler { onTapped: field.tapped() }

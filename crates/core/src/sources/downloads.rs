@@ -282,6 +282,15 @@ mod tests {
             title: "Zebra".to_string(),
             updated: 9,
             size: 3_145_728,
+            preview_url: String::new(),
+            description: String::new(),
+            subscriptions: 0,
+            favorited: 0,
+            banned: false,
+            creator: String::new(),
+            app_id: 0,
+            collection: false,
+            ..Default::default()
         };
         let ids = ["777".to_string(), "200".to_string()];
         let lines = asked(&ids, &[details], &|id| id == "200");

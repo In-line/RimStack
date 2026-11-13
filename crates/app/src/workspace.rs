@@ -1,31 +1,41 @@
 use rimstack_core::base::derived::Derived;
 use rimstack_core::base::locks::{Held, Shared};
 use rimstack_core::base::reread::Reread;
+use rimstack_core::sources::browse::{Transport, Web};
 use rimstack_core::{
     kept::notes::Notes, kept::settings::Settings, mods::community, mods::library,
     mods::session::Session, mods::userrules::UserRules, rimworld::paths,
 };
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, RwLock, RwLockReadGuard};
 use std::time::{Duration, Instant};
 
+pub mod browse;
 pub mod changed;
+pub mod download_list;
 pub mod downloads;
 pub mod fetch;
+pub mod find;
 mod game;
 mod install;
+mod key;
 pub mod lists;
 pub mod load_order;
 pub mod logs;
+mod mod_facts;
 mod notes;
 mod records;
 pub mod saves;
 pub mod search;
+pub mod secret;
 mod settings;
+pub mod sweep;
 pub mod textures;
 mod upkeep;
+mod window;
+pub use key::KeyState;
 pub use settings::{judge_folder, newest_release, short_contrast};
 
 pub static STARTED: OnceLock<Instant> = OnceLock::new();
@@ -77,16 +87,32 @@ pub struct App {
     works_on: Derived<Written, HashSet<String>>,
     replacements: Derived<Written, Replacements>,
     workshop_names: Derived<Written, rimstack_core::rimworld::workshopdb::Names>,
+    workshop_index: Derived<(Written, Written), rimstack_core::rimworld::workshopindex::Index>,
+    sweeper: sweep::Sweeper,
+    browse_open: AtomicBool,
+    fixture: bool,
+    vault: Arc<dyn secret::Vault>,
+    transport: Arc<dyn Transport>,
+    watch: Arc<key::Watch>,
+    keyed: Mutex<key::Chosen>,
+    fixture_source: OnceLock<Arc<rimstack_core::sources::browse::Fixture>>,
+    previews_trimmed: std::sync::Once,
+    browse_details: Mutex<rimstack_core::sources::browse::Memory>,
+    download_list: OnceLock<Mutex<rimstack_core::kept::download_list::DownloadList>>,
     texture_manifest: Derived<Written, rimstack_core::mods::textures::Manifest>,
     steamcmd: Reread<Option<PathBuf>>,
     conflicts: RwLock<Option<Conflicts>>,
     /// Changes only while `conflicts` is held for writing.
     conflicts_generation: AtomicU64,
+    facts: RwLock<mod_facts::Read>,
+    facts_runs: AtomicU64,
+    facts_counted: std::sync::atomic::AtomicUsize,
     behind: RwLock<Option<HashSet<String>>>,
     list_on_disk: Mutex<(u64, bool)>,
     /// Read once: git installed later is not seen.
     git: OnceLock<Option<String>>,
     log_read: Mutex<Option<rimstack_core::kept::launches::LogRead>>,
+    find: find::Find,
     bus: crate::changes::Bus,
 }
 
@@ -95,8 +121,17 @@ impl App {
         let env = &paths::from_environment;
         let home = paths::home(env);
         let (settings, data) = paths::app_dirs(paths::Os::running(), &home, env);
-        Self::new(home, &settings, &data, paths::Overrides::from_env())
+        let made_up = std::env::var("RIMSTACK_FIXTURE").is_ok_and(|v| !v.is_empty() && v != "0")
+            || std::env::args().any(|a| a == "--check=screens");
+        let checking = std::env::args()
+            .any(|a| a.starts_with("--check") || a.starts_with("--shot") || a == "--demo");
+        let app = Self::new(home, &settings, &data, paths::Overrides::from_env())
             .speaking(sys_locale::get_locales().collect())
+            .browsing_fixture(made_up);
+        match checking {
+            true => app,
+            false => app.with_vault(secret::system()),
+        }
     }
 
     pub fn speaking(self, system_languages: Vec<String>) -> Self {
@@ -113,6 +148,7 @@ impl App {
         given: paths::Overrides,
     ) -> Self {
         let settings_dir = settings_root.join("RimStack");
+        let web: Arc<dyn Transport> = Arc::new(Web::default());
         Self {
             settings: RwLock::new(Settings::read(&settings_dir.join("settings.json"))),
             home,
@@ -130,14 +166,30 @@ impl App {
             works_on: Derived::default(),
             replacements: Derived::default(),
             workshop_names: Derived::default(),
+            workshop_index: Derived::default(),
+            sweeper: sweep::Sweeper::default(),
+            browse_open: AtomicBool::new(false),
+            fixture: false,
+            vault: Arc::new(secret::Memory::default()),
+            transport: web.clone(),
+            watch: Arc::new(key::Watch::new(web)),
+            keyed: Mutex::default(),
+            fixture_source: OnceLock::new(),
+            previews_trimmed: std::sync::Once::new(),
+            browse_details: Mutex::new(Default::default()),
+            download_list: OnceLock::new(),
             texture_manifest: Derived::default(),
             steamcmd: Reread::new(),
             conflicts: RwLock::new(None),
             conflicts_generation: AtomicU64::new(0),
+            facts: RwLock::default(),
+            facts_runs: AtomicU64::new(0),
+            facts_counted: Default::default(),
             behind: RwLock::new(None),
             list_on_disk: Mutex::new((0, false)),
             git: OnceLock::new(),
             log_read: Mutex::new(None),
+            find: find::Find::default(),
             bus: crate::changes::Bus::default(),
         }
     }
@@ -166,6 +218,10 @@ impl App {
 
     pub fn texture_manifest_file(&self) -> PathBuf {
         self.data_dir.join("textures.json")
+    }
+
+    pub fn activated_file(&self) -> PathBuf {
+        self.data_dir.join("activated.json")
     }
 
     pub fn launches_file(&self) -> PathBuf {
@@ -254,6 +310,18 @@ impl App {
     pub fn user_rules(&self) -> &RwLock<UserRules> {
         self.user_rules
             .get_or_init(|| RwLock::new(UserRules::read(&self.user_rules_file())))
+    }
+
+    fn facts(&self) -> &RwLock<mod_facts::Read> {
+        &self.facts
+    }
+
+    fn facts_runs(&self) -> &AtomicU64 {
+        &self.facts_runs
+    }
+
+    fn facts_counted(&self) -> &std::sync::atomic::AtomicUsize {
+        &self.facts_counted
     }
 
     pub fn conflicts(&self) -> &RwLock<Option<Conflicts>> {

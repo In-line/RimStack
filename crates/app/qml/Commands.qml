@@ -77,7 +77,7 @@ Popup {
                 readonly property bool current: index === popup.chosen
                 width: list.width
                 height: Theme.sized(30)
-                Rectangle { anchors.fill: parent; radius: Theme.corner; color: row.current ? Theme.accent : Theme.hover; opacity: row.current ? 1 : rowHover.hovered ? 0.05 : 0 }
+                Rectangle { anchors.fill: parent; radius: Theme.corner; color: row.current ? Theme.chosen : Theme.hover; opacity: row.current ? 1 : rowHover.hovered ? 0.05 : 0 }
                 HoverHandler { id: rowHover }
                 TapHandler { onTapped: { popup.chosen = row.index; popup.runChosen() } }
                 RowLayout {
