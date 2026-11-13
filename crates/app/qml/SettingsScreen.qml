@@ -226,7 +226,6 @@ Item {
                 Folder { title: Theme.say("Workshop mods"); name: "workshop"; inUse: screen.info.workshop || ""; setByHand: screen.info.setWorkshop || "" }
 
                 GroupTitle { visible: screen.finding === ""; text: Theme.say("Play") }
-                // A Flatpak starts the game through Steam, so Directly is not offered.
                 Line {
                     visible: screen.info.sandboxed
                     title: Theme.say("Play starts the game")
